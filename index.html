@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peek Shooter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 100;
+        }
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #crosshair .dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #ff4444;
+            border-radius: 50%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .stance-indicator {
+            margin-bottom: 10px;
+        }
+        .stance-bar {
+            width: 150px;
+            height: 12px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .stance-fill {
+            height: 100%;
+            transition: width 0.1s;
+            border-radius: 6px;
+        }
+        #crouch-fill {
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+        }
+        #lean-fill {
+            background: linear-gradient(90deg, #2196F3, #03A9F4);
+            width: 50%;
+            margin-left: 50%;
+        }
+        #controls-hint {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+            z-index: 100;
+            line-height: 1.6;
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 24px;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #weapon-hand {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .hit-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 101;
+            opacity: 0;
+        }
+        .hit-marker.show {
+            animation: hitMarker 0.2s ease-out;
+        }
+        @keyframes hitMarker {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        }
+        #muzzle-flash {
+            position: absolute;
+            bottom: 150px;
+            right: 200px;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(255,200,50,0.9) 0%, rgba(255,100,0,0.5) 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 99;
+        }
+        #muzzle-flash.show {
+            animation: muzzleFlash 0.05s ease-out;
+        }
+        @keyframes muzzleFlash {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.5); }
+        }
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            color: white;
+        }
+        #start-screen h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+        }
+        #start-screen p {
+            margin-bottom: 30px;
+            opacity: 0.7;
+        }
+        #start-screen button {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        #start-screen button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="start-screen">
+            <h1>Peek Shooter</h1>
+            <p>Lean and crouch to peek around cover and hit targets</p>
+            <p style="font-size: 12px; opacity: 0.6;">Click in-game to lock mouse for aiming</p>
+            <button onclick="startGame()">Click to Start</button>
+        </div>
+        <div id="crosshair"><div class="dot"></div></div>
+        <div id="hud">
+            <div class="stance-indicator">
+                <span>Crouch</span>
+                <div class="stance-bar">
+                    <div id="crouch-fill" class="stance-fill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="stance-indicator">
+                <span>Lean</span>
+                <div class="stance-bar">
+                    <div id="lean-fill" class="stance-fill"></div>
+                </div>
+            </div>
+        </div>
+        <div id="controls-hint">
+            <strong>Controls:</strong><br>
+            W/S - Stand / Crouch<br>
+            A/D - Move Left / Right<br>
+            Q/E - Lean Left / Right<br>
+            R - Reset Stance<br>
+            Mouse - Aim<br>
+            Left Click - Shoot<br>
+            Tab - Switch Hands<br>
+            ESC - Unlock Mouse
+        </div>
+        <div id="score">Score: <span id="score-value">0</span></div>
+        <div id="weapon-hand">Hand: <span id="hand-value">RIGHT</span></div>
+        <svg id="hit-marker" class="hit-marker" width="30" height="30" viewBox="0 0 30 30">
+            <line x1="5" y1="5" x2="12" y2="12" stroke="white" stroke-width="3"/>
+            <line x1="25" y1="5" x2="18" y2="12" stroke="white" stroke-width="3"/>
+            <line x1="5" y1="25" x2="12" y2="18" stroke="white" stroke-width="3"/>
+            <line x1="25" y1="25" x2="18" y2="18" stroke="white" stroke-width="3"/>
+        </svg>
+        <div id="muzzle-flash"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

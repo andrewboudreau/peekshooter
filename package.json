@@ -1,0 +1,13 @@
+{
+  "name": "peekshooter",
+  "version": "0.1.0",
+  "description": "Lean and crouch 3D shooter game",
+  "scripts": {
+    "start": "npx serve .",
+    "screenshot": "node screenshot.js"
+  },
+  "devDependencies": {
+    "puppeteer": "^21.0.0",
+    "serve": "^14.0.0"
+  }
+}
