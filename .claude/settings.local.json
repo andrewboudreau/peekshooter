@@ -4,7 +4,11 @@
       "Bash(git init:*)",
       "Bash(where:*)",
       "Bash(git add:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(git commit:*)",
+      "Bash(winget install:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" repo create peekshooter --public --source=. --remote=origin --push --description \"Lean and crouch 3D shooter with analog stance controls\")",
+      "Bash(npm install)"
     ]
   }
 }

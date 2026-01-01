@@ -125,6 +125,276 @@ const recoilState = {
     noise: new NoiseGenerator(Date.now()),
 };
 
+// ============================================
+// MULTIPLAYER STATE
+// ============================================
+const netState = {
+    socket: null,
+    connected: false,
+    roomId: null,
+    playerId: null,
+    playerSlot: -1,  // 0 or 1
+    opponent: null,
+    gameMode: 'offline', // 'offline' or 'online'
+    status: 'disconnected', // disconnected, connecting, waiting, playing
+    scores: [0, 0],
+    health: 100,
+};
+
+// Opponent player representation
+class OpponentPlayer {
+    constructor(slot) {
+        this.slot = slot;
+        this.mesh = null;
+        this.weaponMesh = null;
+        this.state = {
+            crouch: 0,
+            lean: 0,
+            strafe: 0,
+            lookYaw: 0,
+            lookPitch: 0,
+            weaponHand: 'right',
+            health: 100,
+        };
+        // Interpolation targets
+        this.targetState = { ...this.state };
+        this.lastUpdate = Date.now();
+    }
+
+    // Interpolate toward target state for smooth movement
+    update(deltaTime) {
+        const lerpSpeed = 15; // How fast to interpolate
+        const t = Math.min(1, lerpSpeed * deltaTime);
+
+        this.state.crouch += (this.targetState.crouch - this.state.crouch) * t;
+        this.state.lean += (this.targetState.lean - this.state.lean) * t;
+        this.state.strafe += (this.targetState.strafe - this.state.strafe) * t;
+        this.state.lookYaw += (this.targetState.lookYaw - this.state.lookYaw) * t;
+        this.state.lookPitch += (this.targetState.lookPitch - this.state.lookPitch) * t;
+    }
+
+    updateFromNetwork(newState) {
+        this.targetState = { ...this.targetState, ...newState };
+        this.lastUpdate = Date.now();
+    }
+}
+
+// Network functions
+function connectToServer() {
+    if (netState.socket) return;
+
+    netState.status = 'connecting';
+    updateNetworkUI();
+
+    // Socket.io is loaded from CDN in HTML
+    netState.socket = io();
+
+    netState.socket.on('connect', () => {
+        console.log('Connected to server');
+        netState.connected = true;
+        netState.playerId = netState.socket.id;
+        netState.socket.emit('join', {});
+    });
+
+    netState.socket.on('joined', (data) => {
+        console.log('Joined room:', data);
+        netState.roomId = data.roomId;
+        netState.playerSlot = data.slot;
+        netState.status = 'waiting';
+        updateNetworkUI();
+    });
+
+    netState.socket.on('waiting', (data) => {
+        netState.status = 'waiting';
+        updateNetworkUI();
+    });
+
+    netState.socket.on('gameStart', (data) => {
+        console.log('Game starting:', data);
+        netState.status = 'playing';
+        netState.gameMode = 'online';
+
+        // Create opponent
+        const opponentSlot = netState.playerSlot === 0 ? 1 : 0;
+        netState.opponent = new OpponentPlayer(opponentSlot);
+        createOpponentMesh(netState.opponent);
+
+        updateNetworkUI();
+        hideTargets(); // Hide practice targets in multiplayer
+    });
+
+    netState.socket.on('opponentState', (data) => {
+        if (netState.opponent) {
+            netState.opponent.updateFromNetwork(data.state);
+        }
+    });
+
+    netState.socket.on('opponentShoot', (data) => {
+        if (netState.opponent) {
+            // Visual feedback for opponent shooting
+            showOpponentMuzzleFlash(netState.opponent);
+        }
+    });
+
+    netState.socket.on('playerHit', (data) => {
+        if (data.targetId === netState.playerId) {
+            // We got hit
+            netState.health = data.health;
+            showDamageEffect();
+            updateHealthUI();
+        } else if (netState.opponent) {
+            // We hit opponent
+            netState.opponent.state.health = data.health;
+            showHitMarker();
+        }
+    });
+
+    netState.socket.on('playerKilled', (data) => {
+        netState.scores = data.scores;
+        updateScoreUI();
+
+        if (data.targetId === netState.playerId) {
+            showDeathScreen();
+        } else {
+            showKillNotification();
+        }
+    });
+
+    netState.socket.on('roundReset', (data) => {
+        netState.scores = data.scores;
+        netState.health = 100;
+        if (netState.opponent) {
+            netState.opponent.state.health = 100;
+        }
+        updateHealthUI();
+        updateScoreUI();
+        hideDeathScreen();
+    });
+
+    netState.socket.on('opponentLeft', (data) => {
+        console.log('Opponent left');
+        netState.status = 'waiting';
+        if (netState.opponent && netState.opponent.mesh) {
+            scene.remove(netState.opponent.mesh);
+        }
+        netState.opponent = null;
+        updateNetworkUI();
+        showTargets(); // Show practice targets again
+    });
+
+    netState.socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+        netState.connected = false;
+        netState.status = 'disconnected';
+        netState.gameMode = 'offline';
+        updateNetworkUI();
+    });
+}
+
+function sendStateUpdate() {
+    if (!netState.socket || !netState.connected || netState.status !== 'playing') return;
+
+    netState.socket.emit('state', {
+        crouch: gameState.crouch,
+        lean: gameState.lean,
+        strafe: gameState.strafe,
+        lookYaw: gameState.lookYaw,
+        lookPitch: gameState.lookPitch,
+        weaponHand: gameState.weaponHand,
+    });
+}
+
+function sendShoot() {
+    if (!netState.socket || !netState.connected || netState.status !== 'playing') return;
+    netState.socket.emit('shoot', {});
+}
+
+function sendHit(damage) {
+    if (!netState.socket || !netState.connected || netState.status !== 'playing') return;
+    netState.socket.emit('hit', { damage });
+}
+
+// UI update functions for multiplayer
+function updateNetworkUI() {
+    const statusEl = document.getElementById('network-status');
+    if (statusEl) {
+        const statusText = {
+            'disconnected': 'Offline',
+            'connecting': 'Connecting...',
+            'waiting': 'Waiting for opponent...',
+            'playing': 'In Game',
+        };
+        statusEl.textContent = statusText[netState.status] || netState.status;
+        statusEl.className = `status-${netState.status}`;
+    }
+}
+
+function updateHealthUI() {
+    const healthEl = document.getElementById('health-value');
+    if (healthEl) {
+        healthEl.textContent = netState.health;
+    }
+    const healthBar = document.getElementById('health-fill');
+    if (healthBar) {
+        healthBar.style.width = `${netState.health}%`;
+    }
+}
+
+function updateScoreUI() {
+    const scoreEl = document.getElementById('score-value');
+    if (scoreEl && netState.gameMode === 'online') {
+        scoreEl.textContent = `${netState.scores[netState.playerSlot]} - ${netState.scores[netState.playerSlot === 0 ? 1 : 0]}`;
+    }
+}
+
+function showDamageEffect() {
+    const overlay = document.getElementById('damage-overlay');
+    if (overlay) {
+        overlay.classList.add('show');
+        setTimeout(() => overlay.classList.remove('show'), 200);
+    }
+}
+
+function showHitMarker() {
+    const hitMarker = document.getElementById('hit-marker');
+    if (hitMarker) {
+        hitMarker.classList.remove('show');
+        void hitMarker.offsetWidth;
+        hitMarker.classList.add('show');
+    }
+}
+
+function showDeathScreen() {
+    const deathScreen = document.getElementById('death-screen');
+    if (deathScreen) {
+        deathScreen.style.display = 'flex';
+    }
+}
+
+function hideDeathScreen() {
+    const deathScreen = document.getElementById('death-screen');
+    if (deathScreen) {
+        deathScreen.style.display = 'none';
+    }
+}
+
+function showKillNotification() {
+    // Could add a kill notification UI element
+    console.log('You eliminated the opponent!');
+}
+
+function hideTargets() {
+    targets.forEach(t => {
+        if (t.mesh) t.mesh.visible = false;
+    });
+}
+
+function showTargets() {
+    targets.forEach(t => {
+        if (t.mesh) t.mesh.visible = true;
+    });
+}
+
 // Game state
 const gameState = {
     isRunning: false,
@@ -223,6 +493,114 @@ function init() {
 
     // Start render loop
     animate();
+
+    // Auto-connect to server if online
+    // (can be triggered by UI button instead)
+}
+
+// Create opponent player mesh
+function createOpponentMesh(opponent) {
+    const group = new THREE.Group();
+
+    // Body (simple capsule-like shape)
+    const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.3, 1.2, 8);
+    const bodyMaterial = new THREE.MeshStandardMaterial({
+        color: opponent.slot === 0 ? 0x4444aa : 0xaa4444,
+        roughness: 0.7,
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 0.6;
+    group.add(body);
+
+    // Head
+    const headGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+    const headMaterial = new THREE.MeshStandardMaterial({
+        color: 0xddccbb,
+        roughness: 0.8,
+    });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 1.4;
+    group.add(head);
+
+    // Simple weapon
+    const weaponGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.4);
+    const weaponMaterial = new THREE.MeshStandardMaterial({
+        color: 0x222222,
+        metalness: 0.8,
+    });
+    const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+    weapon.position.set(0.3, 0.9, -0.2);
+    group.add(weapon);
+    opponent.weaponMesh = weapon;
+
+    // Hitbox (invisible, for raycasting)
+    const hitboxGeometry = new THREE.BoxGeometry(0.6, 1.6, 0.4);
+    const hitboxMaterial = new THREE.MeshBasicMaterial({
+        visible: false,
+    });
+    const hitbox = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
+    hitbox.position.y = 0.8;
+    hitbox.userData.isOpponent = true;
+    hitbox.userData.opponent = opponent;
+    group.add(hitbox);
+
+    // Position opponent on opposite side of arena
+    group.position.z = -15; // Downrange
+    opponent.mesh = group;
+    scene.add(group);
+}
+
+// Update opponent mesh based on their state
+function updateOpponentMesh(opponent, deltaTime) {
+    if (!opponent || !opponent.mesh) return;
+
+    opponent.update(deltaTime);
+
+    const state = opponent.state;
+    const mesh = opponent.mesh;
+
+    // Base height with crouch
+    const baseY = 1.6 - (state.crouch * 0.8);
+
+    // Position with strafe and lean
+    const strafeX = state.strafe * 2.0;
+    const leanX = state.lean * 0.6;
+
+    mesh.position.x = strafeX + leanX;
+    mesh.position.y = baseY - 1.6; // Adjust for mesh origin
+
+    // Rotation based on look direction
+    mesh.rotation.y = Math.PI + state.lookYaw; // Face toward player
+
+    // Lean tilt
+    mesh.rotation.z = state.lean * 0.15;
+
+    // Update weapon hand position
+    if (opponent.weaponMesh) {
+        const handOffset = state.weaponHand === 'right' ? 0.3 : -0.3;
+        opponent.weaponMesh.position.x = handOffset;
+    }
+}
+
+function showOpponentMuzzleFlash(opponent) {
+    if (!opponent || !opponent.weaponMesh) return;
+
+    // Create temporary flash
+    const flashGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const flashMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 1,
+    });
+    const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+    flash.position.copy(opponent.weaponMesh.position);
+    flash.position.z -= 0.3;
+    opponent.mesh.add(flash);
+
+    // Remove after short delay
+    setTimeout(() => {
+        opponent.mesh.remove(flash);
+    }, 50);
 }
 
 function createEnvironment() {
@@ -606,16 +984,31 @@ function shoot() {
     // Apply recoil
     applyRecoil();
 
+    // Send shoot event to server
+    sendShoot();
+
     // Raycast from camera center
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
 
-    // Check hits on targets
+    // Check hits on opponent (multiplayer)
+    if (netState.gameMode === 'online' && netState.opponent && netState.opponent.mesh) {
+        const intersects = raycaster.intersectObject(netState.opponent.mesh, true);
+        if (intersects.length > 0) {
+            // Hit opponent!
+            const damage = 25; // Base damage per hit
+            sendHit(damage);
+            showHitMarker();
+            return; // Don't check practice targets
+        }
+    }
+
+    // Check hits on practice targets (offline mode)
     let hitTarget = null;
     let closestDistance = Infinity;
 
     targets.forEach(target => {
-        if (target.hit) return;
+        if (target.hit || !target.mesh.visible) return;
 
         const intersects = raycaster.intersectObject(target.mesh, true);
         if (intersects.length > 0 && intersects[0].distance < closestDistance) {
@@ -779,6 +1172,10 @@ function updateWeapon(deltaTime) {
 
 let lastTime = Date.now();
 
+// State sync throttle
+let lastStateSend = 0;
+const STATE_SEND_RATE = 1000 / 60; // 60 times per second
+
 function animate() {
     requestAnimationFrame(animate);
 
@@ -791,14 +1188,37 @@ function animate() {
         updateRecoil(deltaTime);
         updateCamera();
         updateWeapon(deltaTime);
+
+        // Update opponent in multiplayer
+        if (netState.opponent) {
+            updateOpponentMesh(netState.opponent, deltaTime);
+        }
+
+        // Send state updates to server (throttled)
+        if (netState.status === 'playing' && now - lastStateSend > STATE_SEND_RATE) {
+            sendStateUpdate();
+            lastStateSend = now;
+        }
     }
 
     renderer.render(scene, camera);
 }
 
-function startGame() {
+function startGame(mode = 'offline') {
     document.getElementById('start-screen').style.display = 'none';
     gameState.isRunning = true;
+
+    if (mode === 'online') {
+        connectToServer();
+    }
+}
+
+function startOnlineGame() {
+    startGame('online');
+}
+
+function startOfflineGame() {
+    startGame('offline');
 }
 
 // Initialize on load

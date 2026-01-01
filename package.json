@@ -3,8 +3,13 @@
   "version": "0.1.0",
   "description": "Lean and crouch 3D shooter game",
   "scripts": {
-    "start": "npx serve .",
+    "start": "node server.js",
+    "dev": "npx serve .",
     "screenshot": "node screenshot.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   },
   "devDependencies": {
     "puppeteer": "^21.0.0",

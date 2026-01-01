@@ -69,7 +69,7 @@
         .stance-indicator {
             margin-bottom: 10px;
         }
-        .stance-bar {
+        .stance-bar, .health-bar {
             width: 150px;
             height: 12px;
             background: rgba(0,0,0,0.5);
@@ -77,6 +77,10 @@
             border-radius: 6px;
             overflow: hidden;
             margin-top: 4px;
+        }
+        .health-bar {
+            width: 200px;
+            height: 16px;
         }
         .stance-fill {
             height: 100%;
@@ -90,6 +94,13 @@
             background: linear-gradient(90deg, #2196F3, #03A9F4);
             width: 50%;
             margin-left: 50%;
+        }
+        #health-fill {
+            background: linear-gradient(90deg, #f44336, #ff5722);
+            width: 100%;
+            height: 100%;
+            transition: width 0.2s;
+            border-radius: 6px;
         }
         #controls-hint {
             position: absolute;
@@ -109,6 +120,21 @@
             z-index: 100;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
+        #network-status {
+            position: absolute;
+            top: 55px;
+            right: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .status-disconnected { background: rgba(100,100,100,0.5); }
+        .status-connecting { background: rgba(255,165,0,0.5); }
+        .status-waiting { background: rgba(33,150,243,0.5); }
+        .status-playing { background: rgba(76,175,80,0.5); }
         #weapon-hand {
             position: absolute;
             bottom: 20px;
@@ -153,6 +179,46 @@
             0% { opacity: 1; transform: scale(1); }
             100% { opacity: 0; transform: scale(1.5); }
         }
+        #damage-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 150;
+            opacity: 0;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(255,0,0,0.4) 100%);
+        }
+        #damage-overlay.show {
+            animation: damageFlash 0.2s ease-out;
+        }
+        @keyframes damageFlash {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        #death-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(139, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 180;
+            color: white;
+        }
+        #death-screen h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        #death-screen p {
+            font-size: 18px;
+            opacity: 0.8;
+        }
         #start-screen {
             position: absolute;
             top: 0;
@@ -177,10 +243,13 @@
             margin-bottom: 30px;
             opacity: 0.7;
         }
+        #start-screen .buttons {
+            display: flex;
+            gap: 20px;
+        }
         #start-screen button {
             padding: 15px 40px;
             font-size: 18px;
-            background: #4CAF50;
             border: none;
             color: white;
             cursor: pointer;
@@ -188,7 +257,16 @@
             text-transform: uppercase;
             letter-spacing: 2px;
         }
-        #start-screen button:hover {
+        #start-screen button.online {
+            background: #2196F3;
+        }
+        #start-screen button.online:hover {
+            background: #1976D2;
+        }
+        #start-screen button.offline {
+            background: #4CAF50;
+        }
+        #start-screen button.offline:hover {
             background: #45a049;
         }
     </style>
@@ -199,10 +277,19 @@
             <h1>Peek Shooter</h1>
             <p>Lean and crouch to peek around cover and hit targets</p>
             <p style="font-size: 12px; opacity: 0.6;">Click in-game to lock mouse for aiming</p>
-            <button onclick="startGame()">Click to Start</button>
+            <div class="buttons">
+                <button class="online" onclick="startOnlineGame()">Play Online</button>
+                <button class="offline" onclick="startOfflineGame()">Practice</button>
+            </div>
         </div>
         <div id="crosshair"><div class="dot"></div></div>
         <div id="hud">
+            <div class="stance-indicator">
+                <span>Health: <span id="health-value">100</span></span>
+                <div class="health-bar">
+                    <div id="health-fill"></div>
+                </div>
+            </div>
             <div class="stance-indicator">
                 <span>Crouch</span>
                 <div class="stance-bar">
@@ -228,6 +315,7 @@
             ESC - Unlock Mouse
         </div>
         <div id="score">Score: <span id="score-value">0</span></div>
+        <div id="network-status" class="status-disconnected">Offline</div>
         <div id="weapon-hand">Hand: <span id="hand-value">RIGHT</span></div>
         <svg id="hit-marker" class="hit-marker" width="30" height="30" viewBox="0 0 30 30">
             <line x1="5" y1="5" x2="12" y2="12" stroke="white" stroke-width="3"/>
@@ -236,9 +324,15 @@
             <line x1="25" y1="25" x2="18" y2="18" stroke="white" stroke-width="3"/>
         </svg>
         <div id="muzzle-flash"></div>
+        <div id="damage-overlay"></div>
+        <div id="death-screen">
+            <h2>YOU DIED</h2>
+            <p>Respawning...</p>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
