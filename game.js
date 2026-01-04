@@ -1137,7 +1137,11 @@ function handlePeerMessage(data) {
 
         case 'shoot':
             if (netState.opponent) {
-                showOpponentMuzzleFlash(netState.opponent);
+                showOpponentMuzzleFlash(netState.opponent, {
+                    hitPlayer: data.hitPlayer,
+                    targetX: data.targetX,
+                    targetY: data.targetY,
+                });
             }
             break;
 
@@ -1284,9 +1288,14 @@ function sendStateUpdate() {
     });
 }
 
-function sendShoot() {
+function sendShoot(hitPlayer = false, targetX = 0, targetY = 1.2) {
     if (!netState.connected || netState.status !== 'playing') return;
-    sendPeerMessage({ type: 'shoot' });
+    sendPeerMessage({
+        type: 'shoot',
+        hitPlayer: hitPlayer,
+        targetX: targetX,
+        targetY: targetY,
+    });
 }
 
 function sendHit(damage, bodyPart) {
@@ -2120,8 +2129,13 @@ function updateOpponentMesh(opponent, deltaTime) {
     }
 }
 
-function showOpponentMuzzleFlash(opponent) {
+function showOpponentMuzzleFlash(opponent, shotData = null) {
     if (!opponent || !opponent.weaponMesh) return;
+
+    // Get muzzle position in world space
+    const muzzlePos = new THREE.Vector3();
+    opponent.weaponMesh.getWorldPosition(muzzlePos);
+    muzzlePos.z -= 0.3; // Offset to barrel tip
 
     // Create temporary flash
     const flashGeometry = new THREE.SphereGeometry(0.1, 8, 8);
@@ -2135,10 +2149,86 @@ function showOpponentMuzzleFlash(opponent) {
     flash.position.z -= 0.3;
     opponent.mesh.add(flash);
 
-    // Remove after short delay
+    // Play gunshot sound from opponent
+    AudioSystem.playGunshot();
+
+    // Remove flash after short delay
     setTimeout(() => {
         opponent.mesh.remove(flash);
+        flashGeometry.dispose();
+        flashMaterial.dispose();
     }, 50);
+
+    // Create bullet tracer from opponent toward player
+    createOpponentBulletTracer(muzzlePos, shotData);
+}
+
+function createOpponentBulletTracer(startPos, shotData) {
+    // Calculate end point - shoot toward player's general area
+    const endPos = new THREE.Vector3(
+        shotData?.targetX || (Math.random() - 0.5) * 2,  // Some spread
+        shotData?.targetY || 1.2 + (Math.random() - 0.5) * 0.5,
+        0  // Player is at z=0
+    );
+
+    // Create tracer line
+    const points = [startPos, endPos];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+        color: 0xffff00,
+        transparent: true,
+        opacity: 0.8,
+    });
+    const tracer = new THREE.Line(geometry, material);
+    tracer.userData.isDecal = true;
+    scene.add(tracer);
+
+    // Create impact effect at end point if it hit environment
+    if (!shotData?.hitPlayer) {
+        // Raycast to find actual impact point
+        const direction = new THREE.Vector3().subVectors(endPos, startPos).normalize();
+        const raycaster = new THREE.Raycaster(startPos, direction);
+
+        const envObjects = [];
+        scene.traverse((obj) => {
+            if (obj.isMesh && !obj.userData.isOpponent && !obj.userData.isDecal &&
+                !obj.userData.isTarget && obj.visible) {
+                envObjects.push(obj);
+            }
+        });
+
+        const intersects = raycaster.intersectObjects(envObjects, true);
+        if (intersects.length > 0) {
+            const hit = intersects[0];
+            if (hit.face) {
+                const worldNormal = hit.face.normal.clone();
+                if (hit.object.matrixWorld) {
+                    worldNormal.transformDirection(hit.object.matrixWorld);
+                }
+                createHitMark(hit.point.clone(), worldNormal);
+
+                // Play impact sound
+                if (hit.object === cover || hit.object.material?.color?.getHex() === 0xff8800) {
+                    AudioSystem.playImpactBarrier();
+                } else {
+                    AudioSystem.playImpactWall();
+                }
+            }
+        }
+    }
+
+    // Fade out and remove tracer
+    let opacity = 0.8;
+    const fadeInterval = setInterval(() => {
+        opacity -= 0.1;
+        material.opacity = opacity;
+        if (opacity <= 0) {
+            clearInterval(fadeInterval);
+            scene.remove(tracer);
+            geometry.dispose();
+            material.dispose();
+        }
+    }, 20);
 }
 
 function createEnvironment() {
@@ -2675,12 +2765,14 @@ function shoot() {
     // Apply recoil
     applyRecoil();
 
-    // Send shoot event to server
-    sendShoot();
-
     // Raycast from camera center
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+
+    // Track shot result for network sync
+    let hitOpponent = false;
+    let shotTargetX = 0;
+    let shotTargetY = 1.2;
 
     // Check hits on opponent (multiplayer) - but cover can block shots
     if (netState.gameMode === 'online' && netState.opponent && netState.opponent.mesh) {
@@ -2776,10 +2868,17 @@ function shoot() {
                     }
                 }
 
+                // Send shoot event with hit info
+                sendShoot(true, hitPoint.x, hitPoint.y);
                 return; // Don't check practice targets
             }
         }
     }
+
+    // Send shoot event for misses (calculate where the shot went)
+    const shootDir = raycaster.ray.direction.clone();
+    const missPoint = raycaster.ray.origin.clone().add(shootDir.multiplyScalar(20));
+    sendShoot(false, missPoint.x, missPoint.y);
 
     // Check hits on practice targets (offline mode)
     let hitTarget = null;
