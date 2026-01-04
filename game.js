@@ -248,6 +248,7 @@ const DebugConsole = {
         showHealth: false,
         showHits: false,
         godMode: false,
+        aimbot: false,
         hitboxHelpers: [],
         healthLabels: [],
     },
@@ -411,6 +412,7 @@ const DebugConsole = {
                 this.log('  health [on|off] - Show/hide all player health', 'info');
                 this.log('  hits [on|off] - Log bullet hit positions to console', 'info');
                 this.log('  god [on|off] - Toggle god mode (invincible)', 'info');
+                this.log('  aimbot [on|off] - Toggle aimbot (auto-aim at opponent)', 'info');
                 this.log('  bot [on|off] - Toggle bot opponent (walks, peeks, shoots)', 'info');
                 this.log('  kill - Kill yourself', 'info');
                 this.log('  heal - Restore health to 100', 'info');
@@ -466,6 +468,12 @@ const DebugConsole = {
                 const godState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.godMode;
                 this.debug.godMode = godState;
                 this.log(godState ? 'God mode ON - You are invincible' : 'God mode OFF', godState ? 'success' : 'warn');
+                break;
+
+            case 'aimbot':
+                const aimbotState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.aimbot;
+                this.debug.aimbot = aimbotState;
+                this.log(aimbotState ? 'Aimbot ON - Auto-aims at opponent head' : 'Aimbot OFF', aimbotState ? 'success' : 'warn');
                 break;
 
             case 'bot':
@@ -3710,6 +3718,44 @@ let lastTime = Date.now();
 let lastStateSend = 0;
 const STATE_SEND_RATE = 1000 / 60; // 60 times per second
 
+// Aimbot - auto-aim at opponent's head
+function updateAimbot() {
+    if (!DebugConsole.debug.aimbot) return;
+    if (!netState.opponent || !netState.opponent.mesh) return;
+
+    // Get opponent's head position
+    const opponentMesh = netState.opponent.mesh;
+    const headHeight = 1.2; // Aim at upper chest/neck area for reliable hits
+    const headPos = new THREE.Vector3(
+        opponentMesh.position.x,
+        opponentMesh.position.y + headHeight,
+        opponentMesh.position.z
+    );
+
+    // Get camera world position
+    const camPos = new THREE.Vector3();
+    camera.getWorldPosition(camPos);
+
+    // Calculate direction to head
+    const direction = new THREE.Vector3().subVectors(headPos, camPos);
+
+    // Calculate yaw (horizontal angle) - note: Three.js forward is -Z
+    const yaw = Math.atan2(direction.x, -direction.z);
+
+    // Calculate pitch (vertical angle)
+    const horizontalDist = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+    const pitch = Math.atan2(direction.y, horizontalDist);
+
+    // Smoothly interpolate to target (instant snap feels too jarring)
+    const smoothSpeed = 15;
+    const deltaTime = 1/60; // Approximate frame time
+    gameState.lookYaw += (yaw - gameState.lookYaw) * smoothSpeed * deltaTime;
+    gameState.lookPitch += (pitch - gameState.lookPitch) * smoothSpeed * deltaTime;
+
+    // Clamp pitch
+    gameState.lookPitch = Math.max(-gameState.LOOK_LIMIT_PITCH, Math.min(gameState.LOOK_LIMIT_PITCH, gameState.lookPitch));
+}
+
 function animate() {
     requestAnimationFrame(animate);
 
@@ -3718,6 +3764,7 @@ function animate() {
     lastTime = now;
 
     if (gameState.isRunning) {
+        updateAimbot();
         updateStance(deltaTime);
         updateRecoil(deltaTime);
         updateCamera();
