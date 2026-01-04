@@ -1139,8 +1139,10 @@ function handlePeerMessage(data) {
             if (netState.opponent) {
                 showOpponentMuzzleFlash(netState.opponent, {
                     hitPlayer: data.hitPlayer,
-                    targetX: data.targetX,
-                    targetY: data.targetY,
+                    hitCover: data.hitCover,
+                    hitX: data.hitX,
+                    hitY: data.hitY,
+                    hitZ: data.hitZ,
                 });
             }
             break;
@@ -1288,13 +1290,16 @@ function sendStateUpdate() {
     });
 }
 
-function sendShoot(hitPlayer = false, targetX = 0, targetY = 1.2) {
+function sendShoot(hitPlayer = false, hitPoint = null, hitCover = false) {
     if (!netState.connected || netState.status !== 'playing') return;
     sendPeerMessage({
         type: 'shoot',
         hitPlayer: hitPlayer,
-        targetX: targetX,
-        targetY: targetY,
+        hitCover: hitCover,
+        // Send hit point if available (will be transformed on receiver)
+        hitX: hitPoint?.x || 0,
+        hitY: hitPoint?.y || 1.2,
+        hitZ: hitPoint?.z || -7.5,  // Default to middle of arena
     });
 }
 
@@ -2164,14 +2169,17 @@ function showOpponentMuzzleFlash(opponent, shotData = null) {
 }
 
 function createOpponentBulletTracer(startPos, shotData) {
-    // Calculate end point - shoot toward player's general area
-    // NOTE: X coordinate is NEGATED because players face opposite directions
-    // What's "right" for the shooter is "left" for the receiver
-    const targetX = shotData?.targetX ? -shotData.targetX : (Math.random() - 0.5) * 2;
+    // Transform hit point from shooter's coordinate system to receiver's
+    // X: negated (mirror - left/right are reversed)
+    // Z: transformed (shooter's z=-0.5 becomes receiver's z=-14.5 and vice versa)
+    //    Formula: receiverZ = -15 - shooterZ
+    const transformedX = shotData?.hitX ? -shotData.hitX : (Math.random() - 0.5) * 2;
+    const transformedZ = shotData?.hitZ ? (-15 - shotData.hitZ) : 0;
+
     const endPos = new THREE.Vector3(
-        targetX,
-        shotData?.targetY || 1.2 + (Math.random() - 0.5) * 0.5,
-        0  // Player is at z=0
+        transformedX,
+        shotData?.hitY || 1.2 + (Math.random() - 0.5) * 0.5,
+        Math.max(-0.3, Math.min(0, transformedZ))  // Clamp near player (z=0 to z=-0.3)
     );
 
     // Create tracer line
@@ -2186,9 +2194,23 @@ function createOpponentBulletTracer(startPos, shotData) {
     tracer.userData.isDecal = true;
     scene.add(tracer);
 
-    // Create impact effect at end point if it hit environment
-    if (!shotData?.hitPlayer) {
-        // Raycast to find actual impact point
+    // Create impact effect using the transmitted hit data (no local raycast)
+    if (!shotData?.hitPlayer && shotData?.hitCover) {
+        // Shot hit cover - create hit mark at transformed position
+        const hitPos = new THREE.Vector3(
+            transformedX,
+            shotData?.hitY || 0.6,
+            transformedZ
+        );
+
+        // Determine normal based on shot direction (from opponent toward us)
+        const shotDir = new THREE.Vector3().subVectors(endPos, startPos).normalize();
+        const hitNormal = shotDir.clone().negate();
+
+        createHitMark(hitPos, hitNormal);
+        AudioSystem.playImpactBarrier();
+    } else if (!shotData?.hitPlayer) {
+        // Missed - do a quick raycast to find where it hit walls/ground
         const direction = new THREE.Vector3().subVectors(endPos, startPos).normalize();
         const raycaster = new THREE.Raycaster(startPos, direction);
 
@@ -2209,13 +2231,7 @@ function createOpponentBulletTracer(startPos, shotData) {
                     worldNormal.transformDirection(hit.object.matrixWorld);
                 }
                 createHitMark(hit.point.clone(), worldNormal);
-
-                // Play impact sound
-                if (hit.object === cover || hit.object.material?.color?.getHex() === 0xff8800) {
-                    AudioSystem.playImpactBarrier();
-                } else {
-                    AudioSystem.playImpactWall();
-                }
+                AudioSystem.playImpactWall();
             }
         }
     }
