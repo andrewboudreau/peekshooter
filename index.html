@@ -218,6 +218,128 @@
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.8); }
             100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
         }
+        #muzzle-flash {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(255,200,50,0.9) 0%, rgba(255,100,0,0.5) 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 99;
+        }
+        #muzzle-flash.show {
+            animation: muzzleFlash 0.05s ease-out;
+        }
+        @keyframes muzzleFlash {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.5); }
+        }
+
+        /* Sniper Scope Overlay */
+        #sniper-scope {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.15s ease-in-out;
+        }
+        #sniper-scope.active {
+            opacity: 1;
+        }
+        #sniper-scope .scope-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center,
+                transparent 0%,
+                transparent 18%,
+                rgba(0,0,0,0.97) 19%,
+                rgba(0,0,0,1) 100%
+            );
+        }
+        #sniper-scope .scope-reticle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 36vmin;
+            height: 36vmin;
+        }
+        #sniper-scope .reticle-h {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(0,0,0,0.8);
+            transform: translateY(-50%);
+        }
+        #sniper-scope .reticle-h::before,
+        #sniper-scope .reticle-h::after {
+            content: '';
+            position: absolute;
+            top: -1px;
+            height: 3px;
+            width: 40%;
+            background: rgba(0,0,0,0.8);
+        }
+        #sniper-scope .reticle-h::before { left: 0; }
+        #sniper-scope .reticle-h::after { right: 0; }
+        #sniper-scope .reticle-v {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            height: 100%;
+            width: 1px;
+            background: rgba(0,0,0,0.8);
+            transform: translateX(-50%);
+        }
+        #sniper-scope .reticle-v::before,
+        #sniper-scope .reticle-v::after {
+            content: '';
+            position: absolute;
+            left: -1px;
+            width: 3px;
+            height: 40%;
+            background: rgba(0,0,0,0.8);
+        }
+        #sniper-scope .reticle-v::before { top: 0; }
+        #sniper-scope .reticle-v::after { bottom: 0; }
+        #sniper-scope .reticle-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 3px rgba(255,0,0,0.8);
+        }
+        #sniper-scope .mil-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: rgba(0,0,0,0.9);
+            border-radius: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #sniper-scope .md1 { top: 35%; }
+        #sniper-scope .md2 { top: 25%; }
+        #sniper-scope .md3 { bottom: 35%; }
+        #sniper-scope .md4 { bottom: 25%; }
+
         #damage-overlay {
             position: absolute;
             top: 0;
@@ -600,6 +722,19 @@
             <line x1="5" y1="25" x2="12" y2="18" stroke="white" stroke-width="3"/>
             <line x1="25" y1="25" x2="18" y2="18" stroke="white" stroke-width="3"/>
         </svg>
+        <div id="muzzle-flash"></div>
+        <div id="sniper-scope">
+            <div class="scope-overlay"></div>
+            <div class="scope-reticle">
+                <div class="reticle-h"></div>
+                <div class="reticle-v"></div>
+                <div class="reticle-center"></div>
+                <div class="mil-dot md1"></div>
+                <div class="mil-dot md2"></div>
+                <div class="mil-dot md3"></div>
+                <div class="mil-dot md4"></div>
+            </div>
+        </div>
         <div id="damage-overlay"></div>
         <div id="death-screen">
             <h2>YOU DIED</h2>

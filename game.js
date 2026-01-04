@@ -3551,6 +3551,22 @@ function updateWeapon(deltaTime) {
         crosshair.style.opacity = 1 - gameState.adsProgress;
     }
 
+    // Show sniper scope when ADS with sniper
+    const sniperScope = document.getElementById('sniper-scope');
+    const sniperScopeActive = gameState.currentWeapon === 'sniper' && gameState.adsProgress > 0.8;
+    if (sniperScope) {
+        if (sniperScopeActive) {
+            sniperScope.classList.add('active');
+        } else {
+            sniperScope.classList.remove('active');
+        }
+    }
+
+    // Hide weapon model when looking through sniper scope
+    if (weapon) {
+        weapon.visible = !sniperScopeActive;
+    }
+
     // Weapon sway based on lean (reduced when aiming)
     const swayMultiplier = 1 - gameState.adsProgress * 0.7;
     const leanSway = gameState.lean * 0.1 * swayMultiplier;
