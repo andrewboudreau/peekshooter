@@ -144,6 +144,22 @@
             z-index: 100;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
+        #sound-toggle {
+            position: absolute;
+            bottom: 45px;
+            right: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            cursor: pointer;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+        #sound-toggle:hover {
+            background: rgba(255,255,255,0.1);
+        }
         .hit-marker {
             position: absolute;
             top: 50%;
@@ -399,6 +415,7 @@
         <div id="score">Score: <span id="score-value">0</span></div>
         <div id="network-status" class="status-disconnected">Offline</div>
         <div id="weapon-hand">Hand: <span id="hand-value">RIGHT</span></div>
+        <div id="sound-toggle" onclick="toggleSound()">Sound: ON</div>
         <svg id="hit-marker" class="hit-marker" width="30" height="30" viewBox="0 0 30 30">
             <line x1="5" y1="5" x2="12" y2="12" stroke="white" stroke-width="3"/>
             <line x1="25" y1="5" x2="18" y2="12" stroke="white" stroke-width="3"/>
