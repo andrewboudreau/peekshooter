@@ -6,8 +6,25 @@
       "Bash(git add:*)",
       "Bash(dir:*)",
       "Bash(git push:*)",
-      "Bash(git -C \"C:\\\\Users\\\\andre\\\\source\\\\repos\\\\peekshooter\" add index.html)",
-      "Bash(git -C \"C:\\\\Users\\\\andre\\\\source\\\\repos\\\\peekshooter\" rebase --continue)"
+      "Bash(npx serve . -p 3000)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(powershell -Command \"$content = Get-Content game.js; $before = $content[0..44]; $after = $content[502..\\($content.Length-1\\)]; $replacement = ''// AudioSystem moved to src/systems/AudioSystem.js''; $newContent = $before + $replacement + $after; $newContent | Set-Content game.js -Encoding UTF8\")",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"\\(Invoke-WebRequest -Uri ''http://localhost:53052/src/config/DamageConfig.js'' -UseBasicParsing\\).StatusCode\")",
+      "Bash(git restore:*)",
+      "Bash(node --check:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash pop:*)",
+      "Bash(npm start)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(node screenshot.js:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "ssh-mcp"
+  ]
 }

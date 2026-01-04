@@ -246,6 +246,7 @@ const DebugConsole = {
         enabled: false,
         showHitboxes: false,
         showHealth: false,
+        showHits: false,
         godMode: false,
         hitboxHelpers: [],
         healthLabels: [],
@@ -408,6 +409,7 @@ const DebugConsole = {
                 this.log('  debug [on|off] - Toggle debug mode (hitboxes + health)', 'info');
                 this.log('  hitboxes [on|off] - Show/hide hitboxes', 'info');
                 this.log('  health [on|off] - Show/hide all player health', 'info');
+                this.log('  hits [on|off] - Log bullet hit positions to console', 'info');
                 this.log('  god [on|off] - Toggle god mode (invincible)', 'info');
                 this.log('  bot [on|off] - Toggle bot opponent (walks, peeks, shoots)', 'info');
                 this.log('  kill - Kill yourself', 'info');
@@ -452,6 +454,12 @@ const DebugConsole = {
                 const healthState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.showHealth;
                 this.debug.showHealth = healthState;
                 this.log(healthState ? 'Health display ON' : 'Health display OFF', healthState ? 'success' : 'warn');
+                break;
+
+            case 'hits':
+                const hitsState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.showHits;
+                this.debug.showHits = hitsState;
+                this.log(hitsState ? 'Hit logging ON - bullet impacts will be logged' : 'Hit logging OFF', hitsState ? 'success' : 'warn');
                 break;
 
             case 'god':
@@ -1664,7 +1672,12 @@ const activeEffects = {
 };
 
 // Create a bullet hole decal at impact point
-function createHitMark(position, normal) {
+function createHitMark(position, normal, source = 'unknown') {
+    // Debug logging
+    if (DebugConsole.debug.showHits) {
+        DebugConsole.log(`[HIT] ${source} @ (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}) normal: (${normal.x.toFixed(2)}, ${normal.y.toFixed(2)}, ${normal.z.toFixed(2)})`, 'info');
+    }
+
     const size = 0.08 + Math.random() * 0.04;
 
     // Create decal geometry (simple circle facing the hit normal)
@@ -2267,12 +2280,21 @@ function handleOpponentShot(opponent, shotData = null) {
 }
 
 function createOpponentBulletTracer(startPos, shotData) {
+    // Debug logging for incoming shot data
+    if (DebugConsole.debug.showHits) {
+        DebugConsole.log(`[OPPONENT SHOT] Raw data: hitPlayer=${shotData?.hitPlayer}, hitCover=${shotData?.hitCover}, pos=(${shotData?.hitX?.toFixed(2) || 'null'}, ${shotData?.hitY?.toFixed(2) || 'null'}, ${shotData?.hitZ?.toFixed(2) || 'null'})`, 'warn');
+    }
+
     // Transform hit point from shooter's coordinate system to receiver's
     // X: negated (mirror - left/right are reversed)
     // Z: transformed (shooter's z=-0.5 becomes receiver's z=-14.5 and vice versa)
     //    Formula: receiverZ = -15 - shooterZ
     const transformedX = shotData?.hitX ? -shotData.hitX : (Math.random() - 0.5) * 2;
     const transformedZ = shotData?.hitZ ? (-15 - shotData.hitZ) : 0;
+
+    if (DebugConsole.debug.showHits) {
+        DebugConsole.log(`[OPPONENT SHOT] Transformed: X=${transformedX.toFixed(2)}, Z=${transformedZ.toFixed(2)}`, 'warn');
+    }
 
     const endPos = new THREE.Vector3(
         transformedX,
@@ -2305,7 +2327,7 @@ function createOpponentBulletTracer(startPos, shotData) {
         const shotDir = new THREE.Vector3().subVectors(endPos, startPos).normalize();
         const hitNormal = shotDir.clone().negate();
 
-        createHitMark(hitPos, hitNormal);
+        createHitMark(hitPos, hitNormal, 'opponent-cover');
         AudioSystem.playImpactBarrier();
     } else if (!shotData?.hitPlayer) {
         // Missed - do a quick raycast to find where it hit walls/ground
@@ -2328,7 +2350,7 @@ function createOpponentBulletTracer(startPos, shotData) {
                 if (hit.object.matrixWorld) {
                     worldNormal.transformDirection(hit.object.matrixWorld);
                 }
-                createHitMark(hit.point.clone(), worldNormal);
+                createHitMark(hit.point.clone(), worldNormal, 'opponent-miss-raycast');
                 AudioSystem.playImpactWall();
             }
         }
@@ -3338,7 +3360,7 @@ function shoot() {
                         if (coverHit.object.matrixWorld) {
                             worldNormal.transformDirection(coverHit.object.matrixWorld);
                         }
-                        createHitMark(coverHit.point.clone(), worldNormal);
+                        createHitMark(coverHit.point.clone(), worldNormal, 'player-blocked-by-cover');
                     }
                 }
             }
@@ -3405,7 +3427,7 @@ function shoot() {
                 }
 
                 // Send shoot event with hit info
-                sendShoot(true, hitPoint.x, hitPoint.y);
+                sendShoot(true, hitPoint, false);
                 return; // Don't check practice targets
             }
         }
@@ -3414,7 +3436,7 @@ function shoot() {
     // Send shoot event for misses (calculate where the shot went)
     const shootDir = raycaster.ray.direction.clone();
     const missPoint = raycaster.ray.origin.clone().add(shootDir.multiplyScalar(20));
-    sendShoot(false, missPoint.x, missPoint.y);
+    sendShoot(false, missPoint, false);
 
     // Check hits on practice targets (offline mode)
     let hitTarget = null;
@@ -3478,7 +3500,7 @@ function shoot() {
             if (hit.object.matrixWorld) {
                 worldNormal.transformDirection(hit.object.matrixWorld);
             }
-            createHitMark(hit.point.clone(), worldNormal);
+            createHitMark(hit.point.clone(), worldNormal, 'player-environment');
 
             // Play impact sound based on surface type
             const hitObj = hit.object;
