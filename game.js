@@ -3,7 +3,7 @@
 // ============================================
 // VERSION - Auto-incremented on deploy
 // ============================================
-const GAME_VERSION = 5;
+const GAME_VERSION = 6;
 
 // ============================================
 // NOISE GENERATOR - Seeded deterministic noise
