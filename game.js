@@ -808,65 +808,34 @@ const DebugConsole = {
 };
 
 // ============================================
-// WEAPON PROFILES - Configurable recoil patterns
+// WEAPON PROFILE ACCESSOR
+// Now uses WeaponConfig for centralized weapon data
 // ============================================
-const WEAPON_PROFILES = {
-    assault_rifle: {
+function getWeaponProfile(weaponId) {
+    if (typeof WeaponConfig !== 'undefined') {
+        const config = WeaponConfig.getWeapon(weaponId);
+        return {
+            name: config.name,
+            recoil: config.recoil,
+            fireRate: config.fireRate,
+        };
+    }
+    // Fallback for legacy compatibility
+    return {
         name: 'Assault Rifle',
-        // Recoil characteristics
         recoil: {
-            // Vertical kick per shot
             verticalBase: 0.025,
             verticalVariance: 0.008,
-
-            // Horizontal drift per shot
             horizontalBase: 0,
             horizontalVariance: 0.015,
-
-            // How fast recoil recovers (per second)
             recovery: 4.0,
-
-            // Pattern: how recoil changes over sustained fire
-            // Values multiply the base after N shots
             pattern: [1.0, 1.1, 1.2, 1.15, 1.1, 1.0, 0.95, 0.9],
-
-            // Visual weapon kick
             weaponKickBack: 0.03,
             weaponKickUp: 0.02,
         },
-        fireRate: 600,  // RPM
-    },
-
-    smg: {
-        name: 'SMG',
-        recoil: {
-            verticalBase: 0.015,
-            verticalVariance: 0.005,
-            horizontalBase: 0,
-            horizontalVariance: 0.02,
-            recovery: 5.0,
-            pattern: [1.0, 1.05, 1.1, 1.05, 1.0],
-            weaponKickBack: 0.02,
-            weaponKickUp: 0.015,
-        },
-        fireRate: 900,
-    },
-
-    sniper: {
-        name: 'Sniper',
-        recoil: {
-            verticalBase: 0.08,
-            verticalVariance: 0.01,
-            horizontalBase: 0,
-            horizontalVariance: 0.005,
-            recovery: 2.0,
-            pattern: [1.0],
-            weaponKickBack: 0.08,
-            weaponKickUp: 0.05,
-        },
-        fireRate: 40,
-    },
-};
+        fireRate: 600,
+    };
+}
 
 // ============================================
 // RECOIL STATE
@@ -927,6 +896,7 @@ class OpponentPlayer {
         this.slot = slot;
         this.mesh = null;
         this.weaponMesh = null;
+        this.currentWeapon = 'assault_rifle';
         this.state = {
             crouch: 0,
             lean: 0,
@@ -934,6 +904,7 @@ class OpponentPlayer {
             lookYaw: 0,
             lookPitch: 0,
             weaponHand: 'right',
+            weapon: 'assault_rifle',
             health: 100,
         };
         // Interpolation targets
@@ -954,8 +925,35 @@ class OpponentPlayer {
     }
 
     updateFromNetwork(newState) {
+        // Check for weapon change before updating state
+        if (newState.weapon && newState.weapon !== this.currentWeapon) {
+            this.updateWeapon(newState.weapon);
+        }
+
         this.targetState = { ...this.targetState, ...newState };
         this.lastUpdate = Date.now();
+    }
+
+    updateWeapon(weaponId) {
+        if (this.currentWeapon === weaponId) return;
+
+        this.currentWeapon = weaponId;
+        this.state.weapon = weaponId;
+
+        // Update weapon mesh if we have one
+        if (this.weaponMesh && this.mesh) {
+            // Remove old weapon
+            this.mesh.remove(this.weaponMesh);
+            if (this.weaponMesh.geometry) this.weaponMesh.geometry.dispose();
+
+            // Create new weapon using WeaponFactory if available
+            if (typeof WeaponFactory !== 'undefined') {
+                this.weaponMesh = WeaponFactory.createOpponentWeapon(weaponId);
+                const handOffset = this.state.weaponHand === 'right' ? -0.3 : 0.3;
+                this.weaponMesh.position.set(handOffset, 0.9, -0.2);
+                this.mesh.add(this.weaponMesh);
+            }
+        }
     }
 }
 
@@ -1334,6 +1332,7 @@ function sendStateUpdate() {
             lookYaw: gameState.lookYaw,
             lookPitch: gameState.lookPitch,
             weaponHand: gameState.weaponHand,
+            weapon: gameState.currentWeapon,
         }
     });
 }
@@ -1935,6 +1934,8 @@ const gameState = {
     // Weapon
     weaponHand: 'right', // 'left' or 'right'
     currentWeapon: 'assault_rifle',
+    weaponSlot: 3,              // Current weapon slot (1-5)
+    isWeaponSwitching: false,   // Prevent actions during switch
 
     // Aim down sights
     isAiming: false,        // Currently holding right mouse
@@ -2415,7 +2416,31 @@ function createWeapon() {
     weaponPivot = new THREE.Group();
     camera.add(weaponPivot);
 
-    // Create realistic assault rifle model
+    // Use WeaponFactory if available, otherwise create simple fallback
+    if (typeof WeaponFactory !== 'undefined' && typeof WeaponConfig !== 'undefined') {
+        WeaponFactory.initMaterials();
+        const config = WeaponConfig.getWeapon(gameState.currentWeapon);
+
+        // Apply weapon settings
+        gameState.fireRateMs = config.fireRateMs;
+        gameState.fireMode = config.defaultMode;
+        gameState.ADS_SPEED = config.ads.speed;
+        gameState.ADS_FOV = config.ads.fov;
+        gameState.weaponSlot = config.slot;
+
+        // Create weapon model
+        weapon = WeaponFactory.createWeapon(gameState.currentWeapon);
+        updateWeaponPosition();
+        weaponPivot.add(weapon);
+        scene.add(camera);
+
+        // Update UI
+        updateWeaponUI();
+        updateFireModeUI();
+        return;
+    }
+
+    // Legacy fallback: Create simple assault rifle model
     weapon = new THREE.Group();
 
     // Materials
@@ -2668,16 +2693,33 @@ function createWeapon() {
 }
 
 function updateWeaponPosition() {
-    // Hip fire position
-    const handOffset = gameState.weaponHand === 'right' ? 0.25 : -0.25;
-    const hipPos = { x: handOffset, y: -0.2, z: -0.4 };
-    const hipRot = { x: 0, y: gameState.weaponHand === 'right' ? 0.02 : -0.02, z: 0 };
+    // Get weapon config for per-weapon positions
+    let hipPos, hipRot, adsPos, adsRot;
 
-    // ADS position (centered, rear sight at eye level)
-    // Rear sight is at y: 0.075, z: 0.06 on weapon
-    // Position weapon so rear sight aligns with camera center
-    const adsPos = { x: 0, y: -0.075, z: -0.08 };
-    const adsRot = { x: 0, y: 0, z: 0 };
+    if (typeof WeaponConfig !== 'undefined') {
+        const config = WeaponConfig.getWeapon(gameState.currentWeapon);
+        const handMult = gameState.weaponHand === 'right' ? 1 : -1;
+
+        hipPos = {
+            x: config.hipPosition.x * handMult,
+            y: config.hipPosition.y,
+            z: config.hipPosition.z
+        };
+        hipRot = {
+            x: config.hipRotation.x,
+            y: config.hipRotation.y * handMult,
+            z: config.hipRotation.z
+        };
+        adsPos = config.ads.position;
+        adsRot = config.ads.rotation;
+    } else {
+        // Legacy fallback
+        const handOffset = gameState.weaponHand === 'right' ? 0.25 : -0.25;
+        hipPos = { x: handOffset, y: -0.2, z: -0.4 };
+        hipRot = { x: 0, y: gameState.weaponHand === 'right' ? 0.02 : -0.02, z: 0 };
+        adsPos = { x: 0, y: -0.075, z: -0.08 };
+        adsRot = { x: 0, y: 0, z: 0 };
+    }
 
     // Interpolate between hip and ADS based on adsProgress
     const t = gameState.adsProgress;
@@ -2789,14 +2831,105 @@ function createTarget(config) {
     });
 }
 
-// Fire mode functions
-function toggleFireMode() {
-    const modes = ['single', 'burst', 'auto'];
-    const currentIndex = modes.indexOf(gameState.fireMode);
-    gameState.fireMode = modes[(currentIndex + 1) % modes.length];
+// ============================================
+// WEAPON SWITCHING
+// ============================================
+function switchWeapon(slot) {
+    // Validate slot
+    if (slot < 1 || slot > 5) return;
+    if (gameState.isWeaponSwitching) return;
+
+    // Get weapon for this slot
+    if (typeof WeaponConfig === 'undefined') return;
+    const newWeapon = WeaponConfig.getWeaponBySlot(slot);
+    if (!newWeapon || newWeapon.id === gameState.currentWeapon) return;
+
+    // Stop any current firing
+    stopFiring();
+
+    // Mark as switching (brief lockout)
+    gameState.isWeaponSwitching = true;
+
+    // Remove old weapon
+    if (weapon && weaponPivot) {
+        weaponPivot.remove(weapon);
+        if (typeof WeaponFactory !== 'undefined') {
+            WeaponFactory.disposeWeapon(weapon);
+        }
+    }
+
+    // Update state
+    gameState.currentWeapon = newWeapon.id;
+    gameState.weaponSlot = slot;
+    gameState.fireRateMs = newWeapon.fireRateMs;
+    gameState.ADS_SPEED = newWeapon.ads.speed;
+    gameState.ADS_FOV = newWeapon.ads.fov;
+
+    // Check if current fire mode is allowed
+    if (!WeaponConfig.isFireModeAllowed(newWeapon.id, gameState.fireMode)) {
+        gameState.fireMode = newWeapon.defaultMode;
+    }
+
+    // Reset ADS
+    gameState.isAiming = false;
+    gameState.adsProgress = 0;
+
+    // Create new weapon
+    if (typeof WeaponFactory !== 'undefined') {
+        weapon = WeaponFactory.createWeapon(newWeapon.id);
+        weaponPivot.add(weapon);
+        updateWeaponPosition();
+    }
+
+    // Update UI
+    updateWeaponUI();
     updateFireModeUI();
 
-    // Stop any current firing when switching modes
+    // Emit event
+    if (typeof EventBus !== 'undefined') {
+        EventBus.emit('weapon:switched', {
+            weaponId: newWeapon.id,
+            slot: slot,
+        });
+    }
+
+    // Brief delay before allowing actions again
+    setTimeout(() => {
+        gameState.isWeaponSwitching = false;
+    }, 200);
+}
+
+function updateWeaponUI() {
+    const nameEl = document.getElementById('weapon-name');
+    const slotEl = document.getElementById('weapon-slot');
+
+    if (typeof WeaponConfig !== 'undefined') {
+        const config = WeaponConfig.getWeapon(gameState.currentWeapon);
+        if (nameEl) nameEl.textContent = config.name.toUpperCase();
+        if (slotEl) slotEl.textContent = `[${config.slot}]`;
+    } else {
+        if (nameEl) nameEl.textContent = 'ASSAULT RIFLE';
+        if (slotEl) slotEl.textContent = '[3]';
+    }
+}
+
+// Fire mode functions
+function toggleFireMode() {
+    // Use WeaponConfig for allowed modes
+    if (typeof WeaponConfig !== 'undefined') {
+        const newMode = WeaponConfig.getNextAllowedFireMode(
+            gameState.currentWeapon,
+            gameState.fireMode
+        );
+        gameState.fireMode = newMode;
+    } else {
+        // Legacy fallback
+        const modes = ['single', 'burst', 'auto'];
+        const currentIndex = modes.indexOf(gameState.fireMode);
+        gameState.fireMode = modes[(currentIndex + 1) % modes.length];
+    }
+
+    updateFireModeUI();
     stopFiring();
 }
 
@@ -2814,6 +2947,7 @@ function updateFireModeUI() {
 
 function startFiring() {
     if (gameState.isFiring) return;
+    if (gameState.isWeaponSwitching) return;
     gameState.isFiring = true;
 
     // Always fire first shot immediately
@@ -2868,6 +3002,11 @@ function setupEventListeners() {
         // Fire mode toggle with B
         if (e.key.toLowerCase() === 'b') {
             toggleFireMode();
+        }
+
+        // Weapon switching with number keys 1-5
+        if (e.key >= '1' && e.key <= '5') {
+            switchWeapon(parseInt(e.key));
         }
 
         // Kill both players with O
@@ -2963,7 +3102,7 @@ function setupEventListeners() {
 }
 
 function applyRecoil() {
-    const weapon = WEAPON_PROFILES[gameState.currentWeapon];
+    const weapon = getWeaponProfile(gameState.currentWeapon);
     const recoil = weapon.recoil;
     const now = Date.now();
 
@@ -3032,7 +3171,7 @@ function applyRecoil() {
 }
 
 function updateRecoil(deltaTime) {
-    const weapon = WEAPON_PROFILES[gameState.currentWeapon];
+    const weapon = getWeaponProfile(gameState.currentWeapon);
     const recovery = weapon.recoil.recovery;
 
     // Recover camera recoil

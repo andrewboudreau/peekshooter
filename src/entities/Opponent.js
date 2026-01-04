@@ -17,6 +17,7 @@ class Opponent extends Entity {
         // Opponent-specific state
         this.slot = slot;
         this.weaponHand = 'right';
+        this.currentWeapon = 'assault_rifle';
         this.isBot = false;
 
         // Three.js references
@@ -232,7 +233,38 @@ class Opponent extends Entity {
             if (newState.lookPitch !== undefined) this.transform.look.pitch = newState.lookPitch;
         }
         if (newState.weaponHand !== undefined) this.weaponHand = newState.weaponHand;
+
+        // Handle weapon changes
+        if (newState.weapon !== undefined && newState.weapon !== this.currentWeapon) {
+            this.updateWeapon(newState.weapon);
+        }
+
         this.lastUpdate = Date.now();
+    }
+
+    /**
+     * Update the opponent's weapon model
+     * @param {string} weaponId - New weapon ID
+     */
+    updateWeapon(weaponId) {
+        if (this.currentWeapon === weaponId) return;
+
+        this.currentWeapon = weaponId;
+
+        // Update weapon mesh if we have one
+        if (this.weaponMesh && this.mesh) {
+            // Remove old weapon
+            this.mesh.remove(this.weaponMesh);
+            if (this.weaponMesh.geometry) this.weaponMesh.geometry.dispose();
+
+            // Create new weapon using WeaponFactory if available
+            if (typeof WeaponFactory !== 'undefined') {
+                this.weaponMesh = WeaponFactory.createOpponentWeapon(weaponId);
+                const handOffset = this.weaponHand === 'right' ? -0.3 : 0.3;
+                this.weaponMesh.position.set(handOffset, 0.9, -0.2);
+                this.mesh.add(this.weaponMesh);
+            }
+        }
     }
 
     // ============================================

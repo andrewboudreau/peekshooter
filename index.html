@@ -153,9 +153,22 @@
             z-index: 100;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
-        #sound-toggle {
+        #current-weapon {
             position: absolute;
             bottom: 70px;
+            right: 20px;
+            color: #ffcc00;
+            font-size: 14px;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #weapon-slot {
+            color: #888;
+            font-size: 12px;
+        }
+        #sound-toggle {
+            position: absolute;
+            bottom: 95px;
             right: 20px;
             color: white;
             font-size: 14px;
@@ -581,6 +594,7 @@
             R - Reset Stance<br>
             Mouse - Aim<br>
             Left Click - Shoot<br>
+            1-5 - Switch Weapons<br>
             B - Toggle Fire Mode<br>
             Tab - Switch Hands<br>
             ESC - Unlock Mouse
@@ -589,6 +603,7 @@
         <div id="network-status" class="status-disconnected">Offline</div>
         <div id="weapon-hand">Hand: <span id="hand-value">RIGHT</span></div>
         <div id="fire-mode">Fire: SINGLE (100ms)</div>
+        <div id="current-weapon">Weapon: <span id="weapon-name">ASSAULT RIFLE</span> <span id="weapon-slot">[3]</span></div>
         <div id="sound-toggle" onclick="toggleSound()">Sound: ON</div>
         <div id="version"></div>
         <svg id="hit-marker" class="hit-marker" width="30" height="30" viewBox="0 0 30 30">
@@ -620,6 +635,10 @@
     <!-- Config -->
     <script src="src/config/DamageConfig.js"></script>
     <script src="src/config/PhysicsConfig.js"></script>
+    <script src="src/config/WeaponConfig.js"></script>
+
+    <!-- Weapons -->
+    <script src="src/weapons/WeaponFactory.js"></script>
 
     <!-- Core -->
     <script src="src/core/EventBus.js"></script>
