@@ -269,6 +269,72 @@
         #start-screen button.offline:hover {
             background: #45a049;
         }
+        #start-screen .room-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            display: none;
+        }
+        #start-screen .room-section.show {
+            display: block;
+        }
+        #start-screen .room-code {
+            font-size: 36px;
+            font-family: monospace;
+            letter-spacing: 8px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 10px 0;
+            user-select: all;
+        }
+        #start-screen input {
+            padding: 12px 20px;
+            font-size: 24px;
+            font-family: monospace;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 5px;
+            width: 200px;
+            text-align: center;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+        }
+        #start-screen input::placeholder {
+            color: #999;
+            letter-spacing: 2px;
+        }
+        #start-screen .join-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        #start-screen button.join {
+            background: #ff9800;
+            padding: 12px 25px;
+        }
+        #start-screen button.join:hover {
+            background: #f57c00;
+        }
+        #start-screen button.back {
+            background: #666;
+            padding: 10px 20px;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        #start-screen .or-divider {
+            margin: 15px 0;
+            opacity: 0.5;
+        }
+        #start-screen .status-text {
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -277,9 +343,25 @@
             <h1>Peek Shooter</h1>
             <p>Lean and crouch to peek around cover and hit targets</p>
             <p style="font-size: 12px; opacity: 0.6;">Click in-game to lock mouse for aiming</p>
-            <div class="buttons">
-                <button class="online" onclick="startOnlineGame()">Play Online</button>
+
+            <!-- Main menu buttons -->
+            <div id="main-buttons" class="buttons">
+                <button class="online" onclick="showOnlineMenu()">Play Online</button>
                 <button class="offline" onclick="startOfflineGame()">Practice</button>
+            </div>
+
+            <!-- Online/P2P connection section -->
+            <div id="room-section" class="room-section">
+                <p>Share this code with a friend:</p>
+                <div id="room-code" class="room-code">----</div>
+                <div class="or-divider">— OR —</div>
+                <p>Join a friend's game:</p>
+                <div class="join-row">
+                    <input type="text" id="join-code" placeholder="CODE" maxlength="4" autocomplete="off">
+                    <button class="join" onclick="joinRoom()">Join</button>
+                </div>
+                <div id="connection-status" class="status-text"></div>
+                <button class="back" onclick="showMainMenu()">Back</button>
             </div>
         </div>
         <div id="crosshair"><div class="dot"></div></div>
@@ -332,7 +414,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

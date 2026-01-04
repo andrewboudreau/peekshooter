@@ -121,25 +121,41 @@ const recoilState = {
     shotCount: 0,
     lastShotTime: 0,
 
+    // Drift tracking - builds during rapid fire
+    driftDirection: 0,    // -1 to 1, which way horizontal recoil is trending
+    driftMomentum: 0,     // How strong the current drift is
+
     // Noise generator for this session
     noise: new NoiseGenerator(Date.now()),
 };
 
 // ============================================
-// MULTIPLAYER STATE
+// MULTIPLAYER STATE (WebRTC P2P)
 // ============================================
 const netState = {
-    socket: null,
+    peer: null,           // PeerJS instance
+    connection: null,     // DataConnection to opponent
+    roomCode: null,       // Our room code (4 chars)
+    isHost: false,        // Did we create the room?
     connected: false,
-    roomId: null,
     playerId: null,
-    playerSlot: -1,  // 0 or 1
+    playerSlot: -1,       // 0 = host, 1 = joiner
     opponent: null,
-    gameMode: 'offline', // 'offline' or 'online'
+    gameMode: 'offline',  // 'offline' or 'online'
     status: 'disconnected', // disconnected, connecting, waiting, playing
     scores: [0, 0],
     health: 100,
 };
+
+// Generate a random 4-character room code
+function generateRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid ambiguous chars
+    let code = '';
+    for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
 
 // Opponent player representation
 class OpponentPlayer {
@@ -179,139 +195,296 @@ class OpponentPlayer {
     }
 }
 
-// Network functions
-function connectToServer() {
-    if (netState.socket) return;
+// ============================================
+// P2P NETWORKING FUNCTIONS
+// ============================================
 
-    netState.status = 'connecting';
+// Show/hide menu sections
+function showOnlineMenu() {
+    document.getElementById('main-buttons').style.display = 'none';
+    document.getElementById('room-section').classList.add('show');
+    initializePeer();
+}
+
+function showMainMenu() {
+    document.getElementById('main-buttons').style.display = 'flex';
+    document.getElementById('room-section').classList.remove('show');
+    document.getElementById('connection-status').textContent = '';
+
+    // Cleanup peer connection
+    if (netState.connection) {
+        netState.connection.close();
+        netState.connection = null;
+    }
+    if (netState.peer) {
+        netState.peer.destroy();
+        netState.peer = null;
+    }
+    netState.status = 'disconnected';
     updateNetworkUI();
+}
 
-    // Socket.io is loaded from CDN in HTML
-    netState.socket = io();
+function updateConnectionStatus(text) {
+    const statusEl = document.getElementById('connection-status');
+    if (statusEl) statusEl.textContent = text;
+}
 
-    netState.socket.on('connect', () => {
-        console.log('Connected to server');
-        netState.connected = true;
-        netState.playerId = netState.socket.id;
-        netState.socket.emit('join', {});
+// Initialize PeerJS and create room
+function initializePeer() {
+    if (netState.peer) return;
+
+    netState.roomCode = generateRoomCode();
+    const peerId = 'peekshooter-' + netState.roomCode;
+
+    updateConnectionStatus('Connecting to network...');
+
+    netState.peer = new Peer(peerId, {
+        debug: 1,
     });
 
-    netState.socket.on('joined', (data) => {
-        console.log('Joined room:', data);
-        netState.roomId = data.roomId;
-        netState.playerSlot = data.slot;
+    netState.peer.on('open', (id) => {
+        console.log('Peer connected with ID:', id);
+        netState.playerId = id;
+        netState.isHost = true;
+        netState.playerSlot = 0;
         netState.status = 'waiting';
+
+        // Display room code
+        document.getElementById('room-code').textContent = netState.roomCode;
+        updateConnectionStatus('Waiting for opponent to join...');
         updateNetworkUI();
     });
 
-    netState.socket.on('waiting', (data) => {
-        netState.status = 'waiting';
-        updateNetworkUI();
+    netState.peer.on('connection', (conn) => {
+        console.log('Incoming connection from:', conn.peer);
+        handleConnection(conn);
     });
 
-    netState.socket.on('gameStart', (data) => {
-        console.log('Game starting:', data);
-        netState.status = 'playing';
-        netState.gameMode = 'online';
-
-        // Create opponent
-        const opponentSlot = netState.playerSlot === 0 ? 1 : 0;
-        netState.opponent = new OpponentPlayer(opponentSlot);
-        createOpponentMesh(netState.opponent);
-
-        updateNetworkUI();
-        hideTargets(); // Hide practice targets in multiplayer
-    });
-
-    netState.socket.on('opponentState', (data) => {
-        if (netState.opponent) {
-            netState.opponent.updateFromNetwork(data.state);
-        }
-    });
-
-    netState.socket.on('opponentShoot', (data) => {
-        if (netState.opponent) {
-            // Visual feedback for opponent shooting
-            showOpponentMuzzleFlash(netState.opponent);
-        }
-    });
-
-    netState.socket.on('playerHit', (data) => {
-        if (data.targetId === netState.playerId) {
-            // We got hit
-            netState.health = data.health;
-            showDamageEffect();
-            updateHealthUI();
-        } else if (netState.opponent) {
-            // We hit opponent
-            netState.opponent.state.health = data.health;
-            showHitMarker();
-        }
-    });
-
-    netState.socket.on('playerKilled', (data) => {
-        netState.scores = data.scores;
-        updateScoreUI();
-
-        if (data.targetId === netState.playerId) {
-            showDeathScreen();
+    netState.peer.on('error', (err) => {
+        console.error('Peer error:', err);
+        if (err.type === 'unavailable-id') {
+            // Room code already taken, generate new one
+            netState.peer.destroy();
+            netState.peer = null;
+            netState.roomCode = generateRoomCode();
+            setTimeout(initializePeer, 100);
         } else {
-            showKillNotification();
+            updateConnectionStatus('Connection error: ' + err.type);
         }
     });
 
-    netState.socket.on('roundReset', (data) => {
-        netState.scores = data.scores;
-        netState.health = 100;
-        if (netState.opponent) {
-            netState.opponent.state.health = 100;
+    netState.peer.on('disconnected', () => {
+        console.log('Peer disconnected from signaling server');
+        // Try to reconnect
+        if (netState.peer && !netState.peer.destroyed) {
+            netState.peer.reconnect();
         }
-        updateHealthUI();
-        updateScoreUI();
-        hideDeathScreen();
-    });
-
-    netState.socket.on('opponentLeft', (data) => {
-        console.log('Opponent left');
-        netState.status = 'waiting';
-        if (netState.opponent && netState.opponent.mesh) {
-            scene.remove(netState.opponent.mesh);
-        }
-        netState.opponent = null;
-        updateNetworkUI();
-        showTargets(); // Show practice targets again
-    });
-
-    netState.socket.on('disconnect', () => {
-        console.log('Disconnected from server');
-        netState.connected = false;
-        netState.status = 'disconnected';
-        netState.gameMode = 'offline';
-        updateNetworkUI();
     });
 }
 
-function sendStateUpdate() {
-    if (!netState.socket || !netState.connected || netState.status !== 'playing') return;
+// Join an existing room
+function joinRoom() {
+    const codeInput = document.getElementById('join-code');
+    const code = codeInput.value.toUpperCase().trim();
 
-    netState.socket.emit('state', {
-        crouch: gameState.crouch,
-        lean: gameState.lean,
-        strafe: gameState.strafe,
-        lookYaw: gameState.lookYaw,
-        lookPitch: gameState.lookPitch,
-        weaponHand: gameState.weaponHand,
+    if (code.length !== 4) {
+        updateConnectionStatus('Please enter a 4-character code');
+        return;
+    }
+
+    updateConnectionStatus('Connecting to ' + code + '...');
+
+    // Create our own peer if needed
+    if (!netState.peer) {
+        const myCode = generateRoomCode();
+        netState.peer = new Peer('peekshooter-' + myCode, { debug: 1 });
+
+        netState.peer.on('open', () => {
+            connectToPeer(code);
+        });
+
+        netState.peer.on('error', (err) => {
+            console.error('Peer error:', err);
+            updateConnectionStatus('Connection failed: ' + err.type);
+        });
+    } else {
+        connectToPeer(code);
+    }
+}
+
+function connectToPeer(code) {
+    const peerId = 'peekshooter-' + code;
+
+    netState.isHost = false;
+    netState.playerSlot = 1;
+
+    const conn = netState.peer.connect(peerId, {
+        reliable: true,
+    });
+
+    conn.on('open', () => {
+        console.log('Connected to host:', peerId);
+        handleConnection(conn);
+    });
+
+    conn.on('error', (err) => {
+        console.error('Connection error:', err);
+        updateConnectionStatus('Failed to connect. Check the code.');
+    });
+}
+
+// Handle established connection
+function handleConnection(conn) {
+    netState.connection = conn;
+    netState.connected = true;
+    netState.status = 'playing';
+    netState.gameMode = 'online';
+
+    updateConnectionStatus('Connected! Starting game...');
+
+    // Start the game
+    setTimeout(() => {
+        startOnlineGame();
+    }, 500);
+
+    // Setup message handling
+    conn.on('data', (data) => {
+        handlePeerMessage(data);
+    });
+
+    conn.on('close', () => {
+        console.log('Connection closed');
+        handleOpponentDisconnect();
+    });
+
+    conn.on('error', (err) => {
+        console.error('Connection error:', err);
+        handleOpponentDisconnect();
+    });
+}
+
+// Handle incoming P2P messages
+function handlePeerMessage(data) {
+    switch (data.type) {
+        case 'state':
+            if (netState.opponent) {
+                netState.opponent.updateFromNetwork(data.state);
+            }
+            break;
+
+        case 'shoot':
+            if (netState.opponent) {
+                showOpponentMuzzleFlash(netState.opponent);
+            }
+            break;
+
+        case 'hit':
+            // Opponent says they hit us
+            netState.health = Math.max(0, netState.health - data.damage);
+            showDamageEffect();
+            updateHealthUI();
+
+            // Check if we died
+            if (netState.health <= 0) {
+                netState.scores[netState.playerSlot === 0 ? 1 : 0]++;
+                updateScoreUI();
+                showDeathScreen();
+
+                // Tell opponent we died
+                sendPeerMessage({ type: 'killed' });
+
+                // Reset after delay
+                setTimeout(() => {
+                    resetRound();
+                }, 3000);
+            }
+            break;
+
+        case 'killed':
+            // We killed the opponent
+            netState.scores[netState.playerSlot]++;
+            updateScoreUI();
+            showKillNotification();
+            break;
+
+        case 'reset':
+            // Opponent reset, sync our state
+            netState.health = 100;
+            if (netState.opponent) {
+                netState.opponent.state.health = 100;
+            }
+            updateHealthUI();
+            hideDeathScreen();
+            break;
+    }
+}
+
+function handleOpponentDisconnect() {
+    console.log('Opponent disconnected');
+    netState.connected = false;
+    netState.status = 'disconnected';
+    netState.gameMode = 'offline';
+
+    if (netState.opponent && netState.opponent.mesh) {
+        scene.remove(netState.opponent.mesh);
+    }
+    netState.opponent = null;
+
+    updateNetworkUI();
+    showTargets();
+
+    // Show message
+    alert('Opponent disconnected!');
+
+    // Return to menu
+    document.getElementById('start-screen').style.display = 'flex';
+    showMainMenu();
+    gameState.isRunning = false;
+}
+
+function resetRound() {
+    netState.health = 100;
+    if (netState.opponent) {
+        netState.opponent.state.health = 100;
+    }
+    updateHealthUI();
+    hideDeathScreen();
+
+    // Tell opponent to reset too
+    sendPeerMessage({ type: 'reset' });
+}
+
+// Send message to peer
+function sendPeerMessage(data) {
+    if (netState.connection && netState.connection.open) {
+        netState.connection.send(data);
+    }
+}
+
+function sendStateUpdate() {
+    if (!netState.connected || netState.status !== 'playing') return;
+
+    sendPeerMessage({
+        type: 'state',
+        state: {
+            crouch: gameState.crouch,
+            lean: gameState.lean,
+            strafe: gameState.strafe,
+            lookYaw: gameState.lookYaw,
+            lookPitch: gameState.lookPitch,
+            weaponHand: gameState.weaponHand,
+        }
     });
 }
 
 function sendShoot() {
-    if (!netState.socket || !netState.connected || netState.status !== 'playing') return;
-    netState.socket.emit('shoot', {});
+    if (!netState.connected || netState.status !== 'playing') return;
+    sendPeerMessage({ type: 'shoot' });
 }
 
 function sendHit(damage) {
-    if (!netState.socket || !netState.connected || netState.status !== 'playing') return;
-    netState.socket.emit('hit', { damage });
+    if (!netState.connected || netState.status !== 'playing') return;
+    sendPeerMessage({ type: 'hit', damage: damage });
 }
 
 // UI update functions for multiplayer
@@ -353,6 +526,19 @@ function showDamageEffect() {
         overlay.classList.add('show');
         setTimeout(() => overlay.classList.remove('show'), 200);
     }
+
+    // Create blood splatter on screen edges (player POV hit effect)
+    // Spawn some blood particles near the camera
+    const cameraPos = camera.position.clone();
+    const randomDir = new THREE.Vector3(
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2,
+        -1
+    ).normalize();
+    createBloodSplatter(
+        cameraPos.clone().add(randomDir.clone().multiplyScalar(0.5)),
+        randomDir.negate()
+    );
 }
 
 function showHitMarker() {
@@ -381,6 +567,279 @@ function hideDeathScreen() {
 function showKillNotification() {
     // Could add a kill notification UI element
     console.log('You eliminated the opponent!');
+}
+
+// ============================================
+// HIT MARKS AND BLOOD SPLATTER
+// ============================================
+
+// Store active effects for cleanup
+const activeEffects = {
+    hitMarks: [],
+    bloodParticles: [],
+};
+
+// Create a bullet hole decal at impact point
+function createHitMark(position, normal) {
+    const size = 0.08 + Math.random() * 0.04;
+
+    // Create decal geometry (simple circle facing the hit normal)
+    const geometry = new THREE.CircleGeometry(size, 8);
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x1a1a1a,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+    });
+
+    const decal = new THREE.Mesh(geometry, material);
+    decal.position.copy(position);
+
+    // Offset slightly from surface to prevent z-fighting
+    decal.position.add(normal.clone().multiplyScalar(0.01));
+
+    // Orient to face along the normal
+    decal.lookAt(position.clone().add(normal));
+
+    // Add slight random rotation for variety
+    decal.rotation.z = Math.random() * Math.PI * 2;
+
+    scene.add(decal);
+
+    // Track for cleanup
+    const hitMark = {
+        mesh: decal,
+        createdAt: Date.now(),
+        lifetime: 10000, // 10 seconds
+    };
+    activeEffects.hitMarks.push(hitMark);
+
+    // Add scorch/crack ring around it
+    const ringGeometry = new THREE.RingGeometry(size * 0.8, size * 1.2, 8);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+        color: 0x333333,
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.copy(decal.position);
+    ring.position.add(normal.clone().multiplyScalar(0.005));
+    ring.lookAt(position.clone().add(normal));
+    ring.rotation.z = decal.rotation.z;
+    scene.add(ring);
+
+    activeEffects.hitMarks.push({
+        mesh: ring,
+        createdAt: Date.now(),
+        lifetime: 10000,
+    });
+
+    return decal;
+}
+
+// Create blood splatter particles at hit location
+function createBloodSplatter(position, direction) {
+    const particleCount = 8 + Math.floor(Math.random() * 8);
+
+    for (let i = 0; i < particleCount; i++) {
+        // Random size for variety
+        const size = 0.03 + Math.random() * 0.05;
+
+        // Create blood particle
+        const geometry = new THREE.SphereGeometry(size, 6, 6);
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(
+                0.5 + Math.random() * 0.3,  // Red variation
+                0,
+                0
+            ),
+            transparent: true,
+            opacity: 0.9,
+        });
+
+        const particle = new THREE.Mesh(geometry, material);
+        particle.position.copy(position);
+
+        // Calculate velocity - spray outward from hit direction
+        const spread = 0.5;
+        const velocity = new THREE.Vector3(
+            direction.x + (Math.random() - 0.5) * spread,
+            direction.y + (Math.random() - 0.5) * spread + 0.3, // Slight upward bias
+            direction.z + (Math.random() - 0.5) * spread
+        ).normalize().multiplyScalar(2 + Math.random() * 3);
+
+        scene.add(particle);
+
+        // Track particle with physics
+        const bloodParticle = {
+            mesh: particle,
+            velocity: velocity,
+            gravity: -9.8,
+            createdAt: Date.now(),
+            lifetime: 800 + Math.random() * 400, // Shorter lifetime (0.8-1.2s)
+            groundY: 0.02, // Stop at ground level
+        };
+        activeEffects.bloodParticles.push(bloodParticle);
+    }
+
+    // Create blood spray effect (instantaneous splatter lines)
+    for (let i = 0; i < 5; i++) {
+        const sprayLength = 0.2 + Math.random() * 0.3;
+        const sprayDir = new THREE.Vector3(
+            direction.x + (Math.random() - 0.5) * 0.8,
+            direction.y + (Math.random() - 0.5) * 0.8,
+            direction.z + (Math.random() - 0.5) * 0.8
+        ).normalize();
+
+        const points = [
+            position.clone(),
+            position.clone().add(sprayDir.multiplyScalar(sprayLength))
+        ];
+
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({
+            color: 0x8b0000,
+            transparent: true,
+            opacity: 0.8,
+        });
+
+        const line = new THREE.Line(geometry, material);
+        scene.add(line);
+
+        activeEffects.bloodParticles.push({
+            mesh: line,
+            velocity: new THREE.Vector3(0, 0, 0),
+            gravity: 0,
+            createdAt: Date.now(),
+            lifetime: 150 + Math.random() * 100, // Quick flash
+            isSpray: true,
+        });
+    }
+}
+
+// Create blood decal on a surface
+function createBloodDecal(position, normal) {
+    const size = 0.1 + Math.random() * 0.15;
+
+    // Irregular blood splat shape using multiple circles
+    const group = new THREE.Group();
+
+    for (let i = 0; i < 3 + Math.floor(Math.random() * 3); i++) {
+        const blobSize = size * (0.4 + Math.random() * 0.6);
+        const geometry = new THREE.CircleGeometry(blobSize, 8);
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0.4 + Math.random() * 0.2, 0, 0),
+            transparent: true,
+            opacity: 0.7 + Math.random() * 0.2,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+        });
+
+        const blob = new THREE.Mesh(geometry, material);
+        blob.position.x = (Math.random() - 0.5) * size;
+        blob.position.y = (Math.random() - 0.5) * size;
+        group.add(blob);
+    }
+
+    group.position.copy(position);
+    group.position.add(normal.clone().multiplyScalar(0.02));
+    group.lookAt(position.clone().add(normal));
+    group.rotation.z = Math.random() * Math.PI * 2;
+
+    scene.add(group);
+
+    activeEffects.hitMarks.push({
+        mesh: group,
+        createdAt: Date.now(),
+        lifetime: 1500 + Math.random() * 500, // Blood fades quickly (1.5-2s)
+    });
+}
+
+// Update blood particles physics
+function updateBloodParticles(deltaTime) {
+    const now = Date.now();
+
+    // Update particles
+    for (let i = activeEffects.bloodParticles.length - 1; i >= 0; i--) {
+        const particle = activeEffects.bloodParticles[i];
+        const age = now - particle.createdAt;
+
+        // Remove expired particles
+        if (age > particle.lifetime) {
+            scene.remove(particle.mesh);
+            if (particle.mesh.geometry) particle.mesh.geometry.dispose();
+            if (particle.mesh.material) particle.mesh.material.dispose();
+            activeEffects.bloodParticles.splice(i, 1);
+            continue;
+        }
+
+        // Skip physics for spray lines
+        if (particle.isSpray) {
+            // Fade out
+            particle.mesh.material.opacity = 0.8 * (1 - age / particle.lifetime);
+            continue;
+        }
+
+        // Apply gravity
+        particle.velocity.y += particle.gravity * deltaTime;
+
+        // Update position
+        particle.mesh.position.x += particle.velocity.x * deltaTime;
+        particle.mesh.position.y += particle.velocity.y * deltaTime;
+        particle.mesh.position.z += particle.velocity.z * deltaTime;
+
+        // Ground collision - create blood decal
+        if (particle.mesh.position.y <= particle.groundY) {
+            particle.mesh.position.y = particle.groundY;
+            particle.velocity.set(0, 0, 0);
+
+            // Create ground blood splat
+            if (!particle.grounded) {
+                particle.grounded = true;
+                createBloodDecal(
+                    particle.mesh.position.clone(),
+                    new THREE.Vector3(0, 1, 0)
+                );
+            }
+        }
+
+        // Fade out near end of life
+        const fadeStart = particle.lifetime * 0.7;
+        if (age > fadeStart) {
+            const fadeProgress = (age - fadeStart) / (particle.lifetime - fadeStart);
+            particle.mesh.material.opacity = 0.9 * (1 - fadeProgress);
+        }
+    }
+
+    // Cleanup old hit marks
+    for (let i = activeEffects.hitMarks.length - 1; i >= 0; i--) {
+        const mark = activeEffects.hitMarks[i];
+        const age = now - mark.createdAt;
+
+        if (age > mark.lifetime) {
+            scene.remove(mark.mesh);
+            if (mark.mesh.geometry) mark.mesh.geometry.dispose();
+            if (mark.mesh.material) mark.mesh.material.dispose();
+            activeEffects.hitMarks.splice(i, 1);
+            continue;
+        }
+
+        // Fade out in last 20% of lifetime
+        const fadeStart = mark.lifetime * 0.8;
+        if (age > fadeStart) {
+            const fadeProgress = (age - fadeStart) / (mark.lifetime - fadeStart);
+            if (mark.mesh.material) {
+                mark.mesh.material.opacity = 0.8 * (1 - fadeProgress);
+            } else if (mark.mesh.children) {
+                mark.mesh.children.forEach(child => {
+                    if (child.material) child.material.opacity = 0.7 * (1 - fadeProgress);
+                });
+            }
+        }
+    }
 }
 
 function hideTargets() {
@@ -562,22 +1021,23 @@ function updateOpponentMesh(opponent, deltaTime) {
     // Base height with crouch
     const baseY = 1.6 - (state.crouch * 0.8);
 
-    // Position with strafe and lean
-    const strafeX = state.strafe * 2.0;
-    const leanX = state.lean * 0.6;
+    // Position with strafe and lean - MIRRORED since opponent faces us
+    // When they strafe left (negative), we see them move right (positive)
+    const strafeX = -state.strafe * 2.0;
+    const leanX = -state.lean * 0.6;
 
     mesh.position.x = strafeX + leanX;
     mesh.position.y = baseY - 1.6; // Adjust for mesh origin
 
-    // Rotation based on look direction
-    mesh.rotation.y = Math.PI + state.lookYaw; // Face toward player
+    // Rotation based on look direction (mirrored)
+    mesh.rotation.y = Math.PI - state.lookYaw; // Face toward player, mirror yaw
 
-    // Lean tilt
-    mesh.rotation.z = state.lean * 0.15;
+    // Lean tilt (mirrored)
+    mesh.rotation.z = -state.lean * 0.15;
 
-    // Update weapon hand position
+    // Update weapon hand position (mirrored)
     if (opponent.weaponMesh) {
-        const handOffset = state.weaponHand === 'right' ? 0.3 : -0.3;
+        const handOffset = state.weaponHand === 'right' ? -0.3 : 0.3;
         opponent.weaponMesh.position.x = handOffset;
     }
 }
@@ -659,12 +1119,14 @@ function createEnvironment() {
 }
 
 function createCover() {
-    // Main cover wall the player hides behind
-    const coverGeometry = new THREE.BoxGeometry(3, 1.2, 0.3);
     const coverMaterial = new THREE.MeshStandardMaterial({
         color: 0x556655,
         roughness: 0.7
     });
+
+    // === PLAYER SIDE COVER (near z = 0) ===
+    // Main cover wall the player hides behind
+    const coverGeometry = new THREE.BoxGeometry(3, 1.2, 0.3);
     cover = new THREE.Mesh(coverGeometry, coverMaterial);
     cover.position.set(0, 0.6, -0.5);
     cover.castShadow = true;
@@ -682,6 +1144,26 @@ function createCover() {
     rightCover.position.set(1.65, 0.9, -0.5);
     rightCover.castShadow = true;
     scene.add(rightCover);
+
+    // === OPPONENT SIDE COVER (near z = -15) ===
+    // This is where the opponent takes cover from their perspective
+    const opponentCoverZ = -14.5; // Opponent is at z=-15, their cover is 0.5 in front
+
+    const opponentMainCover = new THREE.Mesh(coverGeometry, coverMaterial);
+    opponentMainCover.position.set(0, 0.6, opponentCoverZ);
+    opponentMainCover.castShadow = true;
+    opponentMainCover.receiveShadow = true;
+    scene.add(opponentMainCover);
+
+    const opponentLeftCover = new THREE.Mesh(sideGeometry, coverMaterial);
+    opponentLeftCover.position.set(-1.65, 0.9, opponentCoverZ);
+    opponentLeftCover.castShadow = true;
+    scene.add(opponentLeftCover);
+
+    const opponentRightCover = new THREE.Mesh(sideGeometry, coverMaterial);
+    opponentRightCover.position.set(1.65, 0.9, opponentCoverZ);
+    opponentRightCover.castShadow = true;
+    scene.add(opponentRightCover);
 }
 
 function createWeapon() {
@@ -929,20 +1411,57 @@ function applyRecoil() {
     const recoil = weapon.recoil;
     const now = Date.now();
 
+    // Time since last shot affects how much drift has reset
+    const timeSinceLastShot = now - recoilState.lastShotTime;
+
     // Reset shot count if enough time passed (burst reset)
-    if (now - recoilState.lastShotTime > 200) {
+    if (timeSinceLastShot > 200) {
         recoilState.shotCount = 0;
     }
+
+    // Decay drift momentum based on time between shots
+    // Quick shots = drift compounds, slow shots = drift resets
+    const driftDecay = Math.min(1, timeSinceLastShot / 500); // Full reset after 500ms
+    recoilState.driftMomentum *= (1 - driftDecay);
+    recoilState.driftDirection *= (1 - driftDecay * 0.5); // Direction decays slower
 
     // Get pattern multiplier based on shot count
     const patternIndex = Math.min(recoilState.shotCount, recoil.pattern.length - 1);
     const patternMult = recoil.pattern[patternIndex];
 
-    // Calculate recoil with noise
-    const verticalKick = (recoil.verticalBase + recoilState.noise.signed() * recoil.verticalVariance) * patternMult;
-    const horizontalKick = recoil.horizontalBase + recoilState.noise.signed() * recoil.horizontalVariance;
+    // Calculate base recoil with noise
+    const baseVerticalKick = recoil.verticalBase + recoilState.noise.signed() * recoil.verticalVariance;
+    const baseHorizontalKick = recoilState.noise.signed() * recoil.horizontalVariance;
 
-    // Apply to camera offset (will be added to look angles)
+    // CUMULATIVE RECOIL: Scale recoil based on current offset magnitude
+    // The further from center, the more the next shot kicks
+    const currentOffsetMagnitude = Math.sqrt(
+        recoilState.pitchOffset * recoilState.pitchOffset +
+        recoilState.yawOffset * recoilState.yawOffset
+    );
+    const cumulativeMultiplier = 1 + currentOffsetMagnitude * 2; // Compounds based on current offset
+
+    // Apply pattern and cumulative multiplier to vertical
+    const verticalKick = baseVerticalKick * patternMult * cumulativeMultiplier;
+
+    // DRIFT SYSTEM: Horizontal recoil tends to continue in same direction during rapid fire
+    // Update drift direction based on this shot's random horizontal
+    recoilState.driftDirection += baseHorizontalKick * 0.5;
+    recoilState.driftDirection = Math.max(-1, Math.min(1, recoilState.driftDirection));
+
+    // Build drift momentum during rapid fire
+    recoilState.driftMomentum = Math.min(1, recoilState.driftMomentum + 0.15);
+
+    // Horizontal kick is a blend of random and drift direction
+    // More rapid fire = more drift influence
+    const driftInfluence = recoilState.driftMomentum * 0.7;
+    const randomInfluence = 1 - driftInfluence;
+    const horizontalKick = (
+        baseHorizontalKick * randomInfluence +
+        recoilState.driftDirection * recoil.horizontalVariance * driftInfluence
+    ) * cumulativeMultiplier;
+
+    // Apply to camera offset (compounds from current position)
     recoilState.pitchOffset += verticalKick;
     recoilState.yawOffset += horizontalKick;
 
@@ -969,9 +1488,15 @@ function updateRecoil(deltaTime) {
     recoilState.weaponKickUp *= Math.pow(0.01, deltaTime * 10);
     recoilState.weaponKickSide *= Math.pow(0.01, deltaTime * 10);
 
+    // Decay drift momentum and direction over time (slower than recoil recovery)
+    recoilState.driftMomentum *= Math.pow(0.3, deltaTime * recovery * 0.5);
+    recoilState.driftDirection *= Math.pow(0.5, deltaTime * recovery * 0.3);
+
     // Clamp small values to zero
     if (Math.abs(recoilState.pitchOffset) < 0.0001) recoilState.pitchOffset = 0;
     if (Math.abs(recoilState.yawOffset) < 0.0001) recoilState.yawOffset = 0;
+    if (Math.abs(recoilState.driftMomentum) < 0.001) recoilState.driftMomentum = 0;
+    if (Math.abs(recoilState.driftDirection) < 0.001) recoilState.driftDirection = 0;
 }
 
 function shoot() {
@@ -991,20 +1516,71 @@ function shoot() {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
 
-    // Check hits on opponent (multiplayer)
+    // Check hits on opponent (multiplayer) - but cover can block shots
     if (netState.gameMode === 'online' && netState.opponent && netState.opponent.mesh) {
-        const intersects = raycaster.intersectObject(netState.opponent.mesh, true);
-        if (intersects.length > 0) {
-            // Hit opponent!
-            const damage = 25; // Base damage per hit
-            sendHit(damage);
-            showHitMarker();
-            return; // Don't check practice targets
+        // Get all solid objects that can block shots (cover, walls, etc.)
+        const blockingObjects = [];
+        scene.traverse((obj) => {
+            if (obj.isMesh && !obj.userData.isOpponent && !obj.userData.isTarget &&
+                obj !== ground && obj.visible) {
+                blockingObjects.push(obj);
+            }
+        });
+
+        // Check opponent hit distance
+        const opponentIntersects = raycaster.intersectObject(netState.opponent.mesh, true);
+
+        if (opponentIntersects.length > 0) {
+            const opponentHit = opponentIntersects[0];
+            const opponentDistance = opponentHit.distance;
+
+            // Check if any cover blocks the shot
+            const coverIntersects = raycaster.intersectObjects(blockingObjects, true);
+            let blocked = false;
+
+            if (coverIntersects.length > 0) {
+                const coverDistance = coverIntersects[0].distance;
+                if (coverDistance < opponentDistance) {
+                    // Cover blocks the shot - create hit mark on cover instead
+                    blocked = true;
+                    const coverHit = coverIntersects[0];
+                    if (coverHit.face) {
+                        const worldNormal = coverHit.face.normal.clone();
+                        if (coverHit.object.matrixWorld) {
+                            worldNormal.transformDirection(coverHit.object.matrixWorld);
+                        }
+                        createHitMark(coverHit.point.clone(), worldNormal);
+                    }
+                }
+            }
+
+            if (!blocked) {
+                // Hit opponent!
+                const damage = 25; // Base damage per hit
+                sendHit(damage);
+                showHitMarker();
+
+                // Create blood splatter at hit point
+                const hitDirection = raycaster.ray.direction.clone();
+                createBloodSplatter(opponentHit.point.clone(), hitDirection);
+
+                // Also create blood on the opponent mesh
+                if (opponentHit.face) {
+                    const worldNormal = opponentHit.face.normal.clone();
+                    if (opponentHit.object.matrixWorld) {
+                        worldNormal.transformDirection(opponentHit.object.matrixWorld);
+                    }
+                    createBloodDecal(opponentHit.point.clone(), worldNormal.negate());
+                }
+
+                return; // Don't check practice targets
+            }
         }
     }
 
     // Check hits on practice targets (offline mode)
     let hitTarget = null;
+    let hitIntersect = null;
     let closestDistance = Infinity;
 
     targets.forEach(target => {
@@ -1014,6 +1590,7 @@ function shoot() {
         if (intersects.length > 0 && intersects[0].distance < closestDistance) {
             closestDistance = intersects[0].distance;
             hitTarget = target;
+            hitIntersect = intersects[0];
         }
     });
 
@@ -1029,6 +1606,15 @@ function shoot() {
         void hitMarker.offsetWidth;
         hitMarker.classList.add('show');
 
+        // Create hit mark on target
+        if (hitIntersect && hitIntersect.face) {
+            const worldNormal = hitIntersect.face.normal.clone();
+            if (hitIntersect.object.matrixWorld) {
+                worldNormal.transformDirection(hitIntersect.object.matrixWorld);
+            }
+            createHitMark(hitIntersect.point.clone(), worldNormal);
+        }
+
         // Animate target falling
         animateTargetHit(hitTarget);
 
@@ -1038,6 +1624,29 @@ function shoot() {
                 // Respawn targets
                 createTargets();
             }, 2000);
+        }
+        return;
+    }
+
+    // Missed all targets - check for environment hit marks
+    const envObjects = [ground, cover];
+    // Add walls and boxes from the scene
+    scene.traverse((obj) => {
+        if (obj.isMesh && obj !== ground && obj !== cover &&
+            !obj.userData.isOpponent && !obj.userData.isTarget) {
+            envObjects.push(obj);
+        }
+    });
+
+    const envIntersects = raycaster.intersectObjects(envObjects, true);
+    if (envIntersects.length > 0) {
+        const hit = envIntersects[0];
+        if (hit.face) {
+            const worldNormal = hit.face.normal.clone();
+            if (hit.object.matrixWorld) {
+                worldNormal.transformDirection(hit.object.matrixWorld);
+            }
+            createHitMark(hit.point.clone(), worldNormal);
         }
     }
 }
@@ -1201,6 +1810,9 @@ function animate() {
         }
     }
 
+    // Update blood particles and hit marks (runs even when paused for cleanup)
+    updateBloodParticles(deltaTime);
+
     renderer.render(scene, camera);
 }
 
@@ -1209,12 +1821,24 @@ function startGame(mode = 'offline') {
     gameState.isRunning = true;
 
     if (mode === 'online') {
-        connectToServer();
+        // Create opponent for P2P game
+        const opponentSlot = netState.playerSlot === 0 ? 1 : 0;
+        netState.opponent = new OpponentPlayer(opponentSlot);
+        createOpponentMesh(netState.opponent);
+        hideTargets();
+
+        // Reset health and scores for new game
+        netState.health = 100;
+        netState.scores = [0, 0];
+        updateHealthUI();
+        updateScoreUI();
     }
 }
 
 function startOnlineGame() {
+    // Called after P2P connection is established
     startGame('online');
+    updateNetworkUI();
 }
 
 function startOfflineGame() {
