@@ -3234,8 +3234,37 @@ function shoot() {
         });
     }
 
-    // Muzzle flash
+    // Muzzle flash - position at barrel tip
     const flash = document.getElementById('muzzle-flash');
+    if (flash && weapon) {
+        // Get barrel tip position in world space (exact positions from weapon models)
+        const barrelOffset = new THREE.Vector3(0, 0.015, -0.18); // Pistol: barrel tip
+        if (gameState.currentWeapon === 'assault_rifle') {
+            barrelOffset.set(0, 0.005, -0.65); // Muzzle device tip
+        } else if (gameState.currentWeapon === 'smg') {
+            barrelOffset.set(0, 0, -0.415); // Muzzle tip
+        } else if (gameState.currentWeapon === 'shotgun') {
+            barrelOffset.set(0, 0.015, -0.55); // Barrel tip
+        } else if (gameState.currentWeapon === 'sniper') {
+            barrelOffset.set(0, 0, -0.76); // Muzzle brake tip
+        }
+
+        // Transform to world position through weapon hierarchy
+        const barrelWorld = barrelOffset.clone();
+        barrelWorld.applyMatrix4(weapon.matrixWorld);
+
+        // Project to screen coordinates
+        const screenPos = barrelWorld.clone().project(camera);
+        const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
+
+        // Position flash at barrel
+        flash.style.left = x + 'px';
+        flash.style.top = y + 'px';
+        flash.style.bottom = 'auto';
+        flash.style.right = 'auto';
+        flash.style.transform = 'translate(-50%, -50%)';
+    }
     flash.classList.remove('show');
     void flash.offsetWidth; // Trigger reflow
     flash.classList.add('show');
