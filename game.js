@@ -2027,8 +2027,8 @@ const gameState = {
     LEAN_AMOUNT: 0.6,       // How far to lean sideways
     LEAN_TILT: 0.15,        // How much camera tilts when leaning
     STRAFE_AMOUNT: 2.0,     // How far to strafe sideways
-    LOOK_LIMIT_YAW: 0.8,    // Max horizontal look angle (radians)
-    LOOK_LIMIT_PITCH: 0.5   // Max vertical look angle (radians)
+    LOOK_LIMIT_YAW: 0.8,    // Max horizontal look angle (radians) - unused, 360 enabled
+    LOOK_LIMIT_PITCH: 1.4   // Max vertical look angle (radians) ~80 degrees up/down
 };
 
 // Three.js objects
@@ -3170,8 +3170,7 @@ function setupEventListeners() {
             gameState.lookYaw += e.movementX * gameState.MOUSE_SENSITIVITY;
             gameState.lookPitch -= e.movementY * gameState.MOUSE_SENSITIVITY;
 
-            // Clamp look angles
-            gameState.lookYaw = Math.max(-gameState.LOOK_LIMIT_YAW, Math.min(gameState.LOOK_LIMIT_YAW, gameState.lookYaw));
+            // Clamp pitch only (allow 360 degree horizontal rotation)
             gameState.lookPitch = Math.max(-gameState.LOOK_LIMIT_PITCH, Math.min(gameState.LOOK_LIMIT_PITCH, gameState.lookPitch));
         }
     });
