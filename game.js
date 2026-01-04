@@ -3298,10 +3298,15 @@ function shoot() {
                 // Hit opponent! Check which body part was hit
                 const hitObject = opponentHit.object;
                 const bodyPart = hitObject.userData.bodyPart || 'body';
-                // Use DamageConfig if available, otherwise fall back to userData
-                const damage = typeof DamageConfig !== 'undefined'
-                    ? DamageConfig.getDamage(bodyPart)
-                    : (hitObject.userData.damage || 10);
+                // Use WeaponConfig for weapon-specific damage, fall back to DamageConfig
+                let damage;
+                if (typeof WeaponConfig !== 'undefined') {
+                    damage = WeaponConfig.getDamage(gameState.currentWeapon, bodyPart);
+                } else if (typeof DamageConfig !== 'undefined') {
+                    damage = DamageConfig.getDamage(bodyPart);
+                } else {
+                    damage = hitObject.userData.damage || 10;
+                }
 
                 const hitPoint = opponentHit.point.clone();
                 const hitDirection = raycaster.ray.direction.clone();

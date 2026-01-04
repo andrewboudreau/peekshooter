@@ -17,7 +17,7 @@ const WeaponConfig = {
 
             // Damage
             damage: {
-                base: 18,
+                base: 10,
                 headshotMult: 2.0,
                 range: 25,
                 falloffStart: 15,
@@ -192,8 +192,8 @@ const WeaponConfig = {
             slot: 5,
 
             damage: {
-                base: 70,
-                headshotMult: 2.5,
+                base: 50,
+                headshotMult: 2.0,
                 range: 100,
                 falloffStart: 60,
             },
@@ -309,9 +309,18 @@ const WeaponConfig = {
         const weapon = this.getWeapon(weaponId);
         let damage = weapon.damage.base;
 
-        if (bodyPart === 'head') {
-            damage *= weapon.damage.headshotMult;
-        }
+        // Body part multipliers
+        const bodyPartMults = {
+            head: weapon.damage.headshotMult || 2.0,
+            chest: 1.0,
+            belly: 0.8,
+            arm: 0.5,
+            leg: 0.6,
+            body: 0.9,  // Generic fallback
+        };
+
+        const mult = bodyPartMults[bodyPart] || 1.0;
+        damage *= mult;
 
         return Math.round(damage);
     },
