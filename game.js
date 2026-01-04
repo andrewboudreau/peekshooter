@@ -44,6 +44,230 @@ class NoiseGenerator {
 }
 
 // ============================================
+// AUDIO SYSTEM - Procedural sound effects
+// ============================================
+const AudioSystem = {
+    ctx: null,
+    masterGain: null,
+    initialized: false,
+
+    // Initialize audio context (must be called after user interaction)
+    init() {
+        if (this.initialized) return;
+        try {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.3; // Master volume
+            this.masterGain.connect(this.ctx.destination);
+            this.initialized = true;
+            console.log('Audio system initialized');
+        } catch (e) {
+            console.warn('Web Audio API not supported:', e);
+        }
+    },
+
+    // Resume audio context if suspended (browser autoplay policy)
+    resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    },
+
+    // Gunshot sound - sharp attack, punchy
+    playGunshot() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Noise burst for the crack
+        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+            noiseData[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        // Highpass filter for crack
+        const highpass = ctx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 1000;
+
+        // Envelope for noise
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.8, now);
+        noiseGain.gain.exponentialDecayTo = 0.01;
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+
+        noise.connect(highpass);
+        highpass.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+
+        // Low frequency thump
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+
+        const oscGain = ctx.createGain();
+        oscGain.gain.setValueAtTime(1, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+        osc.connect(oscGain);
+        oscGain.connect(this.masterGain);
+
+        // Play
+        noise.start(now);
+        noise.stop(now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.15);
+    },
+
+    // Hit marker sound - satisfying tick
+    playHitMarker() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // High ping
+        const osc1 = ctx.createOscillator();
+        osc1.type = 'sine';
+        osc1.frequency.value = 1800;
+
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.value = 2400;
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.1);
+        osc2.stop(now + 0.1);
+    },
+
+    // Damage taken sound - low thud
+    playDamage() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Low impact thump
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(80, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+        // Distortion for grit
+        const distortion = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+            const x = (i / 128) - 1;
+            curve[i] = Math.tanh(x * 2);
+        }
+        distortion.curve = curve;
+
+        osc.connect(distortion);
+        distortion.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(now);
+        osc.stop(now + 0.25);
+    },
+
+    // Kill sound - dramatic confirmation
+    playKill() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Descending tone
+        const osc1 = ctx.createOscillator();
+        osc1.type = 'square';
+        osc1.frequency.setValueAtTime(600, now);
+        osc1.frequency.setValueAtTime(500, now + 0.1);
+        osc1.frequency.setValueAtTime(400, now + 0.2);
+
+        // Higher harmony
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(900, now);
+        osc2.frequency.setValueAtTime(750, now + 0.1);
+        osc2.frequency.setValueAtTime(600, now + 0.2);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.setValueAtTime(0.25, now + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+        // Filter for less harsh square wave
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 2000;
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.35);
+        osc2.stop(now + 0.35);
+    },
+
+    // Death sound - for when you die
+    playDeath() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Low descending tone
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.5);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.exponentialRampToValueAtTime(200, now + 0.5);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(now);
+        osc.stop(now + 0.6);
+    },
+};
+
+// ============================================
 // WEAPON PROFILES - Configurable recoil patterns
 // ============================================
 const WEAPON_PROFILES = {
@@ -527,6 +751,9 @@ function showDamageEffect() {
         setTimeout(() => overlay.classList.remove('show'), 200);
     }
 
+    // Damage sound
+    AudioSystem.playDamage();
+
     // Create blood splatter on screen edges (player POV hit effect)
     // Spawn some blood particles near the camera
     const cameraPos = camera.position.clone();
@@ -548,6 +775,8 @@ function showHitMarker() {
         void hitMarker.offsetWidth;
         hitMarker.classList.add('show');
     }
+    // Hit marker sound
+    AudioSystem.playHitMarker();
 }
 
 function showDeathScreen() {
@@ -555,6 +784,8 @@ function showDeathScreen() {
     if (deathScreen) {
         deathScreen.style.display = 'flex';
     }
+    // Death sound
+    AudioSystem.playDeath();
 }
 
 function hideDeathScreen() {
@@ -565,7 +796,8 @@ function hideDeathScreen() {
 }
 
 function showKillNotification() {
-    // Could add a kill notification UI element
+    // Kill confirmation sound
+    AudioSystem.playKill();
     console.log('You eliminated the opponent!');
 }
 
@@ -1506,6 +1738,9 @@ function shoot() {
     void flash.offsetWidth; // Trigger reflow
     flash.classList.add('show');
 
+    // Gunshot sound
+    AudioSystem.playGunshot();
+
     // Apply recoil
     applyRecoil();
 
@@ -1819,6 +2054,9 @@ function animate() {
 function startGame(mode = 'offline') {
     document.getElementById('start-screen').style.display = 'none';
     gameState.isRunning = true;
+
+    // Initialize audio on first user interaction
+    AudioSystem.init();
 
     if (mode === 'online') {
         // Create opponent for P2P game
