@@ -1936,6 +1936,13 @@ const gameState = {
     weaponHand: 'right', // 'left' or 'right'
     currentWeapon: 'assault_rifle',
 
+    // Aim down sights
+    isAiming: false,        // Currently holding right mouse
+    adsProgress: 0,         // 0 = hip fire, 1 = fully aimed
+    ADS_SPEED: 8,           // How fast ADS transitions
+    ADS_FOV: 45,            // FOV when aiming (default is 75)
+    DEFAULT_FOV: 75,        // Normal FOV
+
     // Fire mode
     fireMode: 'single',     // 'single', 'burst', 'auto'
     fireRateMs: 100,        // Milliseconds between shots (1-1000)
@@ -2408,62 +2415,252 @@ function createWeapon() {
     weaponPivot = new THREE.Group();
     camera.add(weaponPivot);
 
-    // Create assault rifle model
+    // Create realistic assault rifle model
     weapon = new THREE.Group();
 
-    // Main body
-    const bodyGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.5);
-    const metalMaterial = new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a,
-        roughness: 0.3,
-        metalness: 0.8
+    // Materials
+    const metalDark = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a,
+        roughness: 0.25,
+        metalness: 0.9
     });
-    const body = new THREE.Mesh(bodyGeometry, metalMaterial);
-    weapon.add(body);
+    const metalMedium = new THREE.MeshStandardMaterial({
+        color: 0x2d2d2d,
+        roughness: 0.3,
+        metalness: 0.85
+    });
+    const polymer = new THREE.MeshStandardMaterial({
+        color: 0x1f1f1f,
+        roughness: 0.6,
+        metalness: 0.1
+    });
+    const polymerTan = new THREE.MeshStandardMaterial({
+        color: 0x3d3428,
+        roughness: 0.55,
+        metalness: 0.1
+    });
 
-    // Barrel
-    const barrelGeometry = new THREE.CylinderGeometry(0.015, 0.02, 0.3, 8);
-    const barrel = new THREE.Mesh(barrelGeometry, metalMaterial);
-    barrel.rotation.x = Math.PI / 2;
-    barrel.position.set(0, 0.01, -0.4);
-    weapon.add(barrel);
+    // === UPPER RECEIVER ===
+    const upperGeometry = new THREE.BoxGeometry(0.055, 0.055, 0.28);
+    const upper = new THREE.Mesh(upperGeometry, metalMedium);
+    upper.position.set(0, 0.01, 0.02);
+    weapon.add(upper);
 
-    // Stock
-    const stockGeometry = new THREE.BoxGeometry(0.06, 0.1, 0.2);
-    const stock = new THREE.Mesh(stockGeometry, metalMaterial);
-    stock.position.set(0, -0.02, 0.3);
-    weapon.add(stock);
+    // Ejection port
+    const ejectionGeometry = new THREE.BoxGeometry(0.03, 0.02, 0.06);
+    const ejection = new THREE.Mesh(ejectionGeometry, metalDark);
+    ejection.position.set(0.028, 0.02, 0);
+    weapon.add(ejection);
 
-    // Magazine
-    const magGeometry = new THREE.BoxGeometry(0.04, 0.15, 0.08);
-    const mag = new THREE.Mesh(magGeometry, metalMaterial);
-    mag.position.set(0, -0.1, 0.05);
-    weapon.add(mag);
+    // Charging handle
+    const chargingGeometry = new THREE.BoxGeometry(0.04, 0.015, 0.03);
+    const charging = new THREE.Mesh(chargingGeometry, metalDark);
+    charging.position.set(0, 0.045, 0.12);
+    weapon.add(charging);
 
-    // Grip
-    const gripGeometry = new THREE.BoxGeometry(0.04, 0.1, 0.04);
-    const grip = new THREE.Mesh(gripGeometry, metalMaterial);
-    grip.position.set(0, -0.08, 0.15);
-    grip.rotation.x = 0.3;
+    // Forward assist
+    const assistGeometry = new THREE.CylinderGeometry(0.008, 0.008, 0.02, 8);
+    const assist = new THREE.Mesh(assistGeometry, metalDark);
+    assist.rotation.z = Math.PI / 2;
+    assist.position.set(0.035, 0.01, 0.05);
+    weapon.add(assist);
+
+    // === LOWER RECEIVER ===
+    const lowerGeometry = new THREE.BoxGeometry(0.05, 0.045, 0.18);
+    const lower = new THREE.Mesh(lowerGeometry, metalMedium);
+    lower.position.set(0, -0.03, 0.07);
+    weapon.add(lower);
+
+    // Magazine well
+    const magWellGeometry = new THREE.BoxGeometry(0.035, 0.025, 0.07);
+    const magWell = new THREE.Mesh(magWellGeometry, metalDark);
+    magWell.position.set(0, -0.055, 0.04);
+    weapon.add(magWell);
+
+    // Trigger guard
+    const triggerGuardShape = new THREE.Shape();
+    triggerGuardShape.moveTo(0, 0);
+    triggerGuardShape.lineTo(0.05, 0);
+    triggerGuardShape.lineTo(0.05, -0.035);
+    triggerGuardShape.lineTo(0.045, -0.04);
+    triggerGuardShape.lineTo(0.005, -0.04);
+    triggerGuardShape.lineTo(0, -0.035);
+    triggerGuardShape.lineTo(0, 0);
+    const triggerGuardGeo = new THREE.ExtrudeGeometry(triggerGuardShape, { depth: 0.008, bevelEnabled: false });
+    const triggerGuard = new THREE.Mesh(triggerGuardGeo, polymer);
+    triggerGuard.rotation.y = Math.PI / 2;
+    triggerGuard.position.set(0.004, -0.045, 0.13);
+    weapon.add(triggerGuard);
+
+    // Trigger
+    const triggerGeometry = new THREE.BoxGeometry(0.006, 0.025, 0.015);
+    const trigger = new THREE.Mesh(triggerGeometry, metalDark);
+    trigger.position.set(0, -0.055, 0.1);
+    trigger.rotation.x = 0.3;
+    weapon.add(trigger);
+
+    // === PISTOL GRIP ===
+    const gripGeometry = new THREE.BoxGeometry(0.038, 0.095, 0.05);
+    const grip = new THREE.Mesh(gripGeometry, polymer);
+    grip.position.set(0, -0.095, 0.145);
+    grip.rotation.x = 0.25;
     weapon.add(grip);
 
-    // Sight rail
-    const railGeometry = new THREE.BoxGeometry(0.03, 0.02, 0.2);
-    const rail = new THREE.Mesh(railGeometry, metalMaterial);
-    rail.position.set(0, 0.05, -0.05);
-    weapon.add(rail);
+    // Grip texture lines
+    for (let i = 0; i < 5; i++) {
+        const lineGeo = new THREE.BoxGeometry(0.001, 0.06, 0.035);
+        const line = new THREE.Mesh(lineGeo, metalDark);
+        line.position.set(0.02, -0.09, 0.145);
+        line.rotation.x = 0.25;
+        line.position.x = 0.02 - i * 0.01;
+        weapon.add(line);
+    }
 
-    // Iron sights - front
-    const frontSightGeometry = new THREE.BoxGeometry(0.01, 0.03, 0.01);
-    const frontSight = new THREE.Mesh(frontSightGeometry, metalMaterial);
-    frontSight.position.set(0, 0.065, -0.22);
-    weapon.add(frontSight);
+    // === STOCK ===
+    // Buffer tube
+    const bufferGeometry = new THREE.CylinderGeometry(0.018, 0.02, 0.15, 12);
+    const buffer = new THREE.Mesh(bufferGeometry, metalMedium);
+    buffer.rotation.x = Math.PI / 2;
+    buffer.position.set(0, 0, 0.23);
+    weapon.add(buffer);
 
-    // Iron sights - rear
-    const rearSightGeometry = new THREE.BoxGeometry(0.025, 0.025, 0.01);
-    const rearSight = new THREE.Mesh(rearSightGeometry, metalMaterial);
-    rearSight.position.set(0, 0.065, 0.05);
-    weapon.add(rearSight);
+    // Stock body
+    const stockGeometry = new THREE.BoxGeometry(0.045, 0.065, 0.12);
+    const stock = new THREE.Mesh(stockGeometry, polymer);
+    stock.position.set(0, -0.005, 0.32);
+    weapon.add(stock);
+
+    // Stock buttpad
+    const buttpadGeometry = new THREE.BoxGeometry(0.05, 0.075, 0.015);
+    const buttpad = new THREE.Mesh(buttpadGeometry, polymerTan);
+    buttpad.position.set(0, -0.005, 0.385);
+    weapon.add(buttpad);
+
+    // Cheek rest
+    const cheekGeometry = new THREE.BoxGeometry(0.04, 0.02, 0.08);
+    const cheek = new THREE.Mesh(cheekGeometry, polymer);
+    cheek.position.set(0, 0.035, 0.3);
+    weapon.add(cheek);
+
+    // === HANDGUARD ===
+    const handguardGeometry = new THREE.BoxGeometry(0.058, 0.058, 0.22);
+    const handguard = new THREE.Mesh(handguardGeometry, polymer);
+    handguard.position.set(0, 0.005, -0.22);
+    weapon.add(handguard);
+
+    // M-LOK slots
+    for (let i = 0; i < 3; i++) {
+        const slotGeo = new THREE.BoxGeometry(0.02, 0.008, 0.04);
+        const slotLeft = new THREE.Mesh(slotGeo, metalDark);
+        slotLeft.position.set(-0.032, 0.005, -0.13 - i * 0.06);
+        weapon.add(slotLeft);
+        const slotRight = new THREE.Mesh(slotGeo, metalDark);
+        slotRight.position.set(0.032, 0.005, -0.13 - i * 0.06);
+        weapon.add(slotRight);
+    }
+
+    // Bottom rail on handguard
+    const bottomRailGeo = new THREE.BoxGeometry(0.025, 0.012, 0.18);
+    const bottomRail = new THREE.Mesh(bottomRailGeo, metalMedium);
+    bottomRail.position.set(0, -0.03, -0.2);
+    weapon.add(bottomRail);
+
+    // === BARREL ASSEMBLY ===
+    // Gas block
+    const gasBlockGeometry = new THREE.BoxGeometry(0.035, 0.04, 0.025);
+    const gasBlock = new THREE.Mesh(gasBlockGeometry, metalDark);
+    gasBlock.position.set(0, 0.025, -0.3);
+    weapon.add(gasBlock);
+
+    // Barrel
+    const barrelGeometry = new THREE.CylinderGeometry(0.012, 0.014, 0.35, 16);
+    const barrel = new THREE.Mesh(barrelGeometry, metalDark);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(0, 0.005, -0.42);
+    weapon.add(barrel);
+
+    // Muzzle device / flash hider
+    const muzzleGeometry = new THREE.CylinderGeometry(0.016, 0.014, 0.06, 16);
+    const muzzle = new THREE.Mesh(muzzleGeometry, metalDark);
+    muzzle.rotation.x = Math.PI / 2;
+    muzzle.position.set(0, 0.005, -0.62);
+    weapon.add(muzzle);
+
+    // Muzzle ports
+    for (let i = 0; i < 4; i++) {
+        const portGeo = new THREE.BoxGeometry(0.025, 0.006, 0.008);
+        const port = new THREE.Mesh(portGeo, metalMedium);
+        port.position.set(0, 0.005, -0.6 - i * 0.012);
+        weapon.add(port);
+    }
+
+    // === MAGAZINE ===
+    const magBodyGeo = new THREE.BoxGeometry(0.028, 0.16, 0.055);
+    const mag = new THREE.Mesh(magBodyGeo, metalMedium);
+    mag.position.set(0, -0.13, 0.04);
+    mag.rotation.x = 0.05;
+    weapon.add(mag);
+
+    // Magazine floor plate
+    const floorPlateGeo = new THREE.BoxGeometry(0.032, 0.012, 0.06);
+    const floorPlate = new THREE.Mesh(floorPlateGeo, polymerTan);
+    floorPlate.position.set(0, -0.21, 0.04);
+    weapon.add(floorPlate);
+
+    // === OPTICS / SIGHTS ===
+    // Picatinny rail
+    const topRailGeo = new THREE.BoxGeometry(0.028, 0.015, 0.35);
+    const topRail = new THREE.Mesh(topRailGeo, metalMedium);
+    topRail.position.set(0, 0.045, -0.05);
+    weapon.add(topRail);
+
+    // Rail grooves
+    for (let i = 0; i < 12; i++) {
+        const grooveGeo = new THREE.BoxGeometry(0.03, 0.004, 0.008);
+        const groove = new THREE.Mesh(grooveGeo, metalDark);
+        groove.position.set(0, 0.055, 0.1 - i * 0.028);
+        weapon.add(groove);
+    }
+
+    // Front sight post
+    const frontSightBase = new THREE.BoxGeometry(0.025, 0.025, 0.015);
+    const frontBase = new THREE.Mesh(frontSightBase, metalDark);
+    frontBase.position.set(0, 0.055, -0.28);
+    weapon.add(frontBase);
+
+    const frontPostGeo = new THREE.BoxGeometry(0.008, 0.035, 0.008);
+    const frontPost = new THREE.Mesh(frontPostGeo, metalDark);
+    frontPost.position.set(0, 0.08, -0.28);
+    weapon.add(frontPost);
+
+    // Rear sight
+    const rearSightBase = new THREE.BoxGeometry(0.035, 0.02, 0.025);
+    const rearBase = new THREE.Mesh(rearSightBase, metalDark);
+    rearBase.position.set(0, 0.055, 0.06);
+    weapon.add(rearBase);
+
+    const rearApertureLeft = new THREE.BoxGeometry(0.008, 0.03, 0.01);
+    const rearLeft = new THREE.Mesh(rearApertureLeft, metalDark);
+    rearLeft.position.set(-0.012, 0.075, 0.06);
+    weapon.add(rearLeft);
+
+    const rearApertureRight = new THREE.BoxGeometry(0.008, 0.03, 0.01);
+    const rearRight = new THREE.Mesh(rearApertureRight, metalDark);
+    rearRight.position.set(0.012, 0.075, 0.06);
+    weapon.add(rearRight);
+
+    // === BOLT CATCH / CONTROLS ===
+    const boltCatchGeo = new THREE.BoxGeometry(0.008, 0.02, 0.015);
+    const boltCatch = new THREE.Mesh(boltCatchGeo, metalDark);
+    boltCatch.position.set(-0.03, -0.02, 0.08);
+    weapon.add(boltCatch);
+
+    // Selector switch
+    const selectorGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.015, 8);
+    const selector = new THREE.Mesh(selectorGeo, metalDark);
+    selector.rotation.z = Math.PI / 2;
+    selector.position.set(-0.032, -0.015, 0.12);
+    weapon.add(selector);
 
     updateWeaponPosition();
     weaponPivot.add(weapon);
@@ -2471,12 +2668,29 @@ function createWeapon() {
 }
 
 function updateWeaponPosition() {
-    // Position weapon based on which hand
+    // Hip fire position
     const handOffset = gameState.weaponHand === 'right' ? 0.25 : -0.25;
-    weapon.position.set(handOffset, -0.2, -0.4);
+    const hipPos = { x: handOffset, y: -0.2, z: -0.4 };
+    const hipRot = { x: 0, y: gameState.weaponHand === 'right' ? 0.02 : -0.02, z: 0 };
 
-    // Add slight rotation for more natural look
-    weapon.rotation.set(0, gameState.weaponHand === 'right' ? 0.02 : -0.02, 0);
+    // ADS position (centered, rear sight at eye level)
+    // Rear sight is at y: 0.075, z: 0.06 on weapon
+    // Position weapon so rear sight aligns with camera center
+    const adsPos = { x: 0, y: -0.075, z: -0.08 };
+    const adsRot = { x: 0, y: 0, z: 0 };
+
+    // Interpolate between hip and ADS based on adsProgress
+    const t = gameState.adsProgress;
+    weapon.position.set(
+        hipPos.x + (adsPos.x - hipPos.x) * t,
+        hipPos.y + (adsPos.y - hipPos.y) * t,
+        hipPos.z + (adsPos.z - hipPos.z) * t
+    );
+    weapon.rotation.set(
+        hipRot.x + (adsRot.x - hipRot.x) * t,
+        hipRot.y + (adsRot.y - hipRot.y) * t,
+        hipRot.z + (adsRot.z - hipRot.z) * t
+    );
 }
 
 function createTargets() {
@@ -2712,6 +2926,20 @@ function setupEventListeners() {
         }
     });
 
+    // Aim down sights (right click toggle)
+    document.addEventListener('mousedown', (e) => {
+        if (!gameState.isRunning) return;
+        if (e.button === 2) {
+            e.preventDefault();
+            gameState.isAiming = !gameState.isAiming;
+        }
+    });
+
+    // Prevent context menu on right click
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+
     // Handle pointer lock change
     document.addEventListener('pointerlockchange', () => {
         if (document.pointerLockElement !== renderer.domElement) {
@@ -2849,9 +3077,10 @@ function shoot() {
     // Apply recoil
     applyRecoil();
 
-    // Raycast from camera center
+    // Raycast from camera center (start past the weapon to avoid self-intersection)
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+    raycaster.near = 1; // Start ray 1 unit from camera (past the weapon model)
 
     // Track shot result for network sync
     let hitOpponent = false;
@@ -3153,20 +3382,37 @@ function updateCamera() {
 }
 
 function updateWeapon(deltaTime) {
-    // Weapon sway based on lean
-    const leanSway = gameState.lean * 0.1;
+    // Update ADS progress (smooth transition)
+    const adsTarget = gameState.isAiming ? 1 : 0;
+    const adsDiff = adsTarget - gameState.adsProgress;
+    gameState.adsProgress += adsDiff * gameState.ADS_SPEED * deltaTime;
+    gameState.adsProgress = Math.max(0, Math.min(1, gameState.adsProgress));
+
+    // Update weapon position based on ADS
+    updateWeaponPosition();
+
+    // Update camera FOV for zoom effect
+    const targetFOV = gameState.DEFAULT_FOV - (gameState.DEFAULT_FOV - gameState.ADS_FOV) * gameState.adsProgress;
+    camera.fov = targetFOV;
+    camera.updateProjectionMatrix();
+
+    // Weapon sway based on lean (reduced when aiming)
+    const swayMultiplier = 1 - gameState.adsProgress * 0.7;
+    const leanSway = gameState.lean * 0.1 * swayMultiplier;
     const crouchOffset = gameState.crouch * 0.05;
 
-    // Apply visual recoil kick
-    weaponPivot.rotation.x = -recoilState.weaponKickUp;
-    weaponPivot.rotation.z = leanSway + recoilState.weaponKickSide;
-    weaponPivot.position.z = recoilState.weaponKickBack;
-    weaponPivot.position.y = -crouchOffset - recoilState.weaponKickUp * 0.5;
+    // Apply visual recoil kick (reduced when aiming)
+    const recoilMultiplier = 1 - gameState.adsProgress * 0.4;
+    weaponPivot.rotation.x = -recoilState.weaponKickUp * recoilMultiplier;
+    weaponPivot.rotation.z = leanSway + recoilState.weaponKickSide * recoilMultiplier;
+    weaponPivot.position.z = recoilState.weaponKickBack * recoilMultiplier;
+    weaponPivot.position.y = -crouchOffset - recoilState.weaponKickUp * 0.5 * recoilMultiplier;
 
-    // Breathing sway
+    // Breathing sway (reduced when aiming)
     const time = Date.now() * 0.001;
-    weaponPivot.position.x = Math.sin(time * 1.5) * 0.003;
-    weaponPivot.position.y += Math.sin(time * 1.2) * 0.002;
+    const breathMultiplier = 1 - gameState.adsProgress * 0.8;
+    weaponPivot.position.x = Math.sin(time * 1.5) * 0.003 * breathMultiplier;
+    weaponPivot.position.y += Math.sin(time * 1.2) * 0.002 * breathMultiplier;
 }
 
 let lastTime = Date.now();
