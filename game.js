@@ -1558,7 +1558,27 @@ function handlePeerMessage(data) {
             }
 
             // Opponent says they hit us
+            const previousHealth = netState.health;
             netState.health = Math.max(0, netState.health - data.damage);
+
+            // Emit damage received event
+            if (typeof EventBus !== 'undefined') {
+                EventBus.emit(GameEvents.DAMAGE_RECEIVED, {
+                    amount: data.damage,
+                    bodyPart: data.bodyPart,
+                    previousHealth,
+                    currentHealth: netState.health,
+                    source: netState.opponent,
+                });
+
+                EventBus.emit(GameEvents.HEALTH_CHANGED, {
+                    previousHealth,
+                    currentHealth: netState.health,
+                    maxHealth: 100,
+                    delta: -data.damage,
+                });
+            }
+
             showDamageEffect();
             updateHealthUI();
 
@@ -1567,6 +1587,14 @@ function handlePeerMessage(data) {
                 netState.scores[netState.playerSlot === 0 ? 1 : 0]++;
                 updateScoreUI();
                 showDeathScreen();
+
+                // Emit death event
+                if (typeof EventBus !== 'undefined') {
+                    EventBus.emit(GameEvents.PLAYER_KILLED, {
+                        killer: netState.opponent,
+                        bodyPart: data.bodyPart,
+                    });
+                }
 
                 // Tell opponent we died
                 sendPeerMessage({ type: 'killed' });
@@ -1583,6 +1611,13 @@ function handlePeerMessage(data) {
             netState.scores[netState.playerSlot]++;
             updateScoreUI();
             showKillNotification();
+
+            // Emit kill event
+            if (typeof EventBus !== 'undefined') {
+                EventBus.emit(GameEvents.OPPONENT_KILLED, {
+                    victim: netState.opponent,
+                });
+            }
             break;
 
         case 'reset':
@@ -2940,6 +2975,15 @@ function updateRecoil(deltaTime) {
 }
 
 function shoot() {
+    // Emit weapon fired event
+    if (typeof EventBus !== 'undefined') {
+        EventBus.emit(GameEvents.WEAPON_FIRED, {
+            weapon: gameState.currentWeapon,
+            position: camera.position.clone(),
+            direction: camera.getWorldDirection(new THREE.Vector3()),
+        });
+    }
+
     // Muzzle flash
     const flash = document.getElementById('muzzle-flash');
     flash.classList.remove('show');
@@ -3001,15 +3045,41 @@ function shoot() {
                 // Hit opponent! Check which body part was hit
                 const hitObject = opponentHit.object;
                 const bodyPart = hitObject.userData.bodyPart || 'body';
-                const damage = hitObject.userData.damage || 10; // Fallback damage
+                // Use DamageConfig if available, otherwise fall back to userData
+                const damage = typeof DamageConfig !== 'undefined'
+                    ? DamageConfig.getDamage(bodyPart)
+                    : (hitObject.userData.damage || 10);
+
+                const hitPoint = opponentHit.point.clone();
+                const hitDirection = raycaster.ray.direction.clone();
+
+                // Emit hit event
+                if (typeof EventBus !== 'undefined') {
+                    EventBus.emit(GameEvents.HIT_OPPONENT, {
+                        bodyPart,
+                        damage,
+                        point: hitPoint,
+                        direction: hitDirection,
+                        distance: opponentHit.distance,
+                        hitObject,
+                        opponent: netState.opponent,
+                    });
+                }
 
                 sendHit(damage, bodyPart);
-                showHitMarker(bodyPart, opponentHit.point.clone(), hitObject);
+                showHitMarker(bodyPart, hitPoint, hitObject);
                 AudioSystem.playImpactPlayer();
 
                 // Create blood splatter at hit point
-                const hitDirection = raycaster.ray.direction.clone();
-                createBloodSplatter(opponentHit.point.clone(), hitDirection);
+                createBloodSplatter(hitPoint, hitDirection);
+
+                // Emit blood effects events
+                if (typeof EventBus !== 'undefined') {
+                    EventBus.emit(GameEvents.EFFECT_BLOOD_SPLATTER, {
+                        position: hitPoint,
+                        direction: hitDirection,
+                    });
+                }
 
                 // Also create blood on the opponent mesh
                 if (opponentHit.face) {
@@ -3017,7 +3087,14 @@ function shoot() {
                     if (opponentHit.object.matrixWorld) {
                         worldNormal.transformDirection(opponentHit.object.matrixWorld);
                     }
-                    createBloodDecal(opponentHit.point.clone(), worldNormal.negate());
+                    createBloodDecal(hitPoint, worldNormal.negate());
+
+                    if (typeof EventBus !== 'undefined') {
+                        EventBus.emit(GameEvents.EFFECT_BLOOD_DECAL, {
+                            position: hitPoint,
+                            normal: worldNormal.negate(),
+                        });
+                    }
                 }
 
                 return; // Don't check practice targets
