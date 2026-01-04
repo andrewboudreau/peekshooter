@@ -3,6 +3,8 @@
 // Centralized damage values for all weapons and body parts
 // ============================================
 
+console.log('[DamageConfig] Loading...');
+
 const DamageConfig = {
     // Body part damage values
     bodyParts: {
