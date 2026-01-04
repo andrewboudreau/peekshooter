@@ -535,9 +535,18 @@ const DebugConsole = {
         if (netState.opponent && netState.opponent.mesh) {
             netState.opponent.mesh.traverse((child) => {
                 if (child.isMesh && child.userData.bodyPart) {
-                    const box = new THREE.BoxHelper(child, this.getHitboxColor(child.userData.bodyPart));
-                    scene.add(box);
-                    this.debug.hitboxHelpers.push(box);
+                    try {
+                        // Ensure geometry has computed bounds
+                        if (child.geometry) {
+                            child.geometry.computeBoundingSphere();
+                            child.geometry.computeBoundingBox();
+                        }
+                        const box = new THREE.BoxHelper(child, this.getHitboxColor(child.userData.bodyPart));
+                        scene.add(box);
+                        this.debug.hitboxHelpers.push(box);
+                    } catch (e) {
+                        console.warn('[Debug] Could not create hitbox for', child.userData.bodyPart);
+                    }
                 }
             });
         }
@@ -574,7 +583,13 @@ const DebugConsole = {
     update() {
         // Update hitbox positions
         if (this.debug.showHitboxes) {
-            this.debug.hitboxHelpers.forEach(helper => helper.update());
+            this.debug.hitboxHelpers.forEach(helper => {
+                try {
+                    helper.update();
+                } catch (e) {
+                    // Silently ignore geometry errors
+                }
+            });
         }
 
         // Update health labels
