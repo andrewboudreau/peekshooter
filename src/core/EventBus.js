@@ -163,6 +163,7 @@ const GameEvents = {
     HIT_OPPONENT: 'hit:opponent',
     HIT_ENVIRONMENT: 'hit:environment',
     HIT_COVER: 'hit:cover',
+    HIT_TARGET: 'hit:target',
 
     // Damage events
     DAMAGE_DEALT: 'damage:dealt',

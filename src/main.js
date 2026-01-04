@@ -14,6 +14,7 @@ const LoadedModules = {
     core: false,
     components: false,
     entities: false,
+    systems: false,
 };
 
 // Verify all required modules are loaded
@@ -30,6 +31,9 @@ function verifyModules() {
         { name: 'HitboxComponent', type: 'component' },
         { name: 'Player', type: 'entity' },
         { name: 'Opponent', type: 'entity' },
+        { name: 'ShootingSystem', type: 'system' },
+        { name: 'EffectsSystem', type: 'system' },
+        { name: 'BotController', type: 'debug' },
     ];
 
     const missing = required.filter(r => typeof window[r.name] === 'undefined');
@@ -193,6 +197,10 @@ window.PeekShooter = {
     getPlayer: () => localPlayer,
     EventBus: typeof EventBus !== 'undefined' ? EventBus : null,
     GameEvents: typeof GameEvents !== 'undefined' ? GameEvents : null,
+    ShootingSystem: typeof ShootingSystem !== 'undefined' ? ShootingSystem : null,
+    AudioSystem: typeof AudioSystem !== 'undefined' ? AudioSystem : null,
+    EffectsSystem: typeof EffectsSystem !== 'undefined' ? EffectsSystem : null,
+    BotController: typeof BotController !== 'undefined' ? BotController : null,
 };
 
 console.log('[PeekShooter] Main module loaded. Access via window.PeekShooter');
