@@ -407,6 +407,8 @@ const DebugConsole = {
                 this.log('  bot [on|off] - Toggle bot opponent (walks, peeks, shoots)', 'info');
                 this.log('  kill - Kill yourself', 'info');
                 this.log('  heal - Restore health to 100', 'info');
+                this.log('  firerate <ms> - Set fire rate (1-1000ms)', 'info');
+                this.log('  firemode [single|burst|auto] - Set fire mode', 'info');
                 this.log('  clear - Clear console', 'info');
                 this.log('  status - Show game state', 'info');
                 break;
@@ -521,6 +523,31 @@ const DebugConsole = {
                 if (netState.opponent) {
                     this.log(`  Opponent Health: ${netState.opponent.state.health}`, 'log');
                     this.log(`  Opponent Peeking: ${netState.opponent.state.peeking}`, 'log');
+                }
+                break;
+
+            case 'firerate':
+                const rate = parseInt(args[0]);
+                if (isNaN(rate) || rate < 1 || rate > 1000) {
+                    this.log('Usage: firerate <1-1000> (milliseconds between shots)', 'warn');
+                    this.log(`Current fire rate: ${gameState.fireRateMs}ms`, 'info');
+                } else {
+                    gameState.fireRateMs = rate;
+                    updateFireModeUI();
+                    this.log(`Fire rate set to ${rate}ms`, 'success');
+                }
+                break;
+
+            case 'firemode':
+                const mode = args[0]?.toLowerCase();
+                if (mode === 'single' || mode === 'burst' || mode === 'auto') {
+                    gameState.fireMode = mode;
+                    updateFireModeUI();
+                    stopFiring();
+                    this.log(`Fire mode set to ${mode.toUpperCase()}`, 'success');
+                } else {
+                    this.log('Usage: firemode [single|burst|auto]', 'warn');
+                    this.log(`Current mode: ${gameState.fireMode}`, 'info');
                 }
                 break;
 
@@ -1842,6 +1869,13 @@ const gameState = {
     weaponHand: 'right', // 'left' or 'right'
     currentWeapon: 'assault_rifle',
 
+    // Fire mode
+    fireMode: 'single',     // 'single', 'burst', 'auto'
+    fireRateMs: 100,        // Milliseconds between shots (1-1000)
+    isFiring: false,        // Currently holding trigger
+    fireInterval: null,     // Interval for auto/burst fire
+    burstCount: 0,          // Shots remaining in burst
+
     // Input
     keys: {},
     mouseX: 0,
@@ -2375,6 +2409,69 @@ function createTarget(config) {
     });
 }
 
+// Fire mode functions
+function toggleFireMode() {
+    const modes = ['single', 'burst', 'auto'];
+    const currentIndex = modes.indexOf(gameState.fireMode);
+    gameState.fireMode = modes[(currentIndex + 1) % modes.length];
+    updateFireModeUI();
+
+    // Stop any current firing when switching modes
+    stopFiring();
+}
+
+function updateFireModeUI() {
+    const el = document.getElementById('fire-mode');
+    if (el) {
+        const modeText = {
+            'single': 'SINGLE',
+            'burst': 'BURST',
+            'auto': 'AUTO'
+        };
+        el.textContent = `Fire: ${modeText[gameState.fireMode]} (${gameState.fireRateMs}ms)`;
+    }
+}
+
+function startFiring() {
+    if (gameState.isFiring) return;
+    gameState.isFiring = true;
+
+    // Always fire first shot immediately
+    shoot();
+
+    if (gameState.fireMode === 'single') {
+        // Single fire - just the one shot
+        gameState.isFiring = false;
+    } else if (gameState.fireMode === 'burst') {
+        // Burst fire - 3 shots total (already fired 1)
+        gameState.burstCount = 2;
+        gameState.fireInterval = setInterval(() => {
+            if (gameState.burstCount > 0) {
+                shoot();
+                gameState.burstCount--;
+            } else {
+                stopFiring();
+            }
+        }, gameState.fireRateMs);
+    } else if (gameState.fireMode === 'auto') {
+        // Full auto - continuous fire while holding
+        gameState.fireInterval = setInterval(() => {
+            if (gameState.isFiring) {
+                shoot();
+            }
+        }, gameState.fireRateMs);
+    }
+}
+
+function stopFiring() {
+    gameState.isFiring = false;
+    if (gameState.fireInterval) {
+        clearInterval(gameState.fireInterval);
+        gameState.fireInterval = null;
+    }
+    gameState.burstCount = 0;
+}
+
 function setupEventListeners() {
     // Keyboard
     document.addEventListener('keydown', (e) => {
@@ -2386,6 +2483,11 @@ function setupEventListeners() {
             gameState.weaponHand = gameState.weaponHand === 'right' ? 'left' : 'right';
             updateWeaponPosition();
             document.getElementById('hand-value').textContent = gameState.weaponHand.toUpperCase();
+        }
+
+        // Fire mode toggle with B
+        if (e.key.toLowerCase() === 'b') {
+            toggleFireMode();
         }
     });
 
@@ -2416,8 +2518,14 @@ function setupEventListeners() {
             if (document.pointerLockElement !== renderer.domElement) {
                 renderer.domElement.requestPointerLock();
             } else {
-                shoot();
+                startFiring();
             }
+        }
+    });
+
+    document.addEventListener('mouseup', (e) => {
+        if (e.button === 0) {
+            stopFiring();
         }
     });
 
