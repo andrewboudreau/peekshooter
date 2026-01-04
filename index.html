@@ -503,6 +503,55 @@
             opacity: 0.8;
         }
 
+        /* Map Selection */
+        #map-selection {
+            margin: 25px 0;
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #map-selection h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.7;
+        }
+        .map-options {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .map-btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .map-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+        }
+        .map-btn.selected {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+        .map-btn .map-desc {
+            display: block;
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 4px;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
         /* Menu Button */
         #menu-button {
             position: absolute;
@@ -661,6 +710,21 @@
                 <button class="weapons" onclick="window.location.href='weapons.html'">Weapons</button>
             </div>
 
+            <!-- Map Selection -->
+            <div id="map-selection">
+                <h3>Select Map</h3>
+                <div class="map-options">
+                    <button class="map-btn selected" data-map="arena" onclick="selectMap('arena')">
+                        Arena
+                        <span class="map-desc">Classic training arena</span>
+                    </button>
+                    <button class="map-btn" data-map="warehouse" onclick="selectMap('warehouse')">
+                        Warehouse
+                        <span class="map-desc">Industrial crates & equipment</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Online/P2P connection section -->
             <div id="room-section" class="room-section">
                 <p>Share this code with a friend:</p>
@@ -758,6 +822,7 @@
     <script src="src/config/DamageConfig.js"></script>
     <script src="src/config/PhysicsConfig.js"></script>
     <script src="src/config/WeaponConfig.js"></script>
+    <script src="src/config/MapConfig.js"></script>
 
     <!-- Weapons -->
     <script src="src/weapons/WeaponFactory.js"></script>

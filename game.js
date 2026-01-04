@@ -1944,10 +1944,22 @@ function showTargets() {
     });
 }
 
+// Selected map (before game starts)
+let selectedMap = 'arena';
+
+function selectMap(mapId) {
+    selectedMap = mapId;
+    // Update UI
+    document.querySelectorAll('.map-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.map === mapId);
+    });
+}
+
 // Game state
 const gameState = {
     isRunning: false,
     score: 0,
+    currentMap: 'arena',
 
     // Stance values (0 to 1 for crouch, -1 to 1 for lean/strafe)
     crouch: 0,          // 0 = standing, 1 = fully crouched
@@ -2016,10 +2028,17 @@ function init() {
     const versionEl = document.getElementById('version');
     if (versionEl) versionEl.textContent = `v${GAME_VERSION}`;
 
-    // Scene setup - Dark dev room atmosphere
+    // Set current map from selection
+    gameState.currentMap = selectedMap;
+
+    // Get map configuration
+    const mapConfig = typeof MapConfig !== 'undefined' ? MapConfig.getMap(gameState.currentMap) : null;
+    const sceneConfig = mapConfig?.scene || { background: 0x1a1a24, fogColor: 0x1a1a24, fogDensity: 0.015 };
+
+    // Scene setup
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a24); // Slightly bluer dark
-    scene.fog = new THREE.FogExp2(0x1a1a24, 0.015); // Exponential fog for depth
+    scene.background = new THREE.Color(sceneConfig.background);
+    scene.fog = new THREE.FogExp2(sceneConfig.fogColor, sceneConfig.fogDensity);
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -2040,18 +2059,34 @@ function init() {
     renderer.toneMappingExposure = 1.1; // Slightly brighter
     document.getElementById('game-container').insertBefore(renderer.domElement, document.getElementById('crosshair'));
 
-    // Lighting - Enhanced for dev textures
-    // Hemisphere light for natural ambient gradient (sky blue to ground brown)
-    const hemiLight = new THREE.HemisphereLight(0x8899aa, 0x554433, 0.4);
+    // Lighting from map config
+    const lightConfig = mapConfig?.lighting || {
+        hemisphere: { skyColor: 0x8899aa, groundColor: 0x554433, intensity: 0.4 },
+        ambient: { color: 0x404050, intensity: 0.3 },
+        directional: { color: 0xffeedd, intensity: 1.0, position: [10, 25, 5] },
+        fill: { color: 0x8899bb, intensity: 0.3, position: [-8, 10, -5] },
+        accents: [
+            { type: 'point', color: 0xff4444, intensity: 0.6, distance: 25, position: [-6, 4, -12] },
+            { type: 'point', color: 0x4466ff, intensity: 0.6, distance: 25, position: [6, 4, -12] },
+            { type: 'point', color: 0xffaa66, intensity: 0.3, distance: 15, position: [0, 3, 2] }
+        ]
+    };
+
+    // Hemisphere light
+    const hemiLight = new THREE.HemisphereLight(
+        lightConfig.hemisphere.skyColor,
+        lightConfig.hemisphere.groundColor,
+        lightConfig.hemisphere.intensity
+    );
     scene.add(hemiLight);
 
-    // Low ambient fill
-    const ambientLight = new THREE.AmbientLight(0x404050, 0.3);
+    // Ambient light
+    const ambientLight = new THREE.AmbientLight(lightConfig.ambient.color, lightConfig.ambient.intensity);
     scene.add(ambientLight);
 
-    // Main directional light (sun-like) - brighter to show off textures
-    const directionalLight = new THREE.DirectionalLight(0xffeedd, 1.0);
-    directionalLight.position.set(10, 25, 5);
+    // Main directional light
+    const directionalLight = new THREE.DirectionalLight(lightConfig.directional.color, lightConfig.directional.intensity);
+    directionalLight.position.set(...lightConfig.directional.position);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 4096;
     directionalLight.shadow.mapSize.height = 4096;
@@ -2065,24 +2100,19 @@ function init() {
     directionalLight.shadow.normalBias = 0.02;
     scene.add(directionalLight);
 
-    // Secondary fill light from opposite side (cooler tone)
-    const fillLight = new THREE.DirectionalLight(0x8899bb, 0.3);
-    fillLight.position.set(-8, 10, -5);
+    // Fill light
+    const fillLight = new THREE.DirectionalLight(lightConfig.fill.color, lightConfig.fill.intensity);
+    fillLight.position.set(...lightConfig.fill.position);
     scene.add(fillLight);
 
-    // Colored accent lights for atmosphere
-    const redLight = new THREE.PointLight(0xff4444, 0.6, 25);
-    redLight.position.set(-6, 4, -12);
-    scene.add(redLight);
-
-    const blueLight = new THREE.PointLight(0x4466ff, 0.6, 25);
-    blueLight.position.set(6, 4, -12);
-    scene.add(blueLight);
-
-    // Warm accent near player
-    const warmLight = new THREE.PointLight(0xffaa66, 0.3, 15);
-    warmLight.position.set(0, 3, 2);
-    scene.add(warmLight);
+    // Accent lights
+    lightConfig.accents.forEach(accent => {
+        if (accent.type === 'point') {
+            const light = new THREE.PointLight(accent.color, accent.intensity, accent.distance);
+            light.position.set(...accent.position);
+            scene.add(light);
+        }
+    });
 
     createEnvironment();
     createCover();
@@ -2319,108 +2349,151 @@ function createOpponentBulletTracer(startPos, shotData) {
 }
 
 function createEnvironment() {
-    // Ground - large area with repeating texture
-    const groundGeometry = new THREE.PlaneGeometry(50, 50);
-    const groundMaterial = createDevMaterial(12, 12); // Repeat 12x12 for ~4 unit tiles
+    const mapConfig = typeof MapConfig !== 'undefined' ? MapConfig.getMap(gameState.currentMap) : null;
+
+    // Ground
+    const floorWidth = mapConfig?.floor?.width || 50;
+    const floorHeight = mapConfig?.floor?.height || 50;
+    const floorRepeat = mapConfig?.floor?.textureRepeat || [12, 12];
+    const floorColor = mapConfig?.floor?.color;
+
+    const groundGeometry = new THREE.PlaneGeometry(floorWidth, floorHeight);
+    let groundMaterial;
+    if (floorColor) {
+        groundMaterial = new THREE.MeshStandardMaterial({ color: floorColor, roughness: 0.9, metalness: 0.1 });
+    } else {
+        groundMaterial = createDevMaterial(floorRepeat[0], floorRepeat[1]);
+    }
     ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Back wall
-    const wallGeometry = new THREE.PlaneGeometry(50, 15);
-    const backWallMaterial = createDevMaterial(12, 4); // Wide wall
-    const backWall = new THREE.Mesh(wallGeometry, backWallMaterial);
-    backWall.position.set(0, 7.5, -20);
-    backWall.receiveShadow = true;
-    scene.add(backWall);
+    // Walls from config
+    const walls = mapConfig?.walls || [
+        { width: 50, height: 15, position: [0, 7.5, -20], rotation: 0, textureRepeat: [12, 4] },
+        { width: 40, height: 15, position: [-10, 7.5, -10], rotation: Math.PI / 2, textureRepeat: [10, 4] },
+        { width: 40, height: 15, position: [10, 7.5, -10], rotation: -Math.PI / 2, textureRepeat: [10, 4] }
+    ];
 
-    // Side walls
-    const sideWallGeometry = new THREE.PlaneGeometry(40, 15);
-    const sideWallMaterial = createDevMaterial(10, 4);
+    walls.forEach(wallDef => {
+        const wallGeometry = new THREE.PlaneGeometry(wallDef.width, wallDef.height);
+        let wallMaterial;
+        if (wallDef.color) {
+            wallMaterial = new THREE.MeshStandardMaterial({ color: wallDef.color, roughness: 0.8, metalness: 0.1 });
+        } else {
+            wallMaterial = createDevMaterial(wallDef.textureRepeat[0], wallDef.textureRepeat[1]);
+        }
+        const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+        wall.position.set(...wallDef.position);
+        wall.rotation.y = wallDef.rotation;
+        wall.receiveShadow = true;
+        scene.add(wall);
+    });
 
-    const leftWall = new THREE.Mesh(sideWallGeometry, sideWallMaterial);
-    leftWall.position.set(-10, 7.5, -10);
-    leftWall.rotation.y = Math.PI / 2;
-    leftWall.receiveShadow = true;
-    scene.add(leftWall);
+    // Random obstacles (if defined)
+    const obstacleConfig = mapConfig?.obstacles || { count: 5, sizeRange: [0.5, 1.5], xRange: [-7.5, 7.5], zRange: [-15, -5] };
+    if (obstacleConfig.count > 0) {
+        for (let i = 0; i < obstacleConfig.count; i++) {
+            const sizeMin = obstacleConfig.sizeRange[0];
+            const sizeMax = obstacleConfig.sizeRange[1];
+            const size = sizeMin + Math.random() * (sizeMax - sizeMin);
+            const boxGeometry = new THREE.BoxGeometry(size, size, size);
+            const boxMaterial = createDevMaterial(1, 1);
+            const box = new THREE.Mesh(boxGeometry, boxMaterial);
+            const xMin = obstacleConfig.xRange[0];
+            const xMax = obstacleConfig.xRange[1];
+            const zMin = obstacleConfig.zRange[0];
+            const zMax = obstacleConfig.zRange[1];
+            box.position.set(
+                xMin + Math.random() * (xMax - xMin),
+                size / 2,
+                zMin + Math.random() * (zMax - zMin)
+            );
+            box.castShadow = true;
+            box.receiveShadow = true;
+            scene.add(box);
+        }
+    }
 
-    const rightWallMaterial = createDevMaterial(10, 4);
-    const rightWall = new THREE.Mesh(sideWallGeometry, rightWallMaterial);
-    rightWall.position.set(10, 7.5, -10);
-    rightWall.rotation.y = -Math.PI / 2;
-    rightWall.receiveShadow = true;
-    scene.add(rightWall);
-
-    // Add some boxes/obstacles in the environment with dev textures
-    for (let i = 0; i < 5; i++) {
-        const size = 0.5 + Math.random() * 1;
-        const boxGeometry = new THREE.BoxGeometry(size, size, size);
-        const boxMaterial = createDevMaterial(1, 1); // Single tile per face
-        const box = new THREE.Mesh(boxGeometry, boxMaterial);
-        box.position.set(
-            (Math.random() - 0.5) * 15,
-            size / 2,
-            -5 - Math.random() * 10
-        );
-        box.castShadow = true;
-        box.receiveShadow = true;
-        scene.add(box);
+    // Static obstacles (for warehouse etc.)
+    if (mapConfig?.staticObstacles) {
+        mapConfig.staticObstacles.forEach(obs => {
+            let obstacle;
+            if (obs.type === 'shelf' && MapConfig.createShelf) {
+                obstacle = MapConfig.createShelf(THREE, obs.position, obs.color);
+            } else if (obs.type === 'barrel' && MapConfig.createBarrel) {
+                obstacle = MapConfig.createBarrel(THREE, obs.position, obs.color);
+            } else if (obs.type === 'forklift' && MapConfig.createForklift) {
+                obstacle = MapConfig.createForklift(THREE, obs.position, obs.color);
+            } else if (obs.type === 'box') {
+                const boxGeo = new THREE.BoxGeometry(...obs.size);
+                const boxMat = new THREE.MeshStandardMaterial({ color: obs.color, roughness: 0.7, metalness: 0.1 });
+                obstacle = new THREE.Mesh(boxGeo, boxMat);
+                obstacle.position.set(...obs.position);
+                obstacle.castShadow = true;
+                obstacle.receiveShadow = true;
+            }
+            if (obstacle) {
+                scene.add(obstacle);
+            }
+        });
     }
 }
 
 function createCover() {
-    // Cover uses solid orange/yellow color - stands out from grey environment
-    const coverMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff8800, // Orange
-        roughness: 0.7,
-        metalness: 0.1,
+    const mapConfig = typeof MapConfig !== 'undefined' ? MapConfig.getMap(gameState.currentMap) : null;
+
+    // Helper function to create cover elements
+    function createCoverElement(element, baseZ) {
+        const material = new THREE.MeshStandardMaterial({
+            color: element.color || 0xff8800,
+            roughness: 0.7,
+            metalness: 0.1,
+        });
+        const geometry = new THREE.BoxGeometry(...element.size);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(
+            element.position[0],
+            element.position[1],
+            baseZ + element.position[2]
+        );
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+        return mesh;
+    }
+
+    // Get cover config or use defaults
+    const playerCover = mapConfig?.playerCover || {
+        z: -0.5,
+        elements: [
+            { type: 'box', size: [3, 1.2, 0.3], position: [0, 0.6, 0], color: 0xff8800 },
+            { type: 'box', size: [0.3, 1.8, 0.5], position: [-1.65, 0.9, 0], color: 0xff8800 },
+            { type: 'box', size: [0.3, 1.8, 0.5], position: [1.65, 0.9, 0], color: 0xff8800 }
+        ]
+    };
+
+    const opponentCover = mapConfig?.opponentCover || {
+        z: -14.5,
+        elements: [
+            { type: 'box', size: [3, 1.2, 0.3], position: [0, 0.6, 0], color: 0xff8800 },
+            { type: 'box', size: [0.3, 1.8, 0.5], position: [-1.65, 0.9, 0], color: 0xff8800 },
+            { type: 'box', size: [0.3, 1.8, 0.5], position: [1.65, 0.9, 0], color: 0xff8800 }
+        ]
+    };
+
+    // Create player-side cover
+    playerCover.elements.forEach((element, index) => {
+        const mesh = createCoverElement(element, playerCover.z);
+        // Store first element as main cover reference
+        if (index === 0) cover = mesh;
     });
 
-    // === PLAYER SIDE COVER (near z = 0) ===
-    // Main cover wall the player hides behind
-    const coverGeometry = new THREE.BoxGeometry(3, 1.2, 0.3);
-    cover = new THREE.Mesh(coverGeometry, coverMaterial);
-    cover.position.set(0, 0.6, -0.5);
-    cover.castShadow = true;
-    cover.receiveShadow = true;
-    scene.add(cover);
-
-    // Left side cover extension
-    const sideGeometry = new THREE.BoxGeometry(0.3, 1.8, 0.5);
-    const leftCover = new THREE.Mesh(sideGeometry, coverMaterial);
-    leftCover.position.set(-1.65, 0.9, -0.5);
-    leftCover.castShadow = true;
-    leftCover.receiveShadow = true;
-    scene.add(leftCover);
-
-    const rightCover = new THREE.Mesh(sideGeometry, coverMaterial);
-    rightCover.position.set(1.65, 0.9, -0.5);
-    rightCover.castShadow = true;
-    rightCover.receiveShadow = true;
-    scene.add(rightCover);
-
-    // === OPPONENT SIDE COVER (near z = -15) ===
-    // This is where the opponent takes cover from their perspective
-    const opponentCoverZ = -14.5; // Opponent is at z=-15, their cover is 0.5 in front
-
-    const opponentMainCover = new THREE.Mesh(coverGeometry, coverMaterial);
-    opponentMainCover.position.set(0, 0.6, opponentCoverZ);
-    opponentMainCover.castShadow = true;
-    opponentMainCover.receiveShadow = true;
-    scene.add(opponentMainCover);
-
-    const opponentLeftCover = new THREE.Mesh(sideGeometry, coverMaterial);
-    opponentLeftCover.position.set(-1.65, 0.9, opponentCoverZ);
-    opponentLeftCover.castShadow = true;
-    opponentLeftCover.receiveShadow = true;
-    scene.add(opponentLeftCover);
-
-    const opponentRightCover = new THREE.Mesh(sideGeometry, coverMaterial);
-    opponentRightCover.position.set(1.65, 0.9, opponentCoverZ);
-    opponentRightCover.castShadow = true;
-    opponentRightCover.receiveShadow = true;
-    scene.add(opponentRightCover);
+    // Create opponent-side cover
+    opponentCover.elements.forEach(element => {
+        createCoverElement(element, opponentCover.z);
+    });
 }
 
 function createWeapon() {
