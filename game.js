@@ -476,6 +476,7 @@ const DebugConsole = {
                         hideTargets();
                         gameState.isRunning = true;
                         document.getElementById('start-screen').style.display = 'none';
+                        document.getElementById('menu-button').style.display = 'block';
                     }
                     this.bot.enabled = true;
                     this.bot.phase = 'moving_left';
@@ -985,6 +986,53 @@ function showMainMenu() {
     }
     netState.status = 'disconnected';
     updateNetworkUI();
+}
+
+function togglePauseMenu() {
+    const pauseMenu = document.getElementById('pause-menu');
+    const isOpen = pauseMenu.classList.contains('show');
+
+    if (isOpen) {
+        // Resume game
+        pauseMenu.classList.remove('show');
+        gameState.isRunning = true;
+    } else {
+        // Pause game
+        pauseMenu.classList.add('show');
+        gameState.isRunning = false;
+        // Unlock pointer when pausing
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+    }
+}
+
+function backToMainMenu() {
+    // Close pause menu
+    document.getElementById('pause-menu').classList.remove('show');
+
+    // Stop the game
+    gameState.isRunning = false;
+
+    // Show start screen
+    document.getElementById('start-screen').style.display = 'flex';
+
+    // Hide menu button (shown again when game starts)
+    document.getElementById('menu-button').style.display = 'none';
+
+    // Reset to main menu view
+    showMainMenu();
+
+    // Reset game state
+    netState.health = 100;
+    netState.scores = [0, 0];
+    updateHealthUI();
+    updateScoreUI();
+
+    // Unlock pointer
+    if (document.pointerLockElement) {
+        document.exitPointerLock();
+    }
 }
 
 function updateConnectionStatus(text) {
@@ -2607,6 +2655,23 @@ function setupEventListeners() {
         if (e.key.toLowerCase() === 'b') {
             toggleFireMode();
         }
+
+        // Kill both players with O
+        if (e.key.toLowerCase() === 'o') {
+            if (netState.gameMode === 'online' && netState.opponent) {
+                // Kill opponent
+                netState.opponent.state.health = 0;
+                sendPeerMessage({ type: 'hit', damage: 100, bodyPart: 'nuke' });
+
+                // Kill self
+                netState.health = 0;
+                updateHealthUI();
+                showDamageEffect();
+
+                // Update scores - both die so no one scores
+                console.log('NUKE: Both players killed!');
+            }
+        }
     });
 
     document.addEventListener('keyup', (e) => {
@@ -3149,6 +3214,7 @@ function animate() {
 
 function startGame(mode = 'offline') {
     document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('menu-button').style.display = 'block';
     gameState.isRunning = true;
 
     // Initialize audio on first user interaction
