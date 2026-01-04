@@ -177,14 +177,14 @@ const BotController = {
 
     /**
      * Bot fires a shot
-     * @param {object} opponent - Opponent to show muzzle flash on
+     * @param {object} opponent - Opponent entity
      */
     shoot(opponent) {
         this.shotFired = true;
 
-        // Show muzzle flash
-        if (typeof showOpponentMuzzleFlash === 'function') {
-            showOpponentMuzzleFlash(opponent);
+        // Handle opponent shot effects (sound, tracer)
+        if (typeof handleOpponentShot === 'function') {
+            handleOpponentShot(opponent);
         }
 
         // Emit bot shot event

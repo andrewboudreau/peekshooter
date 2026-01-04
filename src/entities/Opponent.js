@@ -268,41 +268,6 @@ class Opponent extends Entity {
     }
 
     // ============================================
-    // Effects
-    // ============================================
-
-    /**
-     * Show muzzle flash on opponent's weapon
-     */
-    showMuzzleFlash() {
-        if (!this.weaponMesh || !this.mesh) return;
-
-        const flashGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-        const flashMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffaa00,
-            transparent: true,
-            opacity: 1,
-        });
-        const flash = new THREE.Mesh(flashGeometry, flashMaterial);
-        flash.position.copy(this.weaponMesh.position);
-        flash.position.z -= 0.3;
-        this.mesh.add(flash);
-
-        setTimeout(() => {
-            this.mesh.remove(flash);
-            flashGeometry.dispose();
-            flashMaterial.dispose();
-        }, 50);
-
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit(GameEvents.EFFECT_MUZZLE_FLASH, {
-                entity: this,
-                position: flash.getWorldPosition(new THREE.Vector3()),
-            });
-        }
-    }
-
-    // ============================================
     // Cleanup
     // ============================================
 

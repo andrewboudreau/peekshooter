@@ -41,7 +41,6 @@ A lean-and-crouch 3D shooter where analog stance control is the core mechanic ra
 - Damage overlay (red vignette on hit)
 - Death screen with respawn
 - Hit markers
-- Muzzle flash
 
 ### Tools
 - **screenshot.js** - Puppeteer CLI for capturing game screenshots

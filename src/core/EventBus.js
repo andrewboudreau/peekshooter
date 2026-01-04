@@ -208,7 +208,6 @@ const GameEvents = {
     EFFECT_BLOOD_SPLATTER: 'effect:bloodSplatter',
     EFFECT_BLOOD_DECAL: 'effect:bloodDecal',
     EFFECT_HIT_MARK: 'effect:hitMark',
-    EFFECT_MUZZLE_FLASH: 'effect:muzzleFlash',
 
     // Debug events
     DEBUG_LOG: 'debug:log',

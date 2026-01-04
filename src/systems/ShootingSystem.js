@@ -85,9 +85,6 @@ const ShootingSystem = {
             EventBus.emit(GameEvents.WEAPON_FIRED, shotData);
         }
 
-        // Muzzle flash (UI)
-        this.showMuzzleFlash();
-
         // Audio
         if (typeof AudioSystem !== 'undefined') {
             AudioSystem.playGunshot();
@@ -104,18 +101,6 @@ const ShootingSystem = {
         }
 
         return shotData;
-    },
-
-    /**
-     * Show muzzle flash effect
-     */
-    showMuzzleFlash() {
-        const flash = document.getElementById('muzzle-flash');
-        if (flash) {
-            flash.classList.remove('show');
-            void flash.offsetWidth; // Trigger reflow
-            flash.classList.add('show');
-        }
     },
 
     // ============================================

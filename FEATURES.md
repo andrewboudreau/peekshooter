@@ -54,7 +54,6 @@ See `GAME_VERSION` in `game.js` (auto-incremented on deploy)
 | Dynamic Lighting | Complete | Hemisphere + directional + accent lights |
 | Hit Marks | Complete | Bullet hole decals on surfaces |
 | Blood Effects | Complete | Particles + decals on player hits |
-| Muzzle Flash | Complete | First-person and opponent weapons |
 | Damage Overlay | Complete | Red vignette on taking damage |
 
 ### UI/HUD
@@ -243,7 +242,6 @@ Visual effect creation and management.
 | `createHitMark(position, normal)` | Bullet hole decal |
 | `createBloodSplatter(position, direction)` | Blood particles |
 | `createBloodDecal(position)` | Blood surface stain |
-| `createMuzzleFlash(weapon)` | Weapon flash effect |
 
 ### ShootingSystem (`src/systems/ShootingSystem.js`)
 Multi-phase hit detection.
