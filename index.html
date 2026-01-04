@@ -169,6 +169,14 @@
         #sound-toggle:hover {
             background: rgba(255,255,255,0.1);
         }
+        #version {
+            position: absolute;
+            bottom: 5px;
+            right: 20px;
+            color: rgba(255,255,255,0.4);
+            font-size: 11px;
+            z-index: 100;
+        }
         .hit-marker {
             position: absolute;
             top: 50%;
@@ -498,6 +506,7 @@
         <div id="weapon-hand">Hand: <span id="hand-value">RIGHT</span></div>
         <div id="fire-mode">Fire: SINGLE (100ms)</div>
         <div id="sound-toggle" onclick="toggleSound()">Sound: ON</div>
+        <div id="version"></div>
         <svg id="hit-marker" class="hit-marker" width="30" height="30" viewBox="0 0 30 30">
             <line x1="5" y1="5" x2="12" y2="12" stroke="white" stroke-width="3"/>
             <line x1="25" y1="5" x2="18" y2="12" stroke="white" stroke-width="3"/>

@@ -6,7 +6,8 @@
     "start": "node server.js",
     "dev": "npx serve .",
     "screenshot": "node screenshot.js",
-    "test": "node test-multiplayer.js"
+    "test": "node test-multiplayer.js",
+    "bump": "node bump-version.js"
   },
   "dependencies": {
     "express": "^4.18.2",

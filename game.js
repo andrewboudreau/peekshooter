@@ -1,6 +1,11 @@
 ﻿// Peek Shooter - Main Game Logic
 
 // ============================================
+// VERSION - Auto-incremented on deploy
+// ============================================
+const GAME_VERSION = 1;
+
+// ============================================
 // NOISE GENERATOR - Seeded deterministic noise
 // ============================================
 class NoiseGenerator {
@@ -1907,6 +1912,10 @@ let ground;
 
 // Initialize the game
 function init() {
+    // Display version
+    const versionEl = document.getElementById('version');
+    if (versionEl) versionEl.textContent = `v${GAME_VERSION}`;
+
     // Scene setup - Dark dev room atmosphere
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a24); // Slightly bluer dark
