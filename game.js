@@ -1968,6 +1968,9 @@ function selectMap(mapId) {
     });
 }
 
+// Make selectMap available globally for onclick handlers
+window.selectMap = selectMap;
+
 // Game state
 const gameState = {
     isRunning: false,
@@ -2034,6 +2037,8 @@ let weapon, weaponPivot;
 let targets = [];
 let cover;
 let ground;
+let mapObjects = []; // Track all map-specific objects for cleanup
+let mapLights = [];  // Track map-specific lights
 
 // Initialize the game
 function init() {
@@ -2092,10 +2097,12 @@ function init() {
         lightConfig.hemisphere.intensity
     );
     scene.add(hemiLight);
+    mapLights.push(hemiLight);
 
     // Ambient light
     const ambientLight = new THREE.AmbientLight(lightConfig.ambient.color, lightConfig.ambient.intensity);
     scene.add(ambientLight);
+    mapLights.push(ambientLight);
 
     // Main directional light
     const directionalLight = new THREE.DirectionalLight(lightConfig.directional.color, lightConfig.directional.intensity);
@@ -2112,11 +2119,13 @@ function init() {
     directionalLight.shadow.bias = -0.0005;
     directionalLight.shadow.normalBias = 0.02;
     scene.add(directionalLight);
+    mapLights.push(directionalLight);
 
     // Fill light
     const fillLight = new THREE.DirectionalLight(lightConfig.fill.color, lightConfig.fill.intensity);
     fillLight.position.set(...lightConfig.fill.position);
     scene.add(fillLight);
+    mapLights.push(fillLight);
 
     // Accent lights
     lightConfig.accents.forEach(accent => {
@@ -2124,6 +2133,7 @@ function init() {
             const light = new THREE.PointLight(accent.color, accent.intensity, accent.distance);
             light.position.set(...accent.position);
             scene.add(light);
+            mapLights.push(light);
         }
     });
 
@@ -2390,6 +2400,7 @@ function createEnvironment() {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
+    mapObjects.push(ground);
 
     // Walls from config
     const walls = mapConfig?.walls || [
@@ -2411,6 +2422,7 @@ function createEnvironment() {
         wall.rotation.y = wallDef.rotation;
         wall.receiveShadow = true;
         scene.add(wall);
+        mapObjects.push(wall);
     });
 
     // Random obstacles (if defined)
@@ -2435,6 +2447,7 @@ function createEnvironment() {
             box.castShadow = true;
             box.receiveShadow = true;
             scene.add(box);
+            mapObjects.push(box);
         }
     }
 
@@ -2458,6 +2471,7 @@ function createEnvironment() {
             }
             if (obstacle) {
                 scene.add(obstacle);
+                mapObjects.push(obstacle);
             }
         });
     }
@@ -2483,6 +2497,7 @@ function createCover() {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         scene.add(mesh);
+        mapObjects.push(mesh);
         return mesh;
     }
 
@@ -3733,7 +3748,99 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+// Clear and rebuild map if selection changed
+function reinitializeMap() {
+    // Check if map needs to change
+    if (gameState.currentMap === selectedMap) return;
+
+    // Update current map
+    gameState.currentMap = selectedMap;
+
+    // Remove old map objects
+    mapObjects.forEach(obj => {
+        scene.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+            if (Array.isArray(obj.material)) {
+                obj.material.forEach(m => m.dispose());
+            } else {
+                obj.material.dispose();
+            }
+        }
+    });
+    mapObjects = [];
+
+    // Remove old lights
+    mapLights.forEach(light => scene.remove(light));
+    mapLights = [];
+
+    // Get new map config
+    const mapConfig = typeof MapConfig !== 'undefined' ? MapConfig.getMap(gameState.currentMap) : null;
+
+    // Update scene background and fog
+    if (mapConfig?.scene) {
+        scene.background = new THREE.Color(mapConfig.scene.background);
+        scene.fog = new THREE.FogExp2(mapConfig.scene.fogColor, mapConfig.scene.fogDensity);
+    }
+
+    // Recreate lighting
+    const lightConfig = mapConfig?.lighting || {
+        hemisphere: { skyColor: 0x8899aa, groundColor: 0x554433, intensity: 0.4 },
+        ambient: { color: 0x404050, intensity: 0.3 },
+        directional: { color: 0xffeedd, intensity: 1.0, position: [10, 25, 5] },
+        fill: { color: 0x8899bb, intensity: 0.3, position: [-8, 10, -5] },
+        accents: []
+    };
+
+    const hemiLight = new THREE.HemisphereLight(lightConfig.hemisphere.skyColor, lightConfig.hemisphere.groundColor, lightConfig.hemisphere.intensity);
+    scene.add(hemiLight);
+    mapLights.push(hemiLight);
+
+    const ambientLight = new THREE.AmbientLight(lightConfig.ambient.color, lightConfig.ambient.intensity);
+    scene.add(ambientLight);
+    mapLights.push(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(lightConfig.directional.color, lightConfig.directional.intensity);
+    directionalLight.position.set(...lightConfig.directional.position);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 4096;
+    directionalLight.shadow.mapSize.height = 4096;
+    directionalLight.shadow.camera.near = 1;
+    directionalLight.shadow.camera.far = 60;
+    directionalLight.shadow.camera.left = -25;
+    directionalLight.shadow.camera.right = 25;
+    directionalLight.shadow.camera.top = 25;
+    directionalLight.shadow.camera.bottom = -25;
+    directionalLight.shadow.bias = -0.0005;
+    directionalLight.shadow.normalBias = 0.02;
+    scene.add(directionalLight);
+    mapLights.push(directionalLight);
+
+    const fillLight = new THREE.DirectionalLight(lightConfig.fill.color, lightConfig.fill.intensity);
+    fillLight.position.set(...lightConfig.fill.position);
+    scene.add(fillLight);
+    mapLights.push(fillLight);
+
+    if (lightConfig.accents) {
+        lightConfig.accents.forEach(accent => {
+            if (accent.type === 'point') {
+                const light = new THREE.PointLight(accent.color, accent.intensity, accent.distance);
+                light.position.set(...accent.position);
+                scene.add(light);
+                mapLights.push(light);
+            }
+        });
+    }
+
+    // Recreate environment and cover
+    createEnvironment();
+    createCover();
+}
+
 function startGame(mode = 'offline') {
+    // Reinitialize map if selection changed
+    reinitializeMap();
+
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('menu-button').style.display = 'block';
     gameState.isRunning = true;
