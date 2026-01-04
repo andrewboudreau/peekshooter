@@ -36,7 +36,14 @@ function verifyModules() {
         { name: 'BotController', type: 'debug' },
     ];
 
-    const missing = required.filter(r => typeof window[r.name] === 'undefined');
+    // Use eval to check global scope (const/let don't add to window)
+    const missing = required.filter(r => {
+        try {
+            return eval('typeof ' + r.name) === 'undefined';
+        } catch (e) {
+            return true;
+        }
+    });
 
     if (missing.length > 0) {
         console.warn('[PeekShooter] Missing modules:', missing.map(m => m.name));
