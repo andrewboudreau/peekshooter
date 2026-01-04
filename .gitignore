@@ -3,3 +3,5 @@ screenshots/
 .DS_Store
 Thumbs.db
 *.log
+settings.local.json
+*.png
