@@ -50,6 +50,16 @@ const AudioSystem = {
     ctx: null,
     masterGain: null,
     initialized: false,
+    muted: false,
+
+    // Toggle mute
+    toggleMute() {
+        this.muted = !this.muted;
+        if (this.masterGain) {
+            this.masterGain.gain.value = this.muted ? 0 : 0.3;
+        }
+        return this.muted;
+    },
 
     // Initialize audio context (must be called after user interaction)
     init() {
@@ -73,7 +83,7 @@ const AudioSystem = {
         }
     },
 
-    // Gunshot sound - sharp attack, punchy
+    // Gunshot sound - sharp crack with punch
     playGunshot() {
         if (!this.initialized) return;
         this.resume();
@@ -81,49 +91,75 @@ const AudioSystem = {
         const ctx = this.ctx;
         const now = ctx.currentTime;
 
-        // Noise burst for the crack
-        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
-        const noiseData = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < noiseData.length; i++) {
-            noiseData[i] = Math.random() * 2 - 1;
+        // HIGH CRACK - sharp transient noise burst
+        const crackBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.04, ctx.sampleRate);
+        const crackData = crackBuffer.getChannelData(0);
+        for (let i = 0; i < crackData.length; i++) {
+            // Aggressive noise with fast decay baked in
+            const decay = Math.exp(-i / (ctx.sampleRate * 0.008));
+            crackData[i] = (Math.random() * 2 - 1) * decay;
         }
 
-        const noise = ctx.createBufferSource();
-        noise.buffer = noiseBuffer;
+        const crack = ctx.createBufferSource();
+        crack.buffer = crackBuffer;
 
-        // Highpass filter for crack
-        const highpass = ctx.createBiquadFilter();
-        highpass.type = 'highpass';
-        highpass.frequency.value = 1000;
+        // Very high pass for the snap
+        const crackFilter = ctx.createBiquadFilter();
+        crackFilter.type = 'highpass';
+        crackFilter.frequency.value = 2500;
+        crackFilter.Q.value = 0.7;
 
-        // Envelope for noise
-        const noiseGain = ctx.createGain();
-        noiseGain.gain.setValueAtTime(0.8, now);
-        noiseGain.gain.exponentialDecayTo = 0.01;
-        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+        const crackGain = ctx.createGain();
+        crackGain.gain.setValueAtTime(1.2, now);
+        crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
 
-        noise.connect(highpass);
-        highpass.connect(noiseGain);
-        noiseGain.connect(this.masterGain);
+        crack.connect(crackFilter);
+        crackFilter.connect(crackGain);
+        crackGain.connect(this.masterGain);
 
-        // Low frequency thump
-        const osc = ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+        // MID BODY - gives the shot some presence
+        const bodyBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+        const bodyData = bodyBuffer.getChannelData(0);
+        for (let i = 0; i < bodyData.length; i++) {
+            bodyData[i] = (Math.random() * 2 - 1);
+        }
 
-        const oscGain = ctx.createGain();
-        oscGain.gain.setValueAtTime(1, now);
-        oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        const body = ctx.createBufferSource();
+        body.buffer = bodyBuffer;
 
-        osc.connect(oscGain);
-        oscGain.connect(this.masterGain);
+        const bodyFilter = ctx.createBiquadFilter();
+        bodyFilter.type = 'bandpass';
+        bodyFilter.frequency.value = 800;
+        bodyFilter.Q.value = 1.5;
 
-        // Play
-        noise.start(now);
-        noise.stop(now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.15);
+        const bodyGain = ctx.createGain();
+        bodyGain.gain.setValueAtTime(0.6, now);
+        bodyGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+
+        body.connect(bodyFilter);
+        bodyFilter.connect(bodyGain);
+        bodyGain.connect(this.masterGain);
+
+        // LOW THUMP - weight and punch
+        const thump = ctx.createOscillator();
+        thump.type = 'sine';
+        thump.frequency.setValueAtTime(120, now);
+        thump.frequency.exponentialRampToValueAtTime(35, now + 0.08);
+
+        const thumpGain = ctx.createGain();
+        thumpGain.gain.setValueAtTime(0.9, now);
+        thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+        thump.connect(thumpGain);
+        thumpGain.connect(this.masterGain);
+
+        // Play all layers
+        crack.start(now);
+        crack.stop(now + 0.04);
+        body.start(now);
+        body.stop(now + 0.08);
+        thump.start(now);
+        thump.stop(now + 0.12);
     },
 
     // Hit marker sound - satisfying tick
@@ -265,7 +301,386 @@ const AudioSystem = {
         osc.start(now);
         osc.stop(now + 0.6);
     },
+
+    // Impact: Target (metal ping - short and satisfying)
+    playImpactTarget() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Short metallic ping - lowered frequencies, quick decay
+        const osc1 = ctx.createOscillator();
+        osc1.type = 'triangle'; // Softer than sine
+        osc1.frequency.value = 600 + Math.random() * 100;
+
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'triangle';
+        osc2.frequency.value = 1400 + Math.random() * 150;
+
+        // Quick attack/decay envelope
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+
+        // Lowpass to remove harsh highs
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 2000;
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.08);
+        osc2.stop(now + 0.08);
+    },
+
+    // Impact: Player (flesh thud)
+    playImpactPlayer() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Short noise burst (splat)
+        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+            noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.015));
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        // Low pass for muffled impact
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 600;
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.5, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+
+        // Low thump
+        const thump = ctx.createOscillator();
+        thump.type = 'sine';
+        thump.frequency.setValueAtTime(100, now);
+        thump.frequency.exponentialRampToValueAtTime(50, now + 0.06);
+
+        const thumpGain = ctx.createGain();
+        thumpGain.gain.setValueAtTime(0.4, now);
+        thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+        thump.connect(thumpGain);
+        thumpGain.connect(this.masterGain);
+
+        noise.start(now);
+        noise.stop(now + 0.08);
+        thump.start(now);
+        thump.stop(now + 0.1);
+    },
+
+    // Impact: Barrier (solid construction thud)
+    playImpactBarrier() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Punchy mid-frequency thud
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+        // Add some grit
+        const distortion = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+            const x = (i / 128) - 1;
+            curve[i] = Math.tanh(x * 1.5);
+        }
+        distortion.curve = curve;
+
+        osc.connect(distortion);
+        distortion.connect(gain);
+        gain.connect(this.masterGain);
+
+        // Short noise for texture
+        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+            noiseData[i] = (Math.random() * 2 - 1);
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.value = 400;
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.25, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+
+        osc.start(now);
+        osc.stop(now + 0.12);
+        noise.start(now);
+        noise.stop(now + 0.04);
+    },
+
+    // Impact: Wall/concrete (hard surface)
+    playImpactWall() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Sharp crack/chip sound
+        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.025, ctx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+            noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.006));
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        // Highpass for crisp impact
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 1500;
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.35, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+
+        // Low thud for weight
+        const thud = ctx.createOscillator();
+        thud.type = 'sine';
+        thud.frequency.setValueAtTime(90, now);
+        thud.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+
+        const thudGain = ctx.createGain();
+        thudGain.gain.setValueAtTime(0.3, now);
+        thudGain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+
+        thud.connect(thudGain);
+        thudGain.connect(this.masterGain);
+
+        noise.start(now);
+        noise.stop(now + 0.04);
+        thud.start(now);
+        thud.stop(now + 0.08);
+    },
 };
+
+// ============================================
+// DEV TEXTURE SYSTEM - Valve Source Engine style
+// ============================================
+
+// Cache textures so we don't recreate them
+const textureCache = {
+    devTexture: null,
+    devBumpMap: null,
+    devNormalMap: null,
+};
+
+// Create simple grey grid texture (cleaner look)
+function createDevTexture(size = 512) {
+    if (textureCache.devTexture) return textureCache.devTexture;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const cellCount = 4;
+    const cellSize = size / cellCount;
+
+    // Solid grey base
+    ctx.fillStyle = '#606060';
+    ctx.fillRect(0, 0, size, size);
+
+    // Subtle cell variation (alternating slightly lighter/darker)
+    for (let x = 0; x < cellCount; x++) {
+        for (let y = 0; y < cellCount; y++) {
+            ctx.fillStyle = (x + y) % 2 === 0 ? '#585858' : '#686868';
+            ctx.fillRect(x * cellSize + 2, y * cellSize + 2, cellSize - 4, cellSize - 4);
+        }
+    }
+
+    // Major grid lines (cell boundaries)
+    ctx.strokeStyle = '#404040';
+    ctx.lineWidth = 4;
+    for (let i = 0; i <= cellCount; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * cellSize, 0);
+        ctx.lineTo(i * cellSize, size);
+        ctx.moveTo(0, i * cellSize);
+        ctx.lineTo(size, i * cellSize);
+        ctx.stroke();
+    }
+
+    // Minor grid lines (subtle)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#505050';
+    for (let i = 0; i <= cellCount * 2; i++) {
+        const pos = i * cellSize / 2;
+        ctx.beginPath();
+        ctx.moveTo(pos, 0);
+        ctx.lineTo(pos, size);
+        ctx.moveTo(0, pos);
+        ctx.lineTo(size, pos);
+        ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.anisotropy = 4;
+
+    textureCache.devTexture = texture;
+    return texture;
+}
+
+// Create bump map for depth effect (simplified)
+function createDevBumpMap(size = 512) {
+    if (textureCache.devBumpMap) return textureCache.devBumpMap;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const cellCount = 4;
+    const cellSize = size / cellCount;
+
+    // Base height (light grey = higher)
+    ctx.fillStyle = '#b0b0b0';
+    ctx.fillRect(0, 0, size, size);
+
+    // Grid grooves (darker = lower)
+    ctx.strokeStyle = '#707070';
+    ctx.lineWidth = 5;
+    for (let i = 0; i <= cellCount; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * cellSize, 0);
+        ctx.lineTo(i * cellSize, size);
+        ctx.moveTo(0, i * cellSize);
+        ctx.lineTo(size, i * cellSize);
+        ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+
+    textureCache.devBumpMap = texture;
+    return texture;
+}
+
+// Create normal map for groove edges
+function createDevNormalMap(size = 512) {
+    if (textureCache.devNormalMap) return textureCache.devNormalMap;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const cellCount = 4;
+    const cellSize = size / cellCount;
+
+    // Flat normal (pointing up in tangent space: RGB 128,128,255)
+    ctx.fillStyle = '#8080ff';
+    ctx.fillRect(0, 0, size, size);
+
+    const grooveDepth = 35;
+
+    // Vertical grid lines
+    for (let i = 0; i <= cellCount; i++) {
+        const x = i * cellSize;
+        ctx.fillStyle = `rgb(${128 + grooveDepth}, 128, 255)`;
+        ctx.fillRect(x - 2, 0, 2, size);
+        ctx.fillStyle = `rgb(${128 - grooveDepth}, 128, 255)`;
+        ctx.fillRect(x, 0, 2, size);
+    }
+
+    // Horizontal grid lines
+    for (let i = 0; i <= cellCount; i++) {
+        const y = i * cellSize;
+        ctx.fillStyle = `rgb(128, ${128 - grooveDepth}, 255)`;
+        ctx.fillRect(0, y - 2, size, 2);
+        ctx.fillStyle = `rgb(128, ${128 + grooveDepth}, 255)`;
+        ctx.fillRect(0, y, size, 2);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+
+    textureCache.devNormalMap = texture;
+    return texture;
+}
+
+// Create material with dev texture
+function createDevMaterial(repeatX = 1, repeatY = 1, color = 0xffffff) {
+    const diffuse = createDevTexture();
+    const bump = createDevBumpMap();
+    const normal = createDevNormalMap();
+
+    // Clone textures to set unique repeat values
+    const diffuseClone = diffuse.clone();
+    const bumpClone = bump.clone();
+    const normalClone = normal.clone();
+
+    diffuseClone.repeat.set(repeatX, repeatY);
+    bumpClone.repeat.set(repeatX, repeatY);
+    normalClone.repeat.set(repeatX, repeatY);
+
+    diffuseClone.needsUpdate = true;
+    bumpClone.needsUpdate = true;
+    normalClone.needsUpdate = true;
+
+    return new THREE.MeshStandardMaterial({
+        map: diffuseClone,
+        bumpMap: bumpClone,
+        bumpScale: 0.03,
+        normalMap: normalClone,
+        normalScale: new THREE.Vector2(0.5, 0.5),
+        roughness: 0.85,
+        metalness: 0.05,
+        color: color,
+    });
+}
 
 // ============================================
 // WEAPON PROFILES - Configurable recoil patterns
@@ -1138,41 +1553,72 @@ let ground;
 
 // Initialize the game
 function init() {
-    // Scene setup
+    // Scene setup - Dark dev room atmosphere
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a2e);
-    scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
+    scene.background = new THREE.Color(0x1a1a24); // Slightly bluer dark
+    scene.fog = new THREE.FogExp2(0x1a1a24, 0.015); // Exponential fog for depth
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, gameState.BASE_HEIGHT, 0);
 
-    // Renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Renderer - Enhanced for better visuals
+    renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: 'high-performance',
+    });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding; // Proper color space
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; // Cinematic look
+    renderer.toneMappingExposure = 1.1; // Slightly brighter
     document.getElementById('game-container').insertBefore(renderer.domElement, document.getElementById('crosshair'));
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    // Lighting - Enhanced for dev textures
+    // Hemisphere light for natural ambient gradient (sky blue to ground brown)
+    const hemiLight = new THREE.HemisphereLight(0x8899aa, 0x554433, 0.4);
+    scene.add(hemiLight);
+
+    // Low ambient fill
+    const ambientLight = new THREE.AmbientLight(0x404050, 0.3);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10, 20, 10);
+    // Main directional light (sun-like) - brighter to show off textures
+    const directionalLight = new THREE.DirectionalLight(0xffeedd, 1.0);
+    directionalLight.position.set(10, 25, 5);
     directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.mapSize.width = 4096;
+    directionalLight.shadow.mapSize.height = 4096;
+    directionalLight.shadow.camera.near = 1;
+    directionalLight.shadow.camera.far = 60;
+    directionalLight.shadow.camera.left = -25;
+    directionalLight.shadow.camera.right = 25;
+    directionalLight.shadow.camera.top = 25;
+    directionalLight.shadow.camera.bottom = -25;
+    directionalLight.shadow.bias = -0.0005;
+    directionalLight.shadow.normalBias = 0.02;
     scene.add(directionalLight);
 
-    // Add some point lights for atmosphere
-    const redLight = new THREE.PointLight(0xff4444, 0.5, 20);
-    redLight.position.set(-5, 3, -10);
+    // Secondary fill light from opposite side (cooler tone)
+    const fillLight = new THREE.DirectionalLight(0x8899bb, 0.3);
+    fillLight.position.set(-8, 10, -5);
+    scene.add(fillLight);
+
+    // Colored accent lights for atmosphere
+    const redLight = new THREE.PointLight(0xff4444, 0.6, 25);
+    redLight.position.set(-6, 4, -12);
     scene.add(redLight);
 
-    const blueLight = new THREE.PointLight(0x4444ff, 0.5, 20);
-    blueLight.position.set(5, 3, -10);
+    const blueLight = new THREE.PointLight(0x4466ff, 0.6, 25);
+    blueLight.position.set(6, 4, -12);
     scene.add(blueLight);
+
+    // Warm accent near player
+    const warmLight = new THREE.PointLight(0xffaa66, 0.3, 15);
+    warmLight.position.set(0, 3, 2);
+    scene.add(warmLight);
 
     createEnvironment();
     createCover();
@@ -1296,13 +1742,9 @@ function showOpponentMuzzleFlash(opponent) {
 }
 
 function createEnvironment() {
-    // Ground
+    // Ground - large area with repeating texture
     const groundGeometry = new THREE.PlaneGeometry(50, 50);
-    const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0x333344,
-        roughness: 0.8,
-        metalness: 0.2
-    });
+    const groundMaterial = createDevMaterial(12, 12); // Repeat 12x12 for ~4 unit tiles
     ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -1310,34 +1752,34 @@ function createEnvironment() {
 
     // Back wall
     const wallGeometry = new THREE.PlaneGeometry(50, 15);
-    const wallMaterial = new THREE.MeshStandardMaterial({
-        color: 0x2a2a3a,
-        roughness: 0.9
-    });
-    const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+    const backWallMaterial = createDevMaterial(12, 4); // Wide wall
+    const backWall = new THREE.Mesh(wallGeometry, backWallMaterial);
     backWall.position.set(0, 7.5, -20);
     backWall.receiveShadow = true;
     scene.add(backWall);
 
     // Side walls
     const sideWallGeometry = new THREE.PlaneGeometry(40, 15);
+    const sideWallMaterial = createDevMaterial(10, 4);
 
-    const leftWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
+    const leftWall = new THREE.Mesh(sideWallGeometry, sideWallMaterial);
     leftWall.position.set(-10, 7.5, -10);
     leftWall.rotation.y = Math.PI / 2;
+    leftWall.receiveShadow = true;
     scene.add(leftWall);
 
-    const rightWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
+    const rightWallMaterial = createDevMaterial(10, 4);
+    const rightWall = new THREE.Mesh(sideWallGeometry, rightWallMaterial);
     rightWall.position.set(10, 7.5, -10);
     rightWall.rotation.y = -Math.PI / 2;
+    rightWall.receiveShadow = true;
     scene.add(rightWall);
 
-    // Add some boxes/obstacles in the environment
-    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x444455 });
-
+    // Add some boxes/obstacles in the environment with dev textures
     for (let i = 0; i < 5; i++) {
         const size = 0.5 + Math.random() * 1;
         const boxGeometry = new THREE.BoxGeometry(size, size, size);
+        const boxMaterial = createDevMaterial(1, 1); // Single tile per face
         const box = new THREE.Mesh(boxGeometry, boxMaterial);
         box.position.set(
             (Math.random() - 0.5) * 15,
@@ -1351,9 +1793,11 @@ function createEnvironment() {
 }
 
 function createCover() {
+    // Cover uses solid orange/yellow color - stands out from grey environment
     const coverMaterial = new THREE.MeshStandardMaterial({
-        color: 0x556655,
-        roughness: 0.7
+        color: 0xff8800, // Orange
+        roughness: 0.7,
+        metalness: 0.1,
     });
 
     // === PLAYER SIDE COVER (near z = 0) ===
@@ -1370,11 +1814,13 @@ function createCover() {
     const leftCover = new THREE.Mesh(sideGeometry, coverMaterial);
     leftCover.position.set(-1.65, 0.9, -0.5);
     leftCover.castShadow = true;
+    leftCover.receiveShadow = true;
     scene.add(leftCover);
 
     const rightCover = new THREE.Mesh(sideGeometry, coverMaterial);
     rightCover.position.set(1.65, 0.9, -0.5);
     rightCover.castShadow = true;
+    rightCover.receiveShadow = true;
     scene.add(rightCover);
 
     // === OPPONENT SIDE COVER (near z = -15) ===
@@ -1390,11 +1836,13 @@ function createCover() {
     const opponentLeftCover = new THREE.Mesh(sideGeometry, coverMaterial);
     opponentLeftCover.position.set(-1.65, 0.9, opponentCoverZ);
     opponentLeftCover.castShadow = true;
+    opponentLeftCover.receiveShadow = true;
     scene.add(opponentLeftCover);
 
     const opponentRightCover = new THREE.Mesh(sideGeometry, coverMaterial);
     opponentRightCover.position.set(1.65, 0.9, opponentCoverZ);
     opponentRightCover.castShadow = true;
+    opponentRightCover.receiveShadow = true;
     scene.add(opponentRightCover);
 }
 
@@ -1537,7 +1985,7 @@ function createTarget(config) {
             side: THREE.DoubleSide
         });
         const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
-        ringMesh.position.z = -0.011 - (i * 0.001); // Stack front to back
+        ringMesh.position.z = 0.011 + (i * 0.001); // Stack toward player (positive Z)
         geometry.add(ringMesh);
     });
 
@@ -1548,7 +1996,7 @@ function createTarget(config) {
         side: THREE.DoubleSide
     });
     const bullseye = new THREE.Mesh(bullseyeGeometry, bullseyeMaterial);
-    bullseye.position.z = -0.02;
+    bullseye.position.z = 0.02; // In front of rings (toward player)
     geometry.add(bullseye);
 
     // Target stand
@@ -1794,6 +2242,7 @@ function shoot() {
                 const damage = 25; // Base damage per hit
                 sendHit(damage);
                 showHitMarker();
+                AudioSystem.playImpactPlayer();
 
                 // Create blood splatter at hit point
                 const hitDirection = raycaster.ray.direction.clone();
@@ -1841,14 +2290,8 @@ function shoot() {
         void hitMarker.offsetWidth;
         hitMarker.classList.add('show');
 
-        // Create hit mark on target
-        if (hitIntersect && hitIntersect.face) {
-            const worldNormal = hitIntersect.face.normal.clone();
-            if (hitIntersect.object.matrixWorld) {
-                worldNormal.transformDirection(hitIntersect.object.matrixWorld);
-            }
-            createHitMark(hitIntersect.point.clone(), worldNormal);
-        }
+        // Play target impact sound (no hit mark - target disappears anyway)
+        AudioSystem.playImpactTarget();
 
         // Animate target falling
         animateTargetHit(hitTarget);
@@ -1882,6 +2325,16 @@ function shoot() {
                 worldNormal.transformDirection(hit.object.matrixWorld);
             }
             createHitMark(hit.point.clone(), worldNormal);
+
+            // Play impact sound based on surface type
+            const hitObj = hit.object;
+            if (hitObj === cover || hitObj.material?.color?.getHex() === 0xff8800) {
+                // Orange barrier
+                AudioSystem.playImpactBarrier();
+            } else {
+                // Wall/ground/concrete
+                AudioSystem.playImpactWall();
+            }
         }
     }
 }
@@ -2081,6 +2534,15 @@ function startOnlineGame() {
 
 function startOfflineGame() {
     startGame('offline');
+}
+
+// Toggle sound on/off
+function toggleSound() {
+    const muted = AudioSystem.toggleMute();
+    const el = document.getElementById('sound-toggle');
+    if (el) {
+        el.textContent = muted ? 'Sound: OFF' : 'Sound: ON';
+    }
 }
 
 // Initialize on load
