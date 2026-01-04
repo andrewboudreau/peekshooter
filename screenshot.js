@@ -133,6 +133,9 @@ async function takeScreenshot(options) {
         server = await startServer();
         console.log(`Server running on port ${CONFIG.port}`);
 
+        // Give server a moment to be fully ready
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         // Launch browser
         console.log('Launching browser...');
         browser = await puppeteer.launch({
@@ -142,6 +145,11 @@ async function takeScreenshot(options) {
                 '--disable-setuid-sandbox',
                 '--disable-web-security',
                 `--window-size=${options.width},${options.height}`,
+                // WebGL support for headless
+                '--enable-webgl',
+                '--use-gl=angle',
+                '--use-angle=swiftshader',
+                '--enable-gpu-rasterization',
             ],
         });
 
@@ -159,17 +167,27 @@ async function takeScreenshot(options) {
 
         // Click start button if auto-start enabled
         if (options.autoStart) {
-            console.log('Starting game...');
-            await page.click('#start-screen button');
+            console.log('Starting game (Practice mode)...');
+            // Click the Practice button (.offline) to start offline game
+            await page.click('#start-screen button.offline');
             await page.waitForFunction(() => {
                 const startScreen = document.getElementById('start-screen');
                 return startScreen && startScreen.style.display === 'none';
-            });
+            }, { timeout: 5000 });
         }
 
         // Wait for specified delay
         console.log(`Waiting ${options.delay}ms for scene to render...`);
         await new Promise(resolve => setTimeout(resolve, options.delay));
+
+        // Wait for a render frame to complete
+        await page.evaluate(() => {
+            return new Promise(resolve => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(resolve);
+                });
+            });
+        });
 
         // Generate filename
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

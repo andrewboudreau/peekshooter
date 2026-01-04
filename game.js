@@ -2029,6 +2029,7 @@ function init() {
     renderer = new THREE.WebGLRenderer({
         antialias: true,
         powerPreference: 'high-performance',
+        preserveDrawingBuffer: true, // Required for screenshots
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
