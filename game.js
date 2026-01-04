@@ -1551,7 +1551,7 @@ function showDamageEffect() {
     );
 }
 
-function showHitMarker(bodyPart) {
+function showHitMarker(bodyPart, hitPoint, hitObject) {
     const hitMarker = document.getElementById('hit-marker');
     if (hitMarker) {
         hitMarker.classList.remove('show', 'headshot');
@@ -1562,15 +1562,27 @@ function showHitMarker(bodyPart) {
         }
     }
 
-    // Show body part indicator
-    showBodyPartHit(bodyPart);
+    // Show body part indicator (with debug line if debug mode is on)
+    showBodyPartHit(bodyPart, hitPoint, hitObject);
 
     // Hit marker sound
     AudioSystem.playHitMarker();
 }
 
-function showBodyPartHit(bodyPart) {
-    // Get or create the body part indicator
+// Track active debug hit indicators
+const debugHitIndicators = [];
+
+function showBodyPartHit(bodyPart, hitPoint, hitObject) {
+    // Body part info with colors matching hitbox colors
+    const partInfo = {
+        head: { text: 'HEADSHOT!', color: '#ff4444', hex: 0xff4444 },
+        chest: { text: 'CHEST', color: '#ff8800', hex: 0xff8800 },
+        belly: { text: 'BODY', color: '#ffff00', hex: 0xffff00 },
+        arm: { text: 'ARM', color: '#00ff00', hex: 0x00ff00 },
+    };
+    const info = partInfo[bodyPart] || { text: bodyPart.toUpperCase(), color: '#ffffff', hex: 0xffffff };
+
+    // Always show the simple indicator (non-debug)
     let indicator = document.getElementById('bodypart-indicator');
     if (!indicator) {
         indicator = document.createElement('div');
@@ -1593,23 +1605,139 @@ function showBodyPartHit(bodyPart) {
         document.getElementById('game-container').appendChild(indicator);
     }
 
-    // Set text and color based on body part
-    const partInfo = {
-        head: { text: 'HEADSHOT!', color: '#ff4444' },
-        chest: { text: 'CHEST', color: '#ffaa44' },
-        belly: { text: 'BODY', color: '#ffff44' },
-        arm: { text: 'ARM', color: '#aaaaaa' },
-    };
-
-    const info = partInfo[bodyPart] || { text: bodyPart.toUpperCase(), color: '#ffffff' };
     indicator.textContent = info.text;
     indicator.style.color = info.color;
     indicator.style.opacity = '1';
 
-    // Fade out
     setTimeout(() => {
         indicator.style.opacity = '0';
     }, 500);
+
+    // If debug mode is on and we have hit info, create a tracked indicator with line
+    if (DebugConsole.debug.enabled && hitPoint && hitObject) {
+        createDebugHitIndicator(bodyPart, hitPoint, hitObject, info);
+    }
+}
+
+function createDebugHitIndicator(bodyPart, hitPoint, hitObject, info) {
+    // Create 3D line from hit point extending outward
+    const lineMaterial = new THREE.LineBasicMaterial({
+        color: info.hex,
+        linewidth: 2,
+    });
+
+    // Create a small sphere at the hit point
+    const sphereGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+    const sphereMaterial = new THREE.MeshBasicMaterial({ color: info.hex });
+    const hitSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    hitSphere.position.copy(hitPoint);
+    scene.add(hitSphere);
+
+    // Create line geometry - will be updated each frame
+    const lineGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(6); // 2 points x 3 coordinates
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const line = new THREE.Line(lineGeometry, lineMaterial);
+    scene.add(line);
+
+    // Create HTML label
+    const label = document.createElement('div');
+    label.style.cssText = `
+        position: absolute;
+        color: ${info.color};
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px black, -1px -1px 2px black;
+        pointer-events: none;
+        z-index: 200;
+        white-space: nowrap;
+    `;
+    label.textContent = `${info.text} [${bodyPart.toUpperCase()}]`;
+    document.getElementById('game-container').appendChild(label);
+
+    // Store the indicator for tracking
+    const indicatorData = {
+        hitObject: hitObject,
+        hitLocalPoint: hitObject.worldToLocal(hitPoint.clone()), // Store in local space
+        line: line,
+        hitSphere: hitSphere,
+        label: label,
+        color: info.hex,
+        createdAt: Date.now(),
+        duration: 2000, // Show for 2 seconds
+    };
+    debugHitIndicators.push(indicatorData);
+}
+
+function updateDebugHitIndicators() {
+    const now = Date.now();
+
+    for (let i = debugHitIndicators.length - 1; i >= 0; i--) {
+        const ind = debugHitIndicators[i];
+        const age = now - ind.createdAt;
+
+        // Remove expired indicators
+        if (age > ind.duration) {
+            scene.remove(ind.line);
+            scene.remove(ind.hitSphere);
+            ind.line.geometry.dispose();
+            ind.line.material.dispose();
+            ind.hitSphere.geometry.dispose();
+            ind.hitSphere.material.dispose();
+            if (ind.label.parentNode) {
+                ind.label.parentNode.removeChild(ind.label);
+            }
+            debugHitIndicators.splice(i, 1);
+            continue;
+        }
+
+        // Calculate fade
+        const fadeStart = ind.duration - 500;
+        const opacity = age > fadeStart ? 1 - (age - fadeStart) / 500 : 1;
+
+        // Update hit sphere position (track body part)
+        if (ind.hitObject && ind.hitObject.parent) {
+            const worldPoint = ind.hitLocalPoint.clone();
+            ind.hitObject.localToWorld(worldPoint);
+            ind.hitSphere.position.copy(worldPoint);
+
+            // Calculate label position (offset from hit point toward camera)
+            const labelOffset = new THREE.Vector3();
+            labelOffset.subVectors(camera.position, worldPoint).normalize().multiplyScalar(0.5);
+            const labelWorldPos = worldPoint.clone().add(labelOffset);
+            labelWorldPos.y += 0.3; // Slightly above
+
+            // Update line to connect hit point to label position
+            const positions = ind.line.geometry.attributes.position.array;
+            positions[0] = worldPoint.x;
+            positions[1] = worldPoint.y;
+            positions[2] = worldPoint.z;
+            positions[3] = labelWorldPos.x;
+            positions[4] = labelWorldPos.y;
+            positions[5] = labelWorldPos.z;
+            ind.line.geometry.attributes.position.needsUpdate = true;
+
+            // Project label position to screen
+            const screenPos = labelWorldPos.clone().project(camera);
+            if (screenPos.z < 1) {
+                const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
+                ind.label.style.left = x + 'px';
+                ind.label.style.top = y + 'px';
+                ind.label.style.opacity = opacity;
+                ind.label.style.display = 'block';
+            } else {
+                ind.label.style.display = 'none';
+            }
+
+            // Update line and sphere opacity
+            ind.line.material.opacity = opacity;
+            ind.line.material.transparent = true;
+            ind.hitSphere.material.opacity = opacity;
+            ind.hitSphere.material.transparent = true;
+        }
+    }
 }
 
 function showDeathScreen() {
@@ -2699,7 +2827,7 @@ function shoot() {
                 const damage = hitObject.userData.damage || 10; // Fallback damage
 
                 sendHit(damage, bodyPart);
-                showHitMarker(bodyPart);
+                showHitMarker(bodyPart, opponentHit.point.clone(), hitObject);
                 AudioSystem.playImpactPlayer();
 
                 // Create blood splatter at hit point
@@ -2961,6 +3089,9 @@ function animate() {
 
     // Update debug console visuals
     DebugConsole.update();
+
+    // Update debug hit indicators (tracked body part labels)
+    updateDebugHitIndicators();
 
     renderer.render(scene, camera);
 }
