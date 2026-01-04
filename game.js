@@ -2165,8 +2165,11 @@ function showOpponentMuzzleFlash(opponent, shotData = null) {
 
 function createOpponentBulletTracer(startPos, shotData) {
     // Calculate end point - shoot toward player's general area
+    // NOTE: X coordinate is NEGATED because players face opposite directions
+    // What's "right" for the shooter is "left" for the receiver
+    const targetX = shotData?.targetX ? -shotData.targetX : (Math.random() - 0.5) * 2;
     const endPos = new THREE.Vector3(
-        shotData?.targetX || (Math.random() - 0.5) * 2,  // Some spread
+        targetX,
         shotData?.targetY || 1.2 + (Math.random() - 0.5) * 0.5,
         0  // Player is at z=0
     );
