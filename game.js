@@ -702,6 +702,16 @@ const DebugConsole = {
         healthLabels: [],
     },
 
+    // Bot state
+    bot: {
+        enabled: false,
+        phase: 'idle',      // idle, moving_left, peeking_left, moving_right, peeking_right
+        phaseTime: 0,
+        targetStrafe: 0,
+        targetLean: 0,
+        shotFired: false,
+    },
+
     init() {
         const consoleEl = document.getElementById('debug-console');
         const inputEl = document.getElementById('console-input');
@@ -850,6 +860,7 @@ const DebugConsole = {
                 this.log('  hitboxes [on|off] - Show/hide hitboxes', 'info');
                 this.log('  health [on|off] - Show/hide all player health', 'info');
                 this.log('  god [on|off] - Toggle god mode (invincible)', 'info');
+                this.log('  bot [on|off] - Toggle bot opponent (walks, peeks, shoots)', 'info');
                 this.log('  kill - Kill yourself', 'info');
                 this.log('  heal - Restore health to 100', 'info');
                 this.log('  clear - Clear console', 'info');
@@ -895,6 +906,40 @@ const DebugConsole = {
                 const godState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.godMode;
                 this.debug.godMode = godState;
                 this.log(godState ? 'God mode ON - You are invincible' : 'God mode OFF', godState ? 'success' : 'warn');
+                break;
+
+            case 'bot':
+                const botState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.bot.enabled;
+                if (botState) {
+                    // Create opponent if needed
+                    if (!netState.opponent) {
+                        netState.gameMode = 'online'; // Fake online mode
+                        netState.status = 'playing';
+                        netState.playerSlot = 0;
+                        netState.opponent = new OpponentPlayer(1);
+                        createOpponentMesh(netState.opponent);
+                        netState.health = 100;
+                        netState.scores = [0, 0];
+                        updateHealthUI();
+                        updateScoreUI();
+                        hideTargets();
+                        gameState.isRunning = true;
+                        document.getElementById('start-screen').style.display = 'none';
+                    }
+                    this.bot.enabled = true;
+                    this.bot.phase = 'moving_left';
+                    this.bot.phaseTime = 0;
+                    this.log('Bot opponent enabled - walks, peeks, and shoots', 'success');
+                } else {
+                    this.bot.enabled = false;
+                    this.bot.phase = 'idle';
+                    // Reset opponent to center
+                    if (netState.opponent) {
+                        netState.opponent.targetState.strafe = 0;
+                        netState.opponent.targetState.lean = 0;
+                    }
+                    this.log('Bot opponent disabled', 'warn');
+                }
                 break;
 
             case 'kill':
@@ -991,6 +1036,132 @@ const DebugConsole = {
         // Update health labels
         if (this.debug.showHealth && netState.opponent && netState.opponent.mesh) {
             this.updateHealthLabel(netState.opponent);
+        }
+
+        // Update bot AI
+        if (this.bot.enabled) {
+            this.updateBot();
+        }
+    },
+
+    // Bot AI update
+    updateBot() {
+        if (!netState.opponent) return;
+
+        const deltaTime = 1 / 60; // Approximate frame time
+        this.bot.phaseTime += deltaTime;
+
+        const opponent = netState.opponent;
+
+        // Phase timing
+        const moveTime = 1.5;    // Time to move to each side
+        const peekTime = 0.8;    // Time to peek before shooting
+        const holdTime = 0.3;    // Time to hold after shooting
+        const unpekTime = 0.4;   // Time to unpeek
+
+        switch (this.bot.phase) {
+            case 'moving_left':
+                opponent.targetState.strafe = -0.8; // Move left
+                opponent.targetState.lean = 0;
+                if (this.bot.phaseTime > moveTime) {
+                    this.bot.phase = 'peeking_right';
+                    this.bot.phaseTime = 0;
+                    this.bot.shotFired = false;
+                }
+                break;
+
+            case 'peeking_right':
+                opponent.targetState.strafe = -0.8;
+                opponent.targetState.lean = 0.8; // Lean right to peek
+                if (this.bot.phaseTime > peekTime && !this.bot.shotFired) {
+                    // Fire!
+                    this.botShoot();
+                    this.bot.shotFired = true;
+                }
+                if (this.bot.phaseTime > peekTime + holdTime) {
+                    this.bot.phase = 'unpeeking_right';
+                    this.bot.phaseTime = 0;
+                }
+                break;
+
+            case 'unpeeking_right':
+                opponent.targetState.lean = 0;
+                if (this.bot.phaseTime > unpekTime) {
+                    this.bot.phase = 'moving_right';
+                    this.bot.phaseTime = 0;
+                }
+                break;
+
+            case 'moving_right':
+                opponent.targetState.strafe = 0.8; // Move right
+                opponent.targetState.lean = 0;
+                if (this.bot.phaseTime > moveTime) {
+                    this.bot.phase = 'peeking_left';
+                    this.bot.phaseTime = 0;
+                    this.bot.shotFired = false;
+                }
+                break;
+
+            case 'peeking_left':
+                opponent.targetState.strafe = 0.8;
+                opponent.targetState.lean = -0.8; // Lean left to peek
+                if (this.bot.phaseTime > peekTime && !this.bot.shotFired) {
+                    // Fire!
+                    this.botShoot();
+                    this.bot.shotFired = true;
+                }
+                if (this.bot.phaseTime > peekTime + holdTime) {
+                    this.bot.phase = 'unpeeking_left';
+                    this.bot.phaseTime = 0;
+                }
+                break;
+
+            case 'unpeeking_left':
+                opponent.targetState.lean = 0;
+                if (this.bot.phaseTime > unpekTime) {
+                    this.bot.phase = 'moving_left';
+                    this.bot.phaseTime = 0;
+                }
+                break;
+        }
+    },
+
+    // Bot shoots at player
+    botShoot() {
+        if (!netState.opponent) return;
+
+        // Show muzzle flash
+        showOpponentMuzzleFlash(netState.opponent);
+
+        // Calculate if bot hits player (simple accuracy check)
+        // Bot aims at center, so it hits if player is not behind cover
+        const accuracy = 0.6; // 60% base accuracy
+        const playerPeeking = Math.abs(gameState.lean) > 0.3 || Math.abs(gameState.strafe) > 0.3;
+
+        if (Math.random() < accuracy && playerPeeking) {
+            // Hit! Apply damage based on random body part
+            const parts = ['head', 'chest', 'chest', 'belly', 'belly', 'arm', 'arm'];
+            const hitPart = parts[Math.floor(Math.random() * parts.length)];
+            const damage = { head: 25, chest: 15, belly: 10, arm: 5 }[hitPart];
+
+            // Check god mode
+            if (!this.debug.godMode && netState.health > 0) {
+                netState.health = Math.max(0, netState.health - damage);
+                showDamageEffect();
+                updateHealthUI();
+                this.log(`Bot hit you in the ${hitPart} for ${damage} damage`, 'warn');
+
+                if (netState.health <= 0) {
+                    netState.scores[1]++; // Bot scores
+                    updateScoreUI();
+                    showDeathScreen();
+
+                    // Reset after delay
+                    setTimeout(() => {
+                        resetRound();
+                    }, 3000);
+                }
+            }
         }
     },
 
@@ -1788,6 +1959,7 @@ function createHitMark(position, normal) {
 
     const decal = new THREE.Mesh(geometry, material);
     decal.position.copy(position);
+    decal.userData.isDecal = true; // Mark as decal so raycasts ignore it
 
     // Offset slightly from surface to prevent z-fighting
     decal.position.add(normal.clone().multiplyScalar(0.01));
@@ -1822,6 +1994,7 @@ function createHitMark(position, normal) {
     ring.position.add(normal.clone().multiplyScalar(0.005));
     ring.lookAt(position.clone().add(normal));
     ring.rotation.z = decal.rotation.z;
+    ring.userData.isDecal = true; // Mark as decal so raycasts ignore it
     scene.add(ring);
 
     activeEffects.hitMarks.push({
@@ -1855,6 +2028,7 @@ function createBloodSplatter(position, direction) {
 
         const particle = new THREE.Mesh(geometry, material);
         particle.position.copy(position);
+        particle.userData.isDecal = true; // Mark so raycasts ignore it
 
         // Calculate velocity - spray outward from hit direction
         const spread = 0.5;
@@ -1900,6 +2074,7 @@ function createBloodSplatter(position, direction) {
         });
 
         const line = new THREE.Line(geometry, material);
+        line.userData.isDecal = true; // Mark so raycasts ignore it
         scene.add(line);
 
         activeEffects.bloodParticles.push({
@@ -1934,9 +2109,11 @@ function createBloodDecal(position, normal) {
         const blob = new THREE.Mesh(geometry, material);
         blob.position.x = (Math.random() - 0.5) * size;
         blob.position.y = (Math.random() - 0.5) * size;
+        blob.userData.isDecal = true; // Mark as decal so raycasts ignore it
         group.add(blob);
     }
 
+    group.userData.isDecal = true; // Mark group as decal too
     group.position.copy(position);
     group.position.add(normal.clone().multiplyScalar(0.02));
     group.lookAt(position.clone().add(normal));
@@ -2788,7 +2965,7 @@ function shoot() {
         const blockingObjects = [];
         scene.traverse((obj) => {
             if (obj.isMesh && !obj.userData.isOpponent && !obj.userData.isTarget &&
-                obj !== ground && obj.visible) {
+                !obj.userData.isDecal && obj !== ground && obj.visible) {
                 blockingObjects.push(obj);
             }
         });
@@ -2897,7 +3074,7 @@ function shoot() {
     // Add walls and boxes from the scene
     scene.traverse((obj) => {
         if (obj.isMesh && obj !== ground && obj !== cover &&
-            !obj.userData.isOpponent && !obj.userData.isTarget) {
+            !obj.userData.isOpponent && !obj.userData.isTarget && !obj.userData.isDecal) {
             envObjects.push(obj);
         }
     });
