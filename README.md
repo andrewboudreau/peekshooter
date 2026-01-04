@@ -1,5 +1,7 @@
 # Peek Shooter
 
+**[Play Now](https://andrewboudreau.github.io/peekshooter/)**
+
 A lean-and-crouch 3D shooter where positioning and stance control matter more than movement speed.
 
 ## Concept
@@ -22,8 +24,10 @@ The core gameplay loop is peeking around obstacles to shoot targets while managi
 | **R** | Reset stance to neutral |
 | **Mouse** | Aim (after clicking to lock) |
 | **Left Click** | Shoot |
+| **B** | Toggle fire mode (single/burst/auto) |
 | **Tab** | Switch weapon hand |
 | **ESC** | Unlock mouse |
+| **~** | Open debug console |
 
 ## Features
 
@@ -82,10 +86,11 @@ peekshooter/
 - Puppeteer for screenshots
 
 ## Roadmap
-- [ ] Multiplayer support
+- [x] Multiplayer support (WebRTC P2P)
+- [x] Sound effects (procedural audio)
+- [x] Fire modes (single/burst/auto)
 - [ ] Additional weapons
 - [ ] Enemy AI
-- [ ] Sound effects
 - [ ] Mobile/gamepad support (dual analog would be ideal for this control scheme)
 
 ## License
