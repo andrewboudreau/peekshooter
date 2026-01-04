@@ -315,19 +315,28 @@ AI opponent for practice mode.
 
 ## Known Issues & Technical Debt
 
-### Duplicate Code
-- AudioSystem exists in both `game.js` and `src/systems/AudioSystem.js`
-- Effect functions exist in both locations
-- The `src/` version is loaded last and takes precedence
-
 ### Incomplete Integration
-- New entity system created but not fully driving game state
-- Legacy `gameState` and `netState` still primary state holders
-- Manual sync required between old and new systems
+- `ShootingSystem` fully implemented but not integrated (legacy `shoot()` in game.js)
+- `EffectsSystem` ready but effect functions still in game.js
+- `Player`/`Opponent` ECS entities defined but legacy `gameState`/`OpponentPlayer` drive state
+- `main.js` creates event bridge but sync is manual
+
+### Modules Status
+| Module | Status | Notes |
+|--------|--------|-------|
+| AudioSystem | **Active** | Used throughout game.js |
+| EventBus | **Active** | Events emitted but handlers mixed |
+| DamageConfig | **Active** | Referenced for damage values |
+| PhysicsConfig | **Active** | Referenced for movement values |
+| BotController | **Active** | Practice mode AI |
+| ShootingSystem | Ready | Not integrated, legacy shoot() used |
+| EffectsSystem | Ready | Not integrated, legacy effects used |
+| Player/Opponent | Ready | ECS structure unused |
 
 ### Future Improvements
-- [ ] Complete migration to ECS architecture
-- [ ] Remove duplicate code from game.js
+- [ ] Integrate ShootingSystem to replace legacy shoot()
+- [ ] Integrate EffectsSystem to replace legacy effect functions
+- [ ] Switch from OpponentPlayer to Opponent entity
 - [ ] Add unit tests
 - [ ] Implement weapon switching
 - [ ] Add mobile/gamepad support
