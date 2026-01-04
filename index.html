@@ -172,9 +172,21 @@
         .hit-marker.show {
             animation: hitMarker 0.2s ease-out;
         }
+        .hit-marker.headshot line {
+            stroke: #ff4444 !important;
+            stroke-width: 4 !important;
+        }
+        .hit-marker.headshot {
+            animation: hitMarkerHeadshot 0.3s ease-out;
+        }
         @keyframes hitMarker {
             0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
             100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        }
+        @keyframes hitMarkerHeadshot {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.8); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
         }
         #muzzle-flash {
             position: absolute;
@@ -351,10 +363,69 @@
             font-size: 14px;
             opacity: 0.8;
         }
+
+        /* Debug Console */
+        #debug-console {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            border-bottom: 2px solid #444;
+        }
+        #debug-console.open {
+            display: flex;
+        }
+        #console-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            color: #ddd;
+        }
+        #console-output .log { color: #ccc; }
+        #console-output .warn { color: #ffaa00; }
+        #console-output .error { color: #ff4444; }
+        #console-output .info { color: #44aaff; }
+        #console-output .success { color: #44ff44; }
+        #console-output .cmd { color: #888; }
+        #console-input-line {
+            display: flex;
+            border-top: 1px solid #444;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        #console-input-line span {
+            padding: 8px;
+            color: #44ff44;
+        }
+        #console-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: inherit;
+            font-size: inherit;
+            padding: 8px;
+            outline: none;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
+        <!-- Debug Console -->
+        <div id="debug-console">
+            <div id="console-output"></div>
+            <div id="console-input-line">
+                <span>&gt;</span>
+                <input type="text" id="console-input" placeholder="Type 'help' for commands..." autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+
         <div id="start-screen">
             <h1>Peek Shooter</h1>
             <p>Lean and crouch to peek around cover and hit targets</p>

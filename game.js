@@ -683,6 +683,365 @@ function createDevMaterial(repeatX = 1, repeatY = 1, color = 0xffffff) {
 }
 
 // ============================================
+// DEBUG CONSOLE - Quake/Source style tilde console
+// ============================================
+
+const DebugConsole = {
+    isOpen: false,
+    history: [],
+    historyIndex: -1,
+    commandHistory: [],
+
+    // Debug state
+    debug: {
+        enabled: false,
+        showHitboxes: false,
+        showHealth: false,
+        godMode: false,
+        hitboxHelpers: [],
+        healthLabels: [],
+    },
+
+    init() {
+        const consoleEl = document.getElementById('debug-console');
+        const inputEl = document.getElementById('console-input');
+        const outputEl = document.getElementById('console-output');
+
+        if (!consoleEl || !inputEl) return;
+
+        // Tilde key toggle
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '`' || e.key === '~') {
+                e.preventDefault();
+                this.toggle();
+            }
+
+            // Escape to close
+            if (e.key === 'Escape' && this.isOpen) {
+                this.close();
+            }
+        });
+
+        // Input handling
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = inputEl.value.trim();
+                if (cmd) {
+                    this.execute(cmd);
+                    this.commandHistory.push(cmd);
+                    this.historyIndex = this.commandHistory.length;
+                }
+                inputEl.value = '';
+            }
+
+            // Command history navigation
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    inputEl.value = this.commandHistory[this.historyIndex] || '';
+                }
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (this.historyIndex < this.commandHistory.length - 1) {
+                    this.historyIndex++;
+                    inputEl.value = this.commandHistory[this.historyIndex] || '';
+                } else {
+                    this.historyIndex = this.commandHistory.length;
+                    inputEl.value = '';
+                }
+            }
+        });
+
+        // Prevent game input while console is open
+        inputEl.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+        });
+
+        // Intercept console.log, warn, error
+        this.interceptConsole();
+
+        this.log('Debug console initialized. Press ~ to toggle.', 'info');
+    },
+
+    interceptConsole() {
+        const self = this;
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            self.log(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'log');
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            self.log(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            self.log(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+        };
+    },
+
+    toggle() {
+        if (this.isOpen) {
+            this.close();
+        } else {
+            this.open();
+        }
+    },
+
+    open() {
+        const consoleEl = document.getElementById('debug-console');
+        const inputEl = document.getElementById('console-input');
+        if (consoleEl) {
+            consoleEl.classList.add('open');
+            this.isOpen = true;
+            inputEl?.focus();
+
+            // Exit pointer lock when console opens
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+        }
+    },
+
+    close() {
+        const consoleEl = document.getElementById('debug-console');
+        if (consoleEl) {
+            consoleEl.classList.remove('open');
+            this.isOpen = false;
+        }
+    },
+
+    log(message, type = 'log') {
+        const outputEl = document.getElementById('console-output');
+        if (!outputEl) return;
+
+        const line = document.createElement('div');
+        line.className = type;
+        line.textContent = message;
+        outputEl.appendChild(line);
+
+        // Keep history limited
+        while (outputEl.children.length > 200) {
+            outputEl.removeChild(outputEl.firstChild);
+        }
+
+        // Auto-scroll
+        outputEl.scrollTop = outputEl.scrollHeight;
+    },
+
+    execute(cmd) {
+        this.log('> ' + cmd, 'cmd');
+
+        const parts = cmd.toLowerCase().split(/\s+/);
+        const command = parts[0];
+        const args = parts.slice(1);
+
+        switch (command) {
+            case 'help':
+                this.log('Available commands:', 'info');
+                this.log('  debug [on|off] - Toggle debug mode (hitboxes + health)', 'info');
+                this.log('  hitboxes [on|off] - Show/hide hitboxes', 'info');
+                this.log('  health [on|off] - Show/hide all player health', 'info');
+                this.log('  god [on|off] - Toggle god mode (invincible)', 'info');
+                this.log('  kill - Kill yourself', 'info');
+                this.log('  heal - Restore health to 100', 'info');
+                this.log('  clear - Clear console', 'info');
+                this.log('  status - Show game state', 'info');
+                break;
+
+            case 'debug':
+                const debugState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.enabled;
+                this.debug.enabled = debugState;
+                if (debugState) {
+                    this.debug.showHitboxes = true;
+                    this.debug.showHealth = true;
+                    this.updateHitboxes();
+                    this.log('Debug mode ON - hitboxes and health enabled', 'success');
+                } else {
+                    this.debug.showHitboxes = false;
+                    this.debug.showHealth = false;
+                    this.clearHitboxHelpers();
+                    this.clearHealthLabels();
+                    this.log('Debug mode OFF', 'warn');
+                }
+                break;
+
+            case 'hitboxes':
+                const hitboxState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.showHitboxes;
+                this.debug.showHitboxes = hitboxState;
+                if (hitboxState) {
+                    this.updateHitboxes();
+                    this.log('Hitboxes ON', 'success');
+                } else {
+                    this.clearHitboxHelpers();
+                    this.log('Hitboxes OFF', 'warn');
+                }
+                break;
+
+            case 'health':
+                const healthState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.showHealth;
+                this.debug.showHealth = healthState;
+                this.log(healthState ? 'Health display ON' : 'Health display OFF', healthState ? 'success' : 'warn');
+                break;
+
+            case 'god':
+                const godState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.godMode;
+                this.debug.godMode = godState;
+                this.log(godState ? 'God mode ON - You are invincible' : 'God mode OFF', godState ? 'success' : 'warn');
+                break;
+
+            case 'kill':
+                if (netState.gameMode === 'online') {
+                    netState.health = 0;
+                    updateHealthUI();
+                    showDeathScreen();
+                    this.log('You killed yourself', 'error');
+                } else {
+                    this.log('Kill only works in multiplayer', 'warn');
+                }
+                break;
+
+            case 'heal':
+                netState.health = 100;
+                updateHealthUI();
+                this.log('Health restored to 100', 'success');
+                break;
+
+            case 'clear':
+                const outputEl = document.getElementById('console-output');
+                if (outputEl) outputEl.innerHTML = '';
+                break;
+
+            case 'status':
+                this.log('=== Game Status ===', 'info');
+                this.log(`  Mode: ${netState.gameMode}`, 'log');
+                this.log(`  Status: ${netState.status}`, 'log');
+                this.log(`  Health: ${netState.health}`, 'log');
+                this.log(`  Score: ${netState.scores.join(' - ')}`, 'log');
+                this.log(`  Player Slot: ${netState.playerSlot}`, 'log');
+                if (netState.opponent) {
+                    this.log(`  Opponent Health: ${netState.opponent.state.health}`, 'log');
+                    this.log(`  Opponent Peeking: ${netState.opponent.state.peeking}`, 'log');
+                }
+                break;
+
+            default:
+                this.log(`Unknown command: ${command}. Type 'help' for commands.`, 'error');
+        }
+    },
+
+    updateHitboxes() {
+        this.clearHitboxHelpers();
+
+        if (!this.debug.showHitboxes) return;
+
+        // Show opponent hitboxes
+        if (netState.opponent && netState.opponent.mesh) {
+            netState.opponent.mesh.traverse((child) => {
+                if (child.isMesh && child.userData.bodyPart) {
+                    const box = new THREE.BoxHelper(child, this.getHitboxColor(child.userData.bodyPart));
+                    scene.add(box);
+                    this.debug.hitboxHelpers.push(box);
+                }
+            });
+        }
+    },
+
+    getHitboxColor(bodyPart) {
+        switch (bodyPart) {
+            case 'head': return 0xff0000;  // Red
+            case 'chest': return 0xff8800; // Orange
+            case 'belly': return 0xffff00; // Yellow
+            case 'arm': return 0x00ff00;   // Green
+            default: return 0xffffff;
+        }
+    },
+
+    clearHitboxHelpers() {
+        this.debug.hitboxHelpers.forEach(helper => {
+            scene.remove(helper);
+            helper.dispose();
+        });
+        this.debug.hitboxHelpers = [];
+    },
+
+    clearHealthLabels() {
+        this.debug.healthLabels.forEach(label => {
+            if (label.element && label.element.parentNode) {
+                label.element.parentNode.removeChild(label.element);
+            }
+        });
+        this.debug.healthLabels = [];
+    },
+
+    // Called every frame from game loop
+    update() {
+        // Update hitbox positions
+        if (this.debug.showHitboxes) {
+            this.debug.hitboxHelpers.forEach(helper => helper.update());
+        }
+
+        // Update health labels
+        if (this.debug.showHealth && netState.opponent && netState.opponent.mesh) {
+            this.updateHealthLabel(netState.opponent);
+        }
+    },
+
+    updateHealthLabel(opponent) {
+        // Create or update floating health label
+        let label = this.debug.healthLabels.find(l => l.target === opponent);
+
+        if (!label) {
+            const element = document.createElement('div');
+            element.style.cssText = `
+                position: absolute;
+                color: #ff4444;
+                font-family: monospace;
+                font-size: 14px;
+                font-weight: bold;
+                text-shadow: 1px 1px 2px black;
+                pointer-events: none;
+                z-index: 500;
+            `;
+            document.getElementById('game-container').appendChild(element);
+            label = { target: opponent, element };
+            this.debug.healthLabels.push(label);
+        }
+
+        // Project 3D position to screen
+        const pos = opponent.mesh.position.clone();
+        pos.y += 2; // Above head
+
+        const vector = pos.project(camera);
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+
+        // Check if in front of camera
+        if (vector.z < 1) {
+            label.element.style.display = 'block';
+            label.element.style.left = x + 'px';
+            label.element.style.top = y + 'px';
+            label.element.textContent = `HP: ${opponent.state.health}`;
+
+            // Color based on health
+            const hp = opponent.state.health;
+            if (hp > 50) label.element.style.color = '#44ff44';
+            else if (hp > 25) label.element.style.color = '#ffff44';
+            else label.element.style.color = '#ff4444';
+        } else {
+            label.element.style.display = 'none';
+        }
+    }
+};
+
+// ============================================
 // WEAPON PROFILES - Configurable recoil patterns
 // ============================================
 const WEAPON_PROFILES = {
@@ -1018,6 +1377,15 @@ function handlePeerMessage(data) {
             break;
 
         case 'hit':
+            // Ignore hits if already dead
+            if (netState.health <= 0) break;
+
+            // God mode - ignore damage
+            if (DebugConsole.debug.godMode) {
+                DebugConsole.log(`Blocked ${data.damage} damage (god mode)`, 'warn');
+                break;
+            }
+
             // Opponent says they hit us
             netState.health = Math.max(0, netState.health - data.damage);
             showDamageEffect();
@@ -1121,9 +1489,9 @@ function sendShoot() {
     sendPeerMessage({ type: 'shoot' });
 }
 
-function sendHit(damage) {
+function sendHit(damage, bodyPart) {
     if (!netState.connected || netState.status !== 'playing') return;
-    sendPeerMessage({ type: 'hit', damage: damage });
+    sendPeerMessage({ type: 'hit', damage: damage, bodyPart: bodyPart });
 }
 
 // UI update functions for multiplayer
@@ -1183,15 +1551,65 @@ function showDamageEffect() {
     );
 }
 
-function showHitMarker() {
+function showHitMarker(bodyPart) {
     const hitMarker = document.getElementById('hit-marker');
     if (hitMarker) {
-        hitMarker.classList.remove('show');
+        hitMarker.classList.remove('show', 'headshot');
         void hitMarker.offsetWidth;
         hitMarker.classList.add('show');
+        if (bodyPart === 'head') {
+            hitMarker.classList.add('headshot');
+        }
     }
+
+    // Show body part indicator
+    showBodyPartHit(bodyPart);
+
     // Hit marker sound
     AudioSystem.playHitMarker();
+}
+
+function showBodyPartHit(bodyPart) {
+    // Get or create the body part indicator
+    let indicator = document.getElementById('bodypart-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'bodypart-indicator';
+        indicator.style.cssText = `
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 100;
+            pointer-events: none;
+        `;
+        document.getElementById('game-container').appendChild(indicator);
+    }
+
+    // Set text and color based on body part
+    const partInfo = {
+        head: { text: 'HEADSHOT!', color: '#ff4444' },
+        chest: { text: 'CHEST', color: '#ffaa44' },
+        belly: { text: 'BODY', color: '#ffff44' },
+        arm: { text: 'ARM', color: '#aaaaaa' },
+    };
+
+    const info = partInfo[bodyPart] || { text: bodyPart.toUpperCase(), color: '#ffffff' };
+    indicator.textContent = info.text;
+    indicator.style.color = info.color;
+    indicator.style.opacity = '1';
+
+    // Fade out
+    setTimeout(() => {
+        indicator.style.opacity = '0';
+    }, 500);
 }
 
 function showDeathScreen() {
@@ -1628,6 +2046,9 @@ function init() {
     // Event listeners
     setupEventListeners();
 
+    // Initialize debug console
+    DebugConsole.init();
+
     // Start render loop
     animate();
 
@@ -1639,25 +2060,70 @@ function init() {
 function createOpponentMesh(opponent) {
     const group = new THREE.Group();
 
-    // Body (simple capsule-like shape)
-    const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.3, 1.2, 8);
-    const bodyMaterial = new THREE.MeshStandardMaterial({
-        color: opponent.slot === 0 ? 0x4444aa : 0xaa4444,
-        roughness: 0.7,
-    });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = 0.6;
-    group.add(body);
+    const teamColor = opponent.slot === 0 ? 0x4444aa : 0xaa4444;
+    const skinColor = 0xddccbb;
 
-    // Head
-    const headGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+    // Head - 25 damage
+    const headGeometry = new THREE.SphereGeometry(0.18, 16, 16);
     const headMaterial = new THREE.MeshStandardMaterial({
-        color: 0xddccbb,
+        color: skinColor,
         roughness: 0.8,
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 1.4;
+    head.position.y = 1.45;
+    head.userData.isOpponent = true;
+    head.userData.bodyPart = 'head';
+    head.userData.damage = 25;
     group.add(head);
+
+    // Chest - 15 damage (upper torso)
+    const chestGeometry = new THREE.CylinderGeometry(0.28, 0.25, 0.5, 8);
+    const chestMaterial = new THREE.MeshStandardMaterial({
+        color: teamColor,
+        roughness: 0.7,
+    });
+    const chest = new THREE.Mesh(chestGeometry, chestMaterial);
+    chest.position.y = 1.0;
+    chest.userData.isOpponent = true;
+    chest.userData.bodyPart = 'chest';
+    chest.userData.damage = 15;
+    group.add(chest);
+
+    // Belly - 10 damage (lower torso)
+    const bellyGeometry = new THREE.CylinderGeometry(0.25, 0.28, 0.45, 8);
+    const bellyMaterial = new THREE.MeshStandardMaterial({
+        color: teamColor,
+        roughness: 0.7,
+    });
+    const belly = new THREE.Mesh(bellyGeometry, bellyMaterial);
+    belly.position.y = 0.5;
+    belly.userData.isOpponent = true;
+    belly.userData.bodyPart = 'belly';
+    belly.userData.damage = 10;
+    group.add(belly);
+
+    // Left arm - 5 damage
+    const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 8);
+    const armMaterial = new THREE.MeshStandardMaterial({
+        color: skinColor,
+        roughness: 0.8,
+    });
+    const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+    leftArm.position.set(-0.38, 0.95, 0);
+    leftArm.rotation.z = 0.2; // Slight angle outward
+    leftArm.userData.isOpponent = true;
+    leftArm.userData.bodyPart = 'arm';
+    leftArm.userData.damage = 5;
+    group.add(leftArm);
+
+    // Right arm - 5 damage
+    const rightArm = new THREE.Mesh(armGeometry, armMaterial.clone());
+    rightArm.position.set(0.38, 0.95, 0);
+    rightArm.rotation.z = -0.2; // Slight angle outward
+    rightArm.userData.isOpponent = true;
+    rightArm.userData.bodyPart = 'arm';
+    rightArm.userData.damage = 5;
+    group.add(rightArm);
 
     // Simple weapon
     const weaponGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.4);
@@ -1669,17 +2135,6 @@ function createOpponentMesh(opponent) {
     weapon.position.set(0.3, 0.9, -0.2);
     group.add(weapon);
     opponent.weaponMesh = weapon;
-
-    // Hitbox (invisible, for raycasting)
-    const hitboxGeometry = new THREE.BoxGeometry(0.6, 1.6, 0.4);
-    const hitboxMaterial = new THREE.MeshBasicMaterial({
-        visible: false,
-    });
-    const hitbox = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
-    hitbox.position.y = 0.8;
-    hitbox.userData.isOpponent = true;
-    hitbox.userData.opponent = opponent;
-    group.add(hitbox);
 
     // Position opponent on opposite side of arena
     group.position.z = -15; // Downrange
@@ -2238,10 +2693,13 @@ function shoot() {
             }
 
             if (!blocked) {
-                // Hit opponent!
-                const damage = 25; // Base damage per hit
-                sendHit(damage);
-                showHitMarker();
+                // Hit opponent! Check which body part was hit
+                const hitObject = opponentHit.object;
+                const bodyPart = hitObject.userData.bodyPart || 'body';
+                const damage = hitObject.userData.damage || 10; // Fallback damage
+
+                sendHit(damage, bodyPart);
+                showHitMarker(bodyPart);
                 AudioSystem.playImpactPlayer();
 
                 // Create blood splatter at hit point
@@ -2500,6 +2958,9 @@ function animate() {
 
     // Update blood particles and hit marks (runs even when paused for cleanup)
     updateBloodParticles(deltaTime);
+
+    // Update debug console visuals
+    DebugConsole.update();
 
     renderer.render(scene, camera);
 }
