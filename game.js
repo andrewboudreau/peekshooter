@@ -487,10 +487,13 @@ const DebugConsole = {
                 break;
 
             case 'kill':
+                if (this.debug.godMode) {
+                    this.log('Cannot kill yourself with god mode enabled', 'warn');
+                    break;
+                }
                 if (netState.gameMode === 'online') {
-                    netState.health = 0;
-                    updateHealthUI();
-                    showDeathScreen();
+                    // Deal 100 damage through normal damage flow
+                    handlePeerMessage({ type: 'hit', damage: 100, bodyPart: 'suicide' });
                     this.log('You killed yourself', 'error');
                 } else {
                     this.log('Kill only works in multiplayer', 'warn');
