@@ -414,6 +414,7 @@ const DebugConsole = {
                 this.log('  heal - Restore health to 100', 'info');
                 this.log('  firerate <ms> - Set fire rate (1-1000ms)', 'info');
                 this.log('  firemode [single|burst|auto] - Set fire mode', 'info');
+                this.log('  screenshot - Capture screenshot with timestamp', 'info');
                 this.log('  clear - Clear console', 'info');
                 this.log('  status - Show game state', 'info');
                 break;
@@ -554,6 +555,35 @@ const DebugConsole = {
                 } else {
                     this.log('Usage: firemode [single|burst|auto]', 'warn');
                     this.log(`Current mode: ${gameState.fireMode}`, 'info');
+                }
+                break;
+
+            case 'screenshot':
+                try {
+                    // Generate timestamp-based filename
+                    const now = new Date();
+                    const timestamp = now.getFullYear().toString() +
+                        (now.getMonth() + 1).toString().padStart(2, '0') +
+                        now.getDate().toString().padStart(2, '0') + '_' +
+                        now.getHours().toString().padStart(2, '0') +
+                        now.getMinutes().toString().padStart(2, '0') +
+                        now.getSeconds().toString().padStart(2, '0') + '_' +
+                        now.getMilliseconds().toString().padStart(3, '0');
+                    const filename = `peekshooter_${timestamp}.png`;
+
+                    // Capture the canvas
+                    const canvas = renderer.domElement;
+                    const dataUrl = canvas.toDataURL('image/png');
+
+                    // Create download link
+                    const link = document.createElement('a');
+                    link.download = filename;
+                    link.href = dataUrl;
+                    link.click();
+
+                    this.log(`Screenshot saved: ${filename}`, 'success');
+                } catch (e) {
+                    this.log(`Screenshot failed: ${e.message}`, 'error');
                 }
                 break;
 
@@ -3534,6 +3564,12 @@ function updateWeapon(deltaTime) {
     const targetFOV = gameState.DEFAULT_FOV - (gameState.DEFAULT_FOV - gameState.ADS_FOV) * gameState.adsProgress;
     camera.fov = targetFOV;
     camera.updateProjectionMatrix();
+
+    // Hide crosshair when aiming down sights
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) {
+        crosshair.style.opacity = 1 - gameState.adsProgress;
+    }
 
     // Weapon sway based on lean (reduced when aiming)
     const swayMultiplier = 1 - gameState.adsProgress * 0.7;

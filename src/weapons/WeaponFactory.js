@@ -154,118 +154,187 @@ const WeaponFactory = {
     },
 
     // ============================================
-    // PISTOL - Compact semi-auto
+    // PISTOL - Compact semi-auto (detailed model)
     // ============================================
     createPistol() {
         const weapon = new THREE.Group();
         const m = this.materials;
 
         // === SLIDE ===
-        const slideGeo = new THREE.BoxGeometry(0.028, 0.032, 0.14);
+        const slideGeo = new THREE.BoxGeometry(0.028, 0.035, 0.16);
         const slide = new THREE.Mesh(slideGeo, m.metalDark);
-        slide.position.set(0, 0.016, -0.02);
+        slide.position.set(0, 0.022, -0.02);
         weapon.add(slide);
 
         // Slide serrations (rear)
         for (let i = 0; i < 6; i++) {
-            const serrGeo = new THREE.BoxGeometry(0.03, 0.003, 0.004);
+            const serrGeo = new THREE.BoxGeometry(0.03, 0.002, 0.004);
             const serr = new THREE.Mesh(serrGeo, m.metalMedium);
-            serr.position.set(0, 0.016, 0.03 + i * 0.008);
+            serr.position.set(0, 0.022, 0.04 + i * 0.008);
             weapon.add(serr);
         }
 
-        // === FRAME ===
-        const frameGeo = new THREE.BoxGeometry(0.026, 0.025, 0.1);
-        const frame = new THREE.Mesh(frameGeo, m.polymer);
-        frame.position.set(0, -0.01, 0.01);
-        weapon.add(frame);
-
-        // Trigger guard
-        const guardShape = new THREE.Shape();
-        guardShape.moveTo(0, 0);
-        guardShape.lineTo(0.035, 0);
-        guardShape.lineTo(0.035, -0.025);
-        guardShape.lineTo(0.03, -0.03);
-        guardShape.lineTo(0.005, -0.03);
-        guardShape.lineTo(0, -0.025);
-        guardShape.lineTo(0, 0);
-        const guardGeo = new THREE.ExtrudeGeometry(guardShape, { depth: 0.006, bevelEnabled: false });
-        const guard = new THREE.Mesh(guardGeo, m.polymer);
-        guard.rotation.y = Math.PI / 2;
-        guard.position.set(0.003, -0.015, 0.025);
-        weapon.add(guard);
-
-        // Trigger
-        const triggerGeo = new THREE.BoxGeometry(0.004, 0.018, 0.008);
-        const trigger = new THREE.Mesh(triggerGeo, m.metalDark);
-        trigger.position.set(0, -0.02, 0.01);
-        trigger.rotation.x = 0.2;
-        weapon.add(trigger);
-
-        // === GRIP ===
-        const gripGeo = new THREE.BoxGeometry(0.028, 0.07, 0.032);
-        const grip = new THREE.Mesh(gripGeo, m.polymer);
-        grip.position.set(0, -0.055, 0.04);
-        grip.rotation.x = 0.15;
-        weapon.add(grip);
-
-        // Grip texture
+        // Slide serrations (front)
         for (let i = 0; i < 4; i++) {
-            const lineGeo = new THREE.BoxGeometry(0.001, 0.05, 0.025);
-            const line = new THREE.Mesh(lineGeo, m.metalDark);
-            line.position.set(0.015 - i * 0.01, -0.055, 0.04);
-            line.rotation.x = 0.15;
-            weapon.add(line);
+            const serrGeo = new THREE.BoxGeometry(0.03, 0.002, 0.004);
+            const serr = new THREE.Mesh(serrGeo, m.metalMedium);
+            serr.position.set(0, 0.022, -0.07 - i * 0.008);
+            weapon.add(serr);
         }
+
+        // Ejection port
+        const ejectionGeo = new THREE.BoxGeometry(0.018, 0.012, 0.035);
+        const ejection = new THREE.Mesh(ejectionGeo, m.metalMedium);
+        ejection.position.set(0.008, 0.035, 0.01);
+        weapon.add(ejection);
 
         // === BARREL ===
         const barrelGeo = new THREE.CylinderGeometry(0.006, 0.007, 0.08, 12);
         const barrel = new THREE.Mesh(barrelGeo, m.metalDark);
         barrel.rotation.x = Math.PI / 2;
-        barrel.position.set(0, 0.008, -0.12);
+        barrel.position.set(0, 0.015, -0.14);
         weapon.add(barrel);
 
+        // Barrel hood (visible through ejection port)
+        const hoodGeo = new THREE.BoxGeometry(0.018, 0.012, 0.03);
+        const hood = new THREE.Mesh(hoodGeo, m.metalMedium);
+        hood.position.set(0, 0.012, -0.04);
+        weapon.add(hood);
+
+        // === FRAME ===
+        const frameGeo = new THREE.BoxGeometry(0.026, 0.025, 0.12);
+        const frame = new THREE.Mesh(frameGeo, m.polymer);
+        frame.position.set(0, -0.005, 0.01);
+        weapon.add(frame);
+
+        // Dust cover / rail
+        const dustCoverGeo = new THREE.BoxGeometry(0.024, 0.015, 0.05);
+        const dustCover = new THREE.Mesh(dustCoverGeo, m.polymer);
+        dustCover.position.set(0, -0.01, -0.06);
+        weapon.add(dustCover);
+
+        // Accessory rail slots
+        for (let i = 0; i < 3; i++) {
+            const railSlotGeo = new THREE.BoxGeometry(0.026, 0.004, 0.008);
+            const railSlot = new THREE.Mesh(railSlotGeo, m.metalDark);
+            railSlot.position.set(0, -0.02, -0.045 - i * 0.015);
+            weapon.add(railSlot);
+        }
+
+        // === TRIGGER GUARD ===
+        const triggerGuardGeo = new THREE.BoxGeometry(0.022, 0.008, 0.04);
+        const triggerGuard = new THREE.Mesh(triggerGuardGeo, m.polymer);
+        triggerGuard.position.set(0, -0.03, 0.02);
+        weapon.add(triggerGuard);
+
+        // Trigger guard front
+        const tgFrontGeo = new THREE.BoxGeometry(0.022, 0.025, 0.008);
+        const tgFront = new THREE.Mesh(tgFrontGeo, m.polymer);
+        tgFront.position.set(0, -0.02, 0);
+        weapon.add(tgFront);
+
+        // Trigger
+        const triggerGeo = new THREE.BoxGeometry(0.004, 0.018, 0.012);
+        const trigger = new THREE.Mesh(triggerGeo, m.metalDark);
+        trigger.position.set(0, -0.015, 0.025);
+        trigger.rotation.x = 0.2;
+        weapon.add(trigger);
+
+        // === GRIP ===
+        const gripGeo = new THREE.BoxGeometry(0.028, 0.08, 0.035);
+        const grip = new THREE.Mesh(gripGeo, m.polymer);
+        grip.position.set(0, -0.06, 0.045);
+        grip.rotation.x = 0.15;
+        weapon.add(grip);
+
+        // Grip texture (stippling pattern)
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 3; j++) {
+                const dotGeo = new THREE.BoxGeometry(0.003, 0.003, 0.003);
+                const dotLeft = new THREE.Mesh(dotGeo, m.metalDark);
+                dotLeft.position.set(-0.016, -0.04 - i * 0.015, 0.035 + j * 0.01);
+                dotLeft.rotation.x = 0.15;
+                weapon.add(dotLeft);
+                const dotRight = new THREE.Mesh(dotGeo, m.metalDark);
+                dotRight.position.set(0.016, -0.04 - i * 0.015, 0.035 + j * 0.01);
+                dotRight.rotation.x = 0.15;
+                weapon.add(dotRight);
+            }
+        }
+
+        // Beavertail
+        const beavertailGeo = new THREE.BoxGeometry(0.024, 0.015, 0.02);
+        const beavertail = new THREE.Mesh(beavertailGeo, m.polymer);
+        beavertail.position.set(0, 0.002, 0.07);
+        weapon.add(beavertail);
+
         // === MAGAZINE ===
-        const magGeo = new THREE.BoxGeometry(0.022, 0.06, 0.028);
+        const magGeo = new THREE.BoxGeometry(0.022, 0.07, 0.028);
         const mag = new THREE.Mesh(magGeo, m.metalMedium);
-        mag.position.set(0, -0.08, 0.04);
+        mag.position.set(0, -0.07, 0.045);
+        mag.rotation.x = 0.15;
         weapon.add(mag);
 
-        // Magazine floor plate
-        const floorGeo = new THREE.BoxGeometry(0.024, 0.008, 0.03);
-        const floor = new THREE.Mesh(floorGeo, m.polymerTan);
-        floor.position.set(0, -0.115, 0.04);
-        weapon.add(floor);
+        // Magazine base plate
+        const baseGeo = new THREE.BoxGeometry(0.026, 0.008, 0.032);
+        const basePlate = new THREE.Mesh(baseGeo, m.polymerTan);
+        basePlate.position.set(0, -0.105, 0.05);
+        basePlate.rotation.x = 0.15;
+        weapon.add(basePlate);
 
-        // === SIGHTS ===
+        // === THREE-DOT SIGHTS ===
         // Front sight
-        const frontSightGeo = new THREE.BoxGeometry(0.006, 0.012, 0.006);
+        const frontSightGeo = new THREE.BoxGeometry(0.008, 0.012, 0.006);
         const frontSight = new THREE.Mesh(frontSightGeo, m.metalDark);
-        frontSight.position.set(0, 0.04, -0.07);
+        frontSight.position.set(0, 0.046, -0.08);
         weapon.add(frontSight);
 
+        // Front sight dot (white)
+        const sightDotMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x333333 });
+        const frontDotGeo = new THREE.BoxGeometry(0.004, 0.004, 0.002);
+        const frontDot = new THREE.Mesh(frontDotGeo, sightDotMat);
+        frontDot.position.set(0, 0.048, -0.084);
+        weapon.add(frontDot);
+
         // Rear sight
-        const rearSightBaseGeo = new THREE.BoxGeometry(0.02, 0.008, 0.012);
-        const rearSightBase = new THREE.Mesh(rearSightBaseGeo, m.metalDark);
-        rearSightBase.position.set(0, 0.036, 0.04);
-        weapon.add(rearSightBase);
+        const rearSightGeo = new THREE.BoxGeometry(0.022, 0.01, 0.008);
+        const rearSight = new THREE.Mesh(rearSightGeo, m.metalDark);
+        rearSight.position.set(0, 0.045, 0.05);
+        weapon.add(rearSight);
 
-        // Rear sight posts
-        const rearPostGeo = new THREE.BoxGeometry(0.004, 0.01, 0.006);
-        const rearLeft = new THREE.Mesh(rearPostGeo, m.metalDark);
-        rearLeft.position.set(-0.008, 0.044, 0.04);
-        weapon.add(rearLeft);
+        // Rear sight notch
+        const notchGeo = new THREE.BoxGeometry(0.006, 0.012, 0.01);
+        const notch = new THREE.Mesh(notchGeo, m.metalMedium);
+        notch.position.set(0, 0.045, 0.05);
+        weapon.add(notch);
 
-        const rearRight = new THREE.Mesh(rearPostGeo, m.metalDark);
-        rearRight.position.set(0.008, 0.044, 0.04);
-        weapon.add(rearRight);
+        // Rear sight dots
+        const rearDotLeft = new THREE.Mesh(frontDotGeo, sightDotMat);
+        rearDotLeft.position.set(-0.008, 0.048, 0.054);
+        weapon.add(rearDotLeft);
+        const rearDotRight = new THREE.Mesh(frontDotGeo, sightDotMat);
+        rearDotRight.position.set(0.008, 0.048, 0.054);
+        weapon.add(rearDotRight);
 
         // === CONTROLS ===
-        // Slide release
-        const releaseGeo = new THREE.BoxGeometry(0.004, 0.008, 0.015);
-        const release = new THREE.Mesh(releaseGeo, m.metalDark);
-        release.position.set(-0.016, 0, 0.02);
-        weapon.add(release);
+        // Slide stop
+        const slideStopGeo = new THREE.BoxGeometry(0.004, 0.008, 0.015);
+        const slideStop = new THREE.Mesh(slideStopGeo, m.metalDark);
+        slideStop.position.set(-0.016, 0.01, 0.02);
+        weapon.add(slideStop);
+
+        // Magazine release
+        const magReleaseGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.006, 8);
+        const magRelease = new THREE.Mesh(magReleaseGeo, m.metalDark);
+        magRelease.rotation.z = Math.PI / 2;
+        magRelease.position.set(-0.016, -0.01, 0.035);
+        weapon.add(magRelease);
+
+        // Takedown lever
+        const takedownGeo = new THREE.BoxGeometry(0.006, 0.01, 0.012);
+        const takedown = new THREE.Mesh(takedownGeo, m.metalDark);
+        takedown.position.set(-0.018, -0.005, -0.02);
+        weapon.add(takedown);
 
         return weapon;
     },
