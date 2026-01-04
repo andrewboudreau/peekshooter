@@ -2487,7 +2487,7 @@ function createCover() {
     }
 
     // Get cover config or use defaults
-    const playerCover = mapConfig?.playerCover || {
+    let playerCoverConfig = mapConfig?.playerCover || {
         z: -0.5,
         elements: [
             { type: 'box', size: [3, 1.2, 0.3], position: [0, 0.6, 0], color: 0xff8800 },
@@ -2496,7 +2496,7 @@ function createCover() {
         ]
     };
 
-    const opponentCover = mapConfig?.opponentCover || {
+    let opponentCoverConfig = mapConfig?.opponentCover || {
         z: -14.5,
         elements: [
             { type: 'box', size: [3, 1.2, 0.3], position: [0, 0.6, 0], color: 0xff8800 },
@@ -2505,16 +2505,24 @@ function createCover() {
         ]
     };
 
+    // Swap cover positions for player slot 1 (joiner)
+    // This ensures each player sees their own cover near them
+    if (netState.playerSlot === 1) {
+        const tempZ = playerCoverConfig.z;
+        playerCoverConfig = { ...playerCoverConfig, z: opponentCoverConfig.z };
+        opponentCoverConfig = { ...opponentCoverConfig, z: tempZ };
+    }
+
     // Create player-side cover
-    playerCover.elements.forEach((element, index) => {
-        const mesh = createCoverElement(element, playerCover.z);
+    playerCoverConfig.elements.forEach((element, index) => {
+        const mesh = createCoverElement(element, playerCoverConfig.z);
         // Store first element as main cover reference
         if (index === 0) cover = mesh;
     });
 
     // Create opponent-side cover
-    opponentCover.elements.forEach(element => {
-        createCoverElement(element, opponentCover.z);
+    opponentCoverConfig.elements.forEach(element => {
+        createCoverElement(element, opponentCoverConfig.z);
     });
 }
 
@@ -3734,6 +3742,9 @@ function startGame(mode = 'offline') {
     AudioSystem.init();
 
     if (mode === 'online') {
+        // Recreate cover with correct positions for this player's slot
+        recreateCoverForSlot();
+
         // Create opponent for P2P game
         const opponentSlot = netState.playerSlot === 0 ? 1 : 0;
         netState.opponent = new OpponentPlayer(opponentSlot);
@@ -3746,6 +3757,25 @@ function startGame(mode = 'offline') {
         updateHealthUI();
         updateScoreUI();
     }
+}
+
+// Recreate cover barriers for multiplayer (swaps positions based on player slot)
+function recreateCoverForSlot() {
+    // Remove existing cover meshes
+    const toRemove = [];
+    scene.traverse((obj) => {
+        if (obj.isMesh && obj.material?.color?.getHex() === 0xff8800) {
+            toRemove.push(obj);
+        }
+    });
+    toRemove.forEach(obj => {
+        scene.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) obj.material.dispose();
+    });
+
+    // Recreate with correct slot-based positions
+    createCover();
 }
 
 function startOnlineGame() {
