@@ -780,6 +780,13 @@
         <div id="current-weapon">Weapon: <span id="weapon-name">ASSAULT RIFLE</span> <span id="weapon-slot">[3]</span></div>
         <div id="sound-toggle" onclick="toggleSound()">Sound: ON</div>
         <div id="version"></div>
+        <div id="debug-stats" style="display: none; position: absolute; top: 60px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; color: #0f0; z-index: 100;">
+            <div>DEBUG MODE</div>
+            <div>Bullet Holes: <span id="debug-hitmarks">0</span></div>
+            <div>Blood Particles: <span id="debug-blood">0</span></div>
+            <div>Aimbot: <span id="debug-aimbot">OFF</span></div>
+            <div>God Mode: <span id="debug-godmode">OFF</span></div>
+        </div>
         <svg id="hit-marker" class="hit-marker" width="30" height="30" viewBox="0 0 30 30">
             <line x1="5" y1="5" x2="12" y2="12" stroke="white" stroke-width="3"/>
             <line x1="25" y1="5" x2="18" y2="12" stroke="white" stroke-width="3"/>

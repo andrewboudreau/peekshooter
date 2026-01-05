@@ -413,6 +413,7 @@ const DebugConsole = {
                 this.log('  hits [on|off] - Log bullet hit positions to console', 'info');
                 this.log('  god [on|off] - Toggle god mode (invincible)', 'info');
                 this.log('  aimbot [on|off] - Toggle aimbot (auto-aim at opponent)', 'info');
+                this.log('  rig - Summon/remove static target rig (no AI)', 'info');
                 this.log('  bot [on|off] - Toggle bot opponent (walks, peeks, shoots)', 'info');
                 this.log('  kill - Kill yourself', 'info');
                 this.log('  heal - Restore health to 100', 'info');
@@ -474,6 +475,34 @@ const DebugConsole = {
                 const aimbotState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.aimbot;
                 this.debug.aimbot = aimbotState;
                 this.log(aimbotState ? 'Aimbot ON - Auto-aims at opponent head' : 'Aimbot OFF', aimbotState ? 'success' : 'warn');
+                break;
+
+            case 'rig':
+                // Summon a static target rig with no AI
+                if (!netState.opponent) {
+                    netState.gameMode = 'online';
+                    netState.status = 'playing';
+                    netState.playerSlot = 0;
+                    netState.opponent = new OpponentPlayer(1);
+                    createOpponentMesh(netState.opponent);
+                    netState.health = 100;
+                    netState.scores = [0, 0];
+                    updateHealthUI();
+                    updateScoreUI();
+                    hideTargets();
+                    gameState.isRunning = true;
+                    document.getElementById('start-screen').style.display = 'none';
+                    document.getElementById('menu-button').style.display = 'block';
+                    this.log('Rig summoned - static target with no AI', 'success');
+                } else {
+                    // Remove existing opponent
+                    if (netState.opponent.mesh) {
+                        scene.remove(netState.opponent.mesh);
+                    }
+                    netState.opponent = null;
+                    this.bot.enabled = false;
+                    this.log('Rig removed', 'warn');
+                }
                 break;
 
             case 'bot':
@@ -682,6 +711,24 @@ const DebugConsole = {
         // Update bot AI
         if (this.bot.enabled) {
             this.updateBot();
+        }
+
+        // Update debug stats display
+        const debugStats = document.getElementById('debug-stats');
+        if (debugStats) {
+            if (this.debug.enabled) {
+                debugStats.style.display = 'block';
+                const hitmarksEl = document.getElementById('debug-hitmarks');
+                const bloodEl = document.getElementById('debug-blood');
+                const aimbotEl = document.getElementById('debug-aimbot');
+                const godmodeEl = document.getElementById('debug-godmode');
+                if (hitmarksEl) hitmarksEl.textContent = activeEffects.hitMarks.length;
+                if (bloodEl) bloodEl.textContent = activeEffects.bloodParticles.length;
+                if (aimbotEl) aimbotEl.textContent = this.debug.aimbot ? 'ON' : 'OFF';
+                if (godmodeEl) godmodeEl.textContent = this.debug.godMode ? 'ON' : 'OFF';
+            } else {
+                debugStats.style.display = 'none';
+            }
         }
     },
 
