@@ -3504,8 +3504,8 @@ function setupEventListeners() {
             toggleFireMode();
         }
 
-        // Weapon switching with number keys 1-5
-        if (e.key >= '1' && e.key <= '5') {
+        // Weapon switching with number keys 1-6
+        if (e.key >= '1' && e.key <= '6') {
             switchWeapon(parseInt(e.key));
         }
 
