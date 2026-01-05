@@ -249,8 +249,13 @@ const DebugConsole = {
         showHits: false,
         godMode: false,
         aimbot: false,
+        noclip: false,
+        noclipPos: { x: 0, y: 1.6, z: 0 },
         hitboxHelpers: [],
         healthLabels: [],
+        fps: 0,
+        frameCount: 0,
+        lastFpsUpdate: 0,
     },
 
     // Bot state
@@ -477,6 +482,16 @@ const DebugConsole = {
                 this.log(aimbotState ? 'Aimbot ON - Auto-aims at opponent head' : 'Aimbot OFF', aimbotState ? 'success' : 'warn');
                 break;
 
+            case 'noclip':
+                const noclipState = args[0] === 'off' ? false : args[0] === 'on' ? true : !this.debug.noclip;
+                this.debug.noclip = noclipState;
+                if (noclipState) {
+                    // Initialize noclip position from current camera
+                    this.debug.noclipPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+                }
+                this.log(noclipState ? 'Noclip ON - WASD to fly, Space/Shift for up/down' : 'Noclip OFF', noclipState ? 'success' : 'warn');
+                break;
+
             case 'rig':
                 // Summon a static target rig with no AI
                 if (!netState.opponent) {
@@ -692,6 +707,15 @@ const DebugConsole = {
 
     // Called every frame from game loop
     update() {
+        // Update FPS counter
+        this.debug.frameCount++;
+        const now = performance.now();
+        if (now - this.debug.lastFpsUpdate >= 1000) {
+            this.debug.fps = this.debug.frameCount;
+            this.debug.frameCount = 0;
+            this.debug.lastFpsUpdate = now;
+        }
+
         // Update hitbox positions
         if (this.debug.showHitboxes) {
             this.debug.hitboxHelpers.forEach(helper => {
@@ -718,10 +742,12 @@ const DebugConsole = {
         if (debugStats) {
             if (this.debug.enabled) {
                 debugStats.style.display = 'block';
+                const fpsEl = document.getElementById('debug-fps');
                 const hitmarksEl = document.getElementById('debug-hitmarks');
                 const bloodEl = document.getElementById('debug-blood');
                 const aimbotEl = document.getElementById('debug-aimbot');
                 const godmodeEl = document.getElementById('debug-godmode');
+                if (fpsEl) fpsEl.textContent = this.debug.fps;
                 if (hitmarksEl) hitmarksEl.textContent = activeEffects.hitMarks.length;
                 if (bloodEl) bloodEl.textContent = activeEffects.bloodParticles.length;
                 if (aimbotEl) aimbotEl.textContent = this.debug.aimbot ? 'ON' : 'OFF';
@@ -3225,9 +3251,14 @@ function setupEventListeners() {
             gameState.lookYaw += e.movementX * gameState.MOUSE_SENSITIVITY;
             gameState.lookPitch -= e.movementY * gameState.MOUSE_SENSITIVITY;
 
-            // Clamp look angles
-            gameState.lookYaw = Math.max(-gameState.LOOK_LIMIT_YAW, Math.min(gameState.LOOK_LIMIT_YAW, gameState.lookYaw));
-            gameState.lookPitch = Math.max(-gameState.LOOK_LIMIT_PITCH, Math.min(gameState.LOOK_LIMIT_PITCH, gameState.lookPitch));
+            // Clamp look angles (skip in noclip mode for full 360 freedom)
+            if (!DebugConsole.debug.noclip) {
+                gameState.lookYaw = Math.max(-gameState.LOOK_LIMIT_YAW, Math.min(gameState.LOOK_LIMIT_YAW, gameState.lookYaw));
+                gameState.lookPitch = Math.max(-gameState.LOOK_LIMIT_PITCH, Math.min(gameState.LOOK_LIMIT_PITCH, gameState.lookPitch));
+            } else {
+                // In noclip, only clamp pitch to prevent flipping (but allow looking straight up/down)
+                gameState.lookPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, gameState.lookPitch));
+            }
         }
     });
 
@@ -3625,6 +3656,54 @@ function animateTargetHit(target) {
 }
 
 function updateStance(deltaTime) {
+    // Handle noclip movement
+    if (DebugConsole.debug.noclip) {
+        const flySpeed = 10; // Units per second
+        const pos = DebugConsole.debug.noclipPos;
+
+        // Calculate forward/right vectors based on camera look direction
+        const yaw = gameState.lookYaw;
+        const pitch = gameState.lookPitch;
+
+        // Forward vector (in XZ plane)
+        const forwardX = Math.sin(yaw);
+        const forwardZ = -Math.cos(yaw);
+
+        // Right vector
+        const rightX = Math.cos(yaw);
+        const rightZ = Math.sin(yaw);
+
+        // WASD movement
+        if (gameState.keys['w']) {
+            pos.x += forwardX * flySpeed * deltaTime;
+            pos.z += forwardZ * flySpeed * deltaTime;
+            pos.y -= Math.sin(pitch) * flySpeed * deltaTime;
+        }
+        if (gameState.keys['s']) {
+            pos.x -= forwardX * flySpeed * deltaTime;
+            pos.z -= forwardZ * flySpeed * deltaTime;
+            pos.y += Math.sin(pitch) * flySpeed * deltaTime;
+        }
+        if (gameState.keys['a']) {
+            pos.x -= rightX * flySpeed * deltaTime;
+            pos.z -= rightZ * flySpeed * deltaTime;
+        }
+        if (gameState.keys['d']) {
+            pos.x += rightX * flySpeed * deltaTime;
+            pos.z += rightZ * flySpeed * deltaTime;
+        }
+
+        // Space/Shift for up/down
+        if (gameState.keys[' ']) {
+            pos.y += flySpeed * deltaTime;
+        }
+        if (gameState.keys['shift']) {
+            pos.y -= flySpeed * deltaTime;
+        }
+
+        return; // Skip normal stance updates
+    }
+
     // Update target crouch based on input (W/S)
     if (gameState.keys['s']) {
         gameState.targetCrouch = Math.min(1, gameState.targetCrouch + gameState.CROUCH_SPEED * deltaTime);
@@ -3682,6 +3761,20 @@ function updateStance(deltaTime) {
 }
 
 function updateCamera() {
+    // Handle noclip camera position
+    if (DebugConsole.debug.noclip) {
+        const pos = DebugConsole.debug.noclipPos;
+        camera.position.x = pos.x;
+        camera.position.y = pos.y;
+        camera.position.z = pos.z;
+
+        // Apply mouse look rotation (no recoil in noclip)
+        camera.rotation.y = -gameState.lookYaw;
+        camera.rotation.x = gameState.lookPitch;
+        camera.rotation.z = 0;
+        return;
+    }
+
     // Base position
     const baseY = gameState.BASE_HEIGHT - (gameState.crouch * gameState.CROUCH_AMOUNT);
     const leanX = gameState.lean * gameState.LEAN_AMOUNT;
@@ -3800,8 +3893,10 @@ function updateAimbot() {
     gameState.lookYaw += (yaw - gameState.lookYaw) * smoothSpeed * deltaTime;
     gameState.lookPitch += (pitch - gameState.lookPitch) * smoothSpeed * deltaTime;
 
-    // Clamp pitch
-    gameState.lookPitch = Math.max(-gameState.LOOK_LIMIT_PITCH, Math.min(gameState.LOOK_LIMIT_PITCH, gameState.lookPitch));
+    // Clamp pitch (skip in noclip mode)
+    if (!DebugConsole.debug.noclip) {
+        gameState.lookPitch = Math.max(-gameState.LOOK_LIMIT_PITCH, Math.min(gameState.LOOK_LIMIT_PITCH, gameState.lookPitch));
+    }
 }
 
 function animate() {
