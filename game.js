@@ -3336,7 +3336,7 @@ function createTarget(config) {
 // ============================================
 function switchWeapon(slot) {
     // Validate slot
-    if (slot < 1 || slot > 5) return;
+    if (slot < 1 || slot > 6) return;
     if (gameState.isWeaponSwitching) return;
 
     // Get weapon for this slot
