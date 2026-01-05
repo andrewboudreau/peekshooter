@@ -1750,6 +1750,7 @@ function showKillNotification() {
 const activeEffects = {
     hitMarks: [],
     bloodParticles: [],
+    projectiles: [],
 };
 
 // Create a bullet hole decal at impact point
@@ -2023,6 +2024,294 @@ function updateBloodParticles(deltaTime) {
                 });
             }
         }
+    }
+}
+
+// ============================================
+// PROJECTILE SYSTEM (RPG rockets, etc.)
+// ============================================
+
+function fireProjectile(weaponConfig) {
+    const projectileConfig = weaponConfig.projectile;
+
+    // Get camera direction
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+
+    // Start position (slightly in front of camera)
+    const startPos = camera.position.clone().add(direction.clone().multiplyScalar(1.5));
+
+    // Create rocket mesh
+    const rocketGroup = new THREE.Group();
+
+    // Rocket body
+    const bodyGeo = new THREE.CylinderGeometry(0.05, 0.07, 0.4, 8);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x556b2f, roughness: 0.5 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.rotation.x = Math.PI / 2;
+    rocketGroup.add(body);
+
+    // Warhead
+    const tipGeo = new THREE.ConeGeometry(0.05, 0.15, 8);
+    const tipMat = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.rotation.x = -Math.PI / 2;
+    tip.position.z = -0.27;
+    rocketGroup.add(tip);
+
+    // Fins
+    const finGeo = new THREE.BoxGeometry(0.12, 0.005, 0.08);
+    const finMat = new THREE.MeshStandardMaterial({ color: 0x556b2f });
+    for (let i = 0; i < 4; i++) {
+        const fin = new THREE.Mesh(finGeo, finMat);
+        fin.position.z = 0.15;
+        fin.rotation.z = (Math.PI / 2) * i;
+        rocketGroup.add(fin);
+    }
+
+    // Trail particle (glowing)
+    const trailGeo = new THREE.SphereGeometry(0.08, 8, 8);
+    const trailMat = new THREE.MeshBasicMaterial({
+        color: projectileConfig.trailColor || 0xff6600,
+        transparent: true,
+        opacity: 0.8
+    });
+    const trail = new THREE.Mesh(trailGeo, trailMat);
+    trail.position.z = 0.25;
+    rocketGroup.add(trail);
+
+    // Point light for glow
+    const light = new THREE.PointLight(projectileConfig.trailColor || 0xff6600, 2, 5);
+    light.position.z = 0.25;
+    rocketGroup.add(light);
+
+    // Position and orient the rocket
+    rocketGroup.position.copy(startPos);
+    rocketGroup.lookAt(startPos.clone().add(direction));
+
+    scene.add(rocketGroup);
+
+    // Store projectile data
+    activeEffects.projectiles.push({
+        mesh: rocketGroup,
+        velocity: direction.clone().multiplyScalar(projectileConfig.speed),
+        gravity: projectileConfig.gravity || 0,
+        damage: weaponConfig.damage,
+        splashConfig: weaponConfig.damage.splash,
+        createdAt: Date.now(),
+        lifetime: 10000, // 10 seconds max
+    });
+}
+
+function updateProjectiles(deltaTime) {
+    const now = Date.now();
+
+    for (let i = activeEffects.projectiles.length - 1; i >= 0; i--) {
+        const proj = activeEffects.projectiles[i];
+        const age = now - proj.createdAt;
+
+        // Remove expired projectiles
+        if (age > proj.lifetime) {
+            scene.remove(proj.mesh);
+            proj.mesh.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            });
+            activeEffects.projectiles.splice(i, 1);
+            continue;
+        }
+
+        // Apply gravity
+        proj.velocity.y -= proj.gravity * deltaTime;
+
+        // Calculate new position
+        const oldPos = proj.mesh.position.clone();
+        const movement = proj.velocity.clone().multiplyScalar(deltaTime);
+        const newPos = oldPos.clone().add(movement);
+
+        // Raycast to check for collisions
+        const raycaster = new THREE.Raycaster(oldPos, movement.clone().normalize(), 0, movement.length() + 0.2);
+
+        // Get all objects to check collision against
+        const collisionObjects = [];
+        scene.traverse((obj) => {
+            if (obj.isMesh && obj !== proj.mesh && !obj.userData.isDecal &&
+                !proj.mesh.children.includes(obj) && obj.visible) {
+                collisionObjects.push(obj);
+            }
+        });
+
+        const intersects = raycaster.intersectObjects(collisionObjects, true);
+
+        if (intersects.length > 0) {
+            // Hit something - explode!
+            const hitPoint = intersects[0].point;
+            const hitObject = intersects[0].object;
+
+            createExplosion(hitPoint, proj.splashConfig, proj.damage);
+
+            // Remove projectile
+            scene.remove(proj.mesh);
+            proj.mesh.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            });
+            activeEffects.projectiles.splice(i, 1);
+            continue;
+        }
+
+        // Ground collision
+        if (newPos.y <= 0.1) {
+            createExplosion(new THREE.Vector3(newPos.x, 0.1, newPos.z), proj.splashConfig, proj.damage);
+
+            scene.remove(proj.mesh);
+            proj.mesh.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            });
+            activeEffects.projectiles.splice(i, 1);
+            continue;
+        }
+
+        // Update position and rotation
+        proj.mesh.position.copy(newPos);
+        proj.mesh.lookAt(newPos.clone().add(proj.velocity));
+    }
+}
+
+function createExplosion(position, splashConfig, damageConfig) {
+    // Visual explosion effect
+    const explosionGroup = new THREE.Group();
+
+    // Central flash
+    const flashGeo = new THREE.SphereGeometry(1, 16, 16);
+    const flashMat = new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 1
+    });
+    const flash = new THREE.Mesh(flashGeo, flashMat);
+    explosionGroup.add(flash);
+
+    // Explosion light
+    const explosionLight = new THREE.PointLight(0xff6600, 10, 15);
+    explosionGroup.add(explosionLight);
+
+    // Smoke particles
+    for (let i = 0; i < 8; i++) {
+        const smokeGeo = new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 8, 8);
+        const smokeMat = new THREE.MeshBasicMaterial({
+            color: 0x333333,
+            transparent: true,
+            opacity: 0.7
+        });
+        const smoke = new THREE.Mesh(smokeGeo, smokeMat);
+        smoke.position.set(
+            (Math.random() - 0.5) * 2,
+            Math.random() * 1.5,
+            (Math.random() - 0.5) * 2
+        );
+        smoke.userData.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 3,
+            2 + Math.random() * 3,
+            (Math.random() - 0.5) * 3
+        );
+        explosionGroup.add(smoke);
+    }
+
+    explosionGroup.position.copy(position);
+    scene.add(explosionGroup);
+
+    // Animate explosion
+    const startTime = Date.now();
+    const duration = 500;
+
+    function animateExplosion() {
+        const elapsed = Date.now() - startTime;
+        const progress = elapsed / duration;
+
+        if (progress >= 1) {
+            scene.remove(explosionGroup);
+            explosionGroup.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            });
+            return;
+        }
+
+        // Expand flash
+        const scale = 1 + progress * 3;
+        flash.scale.set(scale, scale, scale);
+        flashMat.opacity = 1 - progress;
+
+        // Fade light
+        explosionLight.intensity = 10 * (1 - progress);
+
+        // Move smoke particles
+        explosionGroup.children.forEach(child => {
+            if (child.userData.velocity) {
+                child.position.add(child.userData.velocity.clone().multiplyScalar(0.016));
+                child.userData.velocity.y -= 5 * 0.016; // gravity
+                if (child.material) {
+                    child.material.opacity = 0.7 * (1 - progress);
+                }
+            }
+        });
+
+        requestAnimationFrame(animateExplosion);
+    }
+    animateExplosion();
+
+    // Apply splash damage
+    if (splashConfig && netState.opponent && netState.opponent.mesh) {
+        const opponentPos = netState.opponent.mesh.position.clone();
+        opponentPos.y += 1; // Approximate center of opponent
+
+        const distance = position.distanceTo(opponentPos);
+
+        if (distance <= splashConfig.radius) {
+            // Calculate damage based on distance
+            let damage;
+            if (splashConfig.falloff === 'linear') {
+                const falloffMult = 1 - (distance / splashConfig.radius);
+                damage = Math.round(splashConfig.damage * falloffMult);
+            } else {
+                damage = splashConfig.damage;
+            }
+
+            if (damage > 0) {
+                // Apply damage
+                sendHit(damage, 'body');
+                showHitMarker('body', opponentPos, netState.opponent.mesh);
+                AudioSystem.playImpactPlayer();
+
+                // Create blood effect
+                const hitDirection = opponentPos.clone().sub(position).normalize();
+                createBloodSplatter(opponentPos, hitDirection);
+            }
+        }
+    }
+
+    // Create ground scorch mark
+    if (position.y < 1) {
+        const scorchGeo = new THREE.CircleGeometry(splashConfig ? splashConfig.radius * 0.5 : 1, 16);
+        const scorchMat = new THREE.MeshBasicMaterial({
+            color: 0x1a1a1a,
+            transparent: true,
+            opacity: 0.6,
+            depthWrite: false
+        });
+        const scorch = new THREE.Mesh(scorchGeo, scorchMat);
+        scorch.rotation.x = -Math.PI / 2;
+        scorch.position.set(position.x, 0.02, position.z);
+        scene.add(scorch);
+
+        // Add to hitmarks for cleanup
+        activeEffects.hitMarks.push({
+            mesh: scorch,
+            createdAt: Date.now(),
+            lifetime: 30000 // 30 seconds
+        });
     }
 }
 
@@ -3426,6 +3715,15 @@ function shoot() {
     // Apply recoil
     applyRecoil();
 
+    // Check if this is a projectile weapon (like RPG)
+    if (typeof WeaponConfig !== 'undefined') {
+        const weaponConfig = WeaponConfig.getWeapon(gameState.currentWeapon);
+        if (weaponConfig.projectile) {
+            fireProjectile(weaponConfig);
+            return; // Don't do hitscan for projectile weapons
+        }
+    }
+
     // Raycast from camera center (start past the weapon to avoid self-intersection)
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
@@ -3927,6 +4225,9 @@ function animate() {
 
     // Update blood particles and hit marks (runs even when paused for cleanup)
     updateBloodParticles(deltaTime);
+
+    // Update projectiles (rockets, etc.)
+    updateProjectiles(deltaTime);
 
     // Update debug console visuals
     DebugConsole.update();

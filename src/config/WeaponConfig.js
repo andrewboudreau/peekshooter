@@ -227,6 +227,62 @@ const WeaponConfig = {
 
             modelType: 'sniper',
         },
+
+        rpg: {
+            id: 'rpg',
+            name: 'RPG',
+            slot: 6,
+
+            damage: {
+                base: 100,              // Direct hit damage
+                headshotMult: 1.0,      // No headshot bonus
+                range: 200,
+                falloffStart: 150,
+                splash: {
+                    radius: 5,          // Splash damage radius
+                    damage: 75,         // Max splash damage at center
+                    falloff: 'linear',  // Damage falls off linearly with distance
+                },
+            },
+
+            fireRate: 30,               // RPM - slow reload
+            fireRateMs: 2000,           // 2 seconds between shots
+            allowedModes: ['single'],
+            defaultMode: 'single',
+            burstCount: 1,
+
+            // Projectile properties
+            projectile: {
+                speed: 40,              // Units per second
+                gravity: 2,             // Slight drop
+                model: 'rocket',
+                trailColor: 0xff6600,
+                explosionColor: 0xff4400,
+            },
+
+            recoil: {
+                verticalBase: 0.12,
+                verticalVariance: 0.02,
+                horizontalBase: 0,
+                horizontalVariance: 0.01,
+                recovery: 1.5,
+                pattern: [1.0],
+                weaponKickBack: 0.15,
+                weaponKickUp: 0.08,
+            },
+
+            ads: {
+                position: { x: 0, y: -0.08, z: -0.1 },
+                rotation: { x: 0, y: 0, z: 0 },
+                fov: 50,
+                speed: 5,
+            },
+
+            hipPosition: { x: 0.3, y: -0.15, z: -0.4 },
+            hipRotation: { x: 0, y: 0.02, z: 0 },
+
+            modelType: 'rpg',
+        },
     },
 
     // ============================================

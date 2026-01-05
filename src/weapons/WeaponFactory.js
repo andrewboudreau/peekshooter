@@ -81,6 +81,8 @@ const WeaponFactory = {
                 return this.createShotgun();
             case 'sniper':
                 return this.createSniper();
+            case 'rpg':
+                return this.createRPG();
             default:
                 console.warn('[WeaponFactory] Unknown weapon:', weaponId);
                 return this.createAssaultRifle();
@@ -102,6 +104,7 @@ const WeaponFactory = {
             assault_rifle: { w: 0.05, h: 0.07, d: 0.45 },
             shotgun: { w: 0.045, h: 0.06, d: 0.50 },
             sniper: { w: 0.045, h: 0.07, d: 0.65 },
+            rpg: { w: 0.08, h: 0.08, d: 0.80 },
         };
 
         const d = dims[weaponId] || dims.assault_rifle;
@@ -1004,6 +1007,138 @@ const WeaponFactory = {
         const mount = new THREE.Mesh(mountGeo, m.metalDark);
         mount.position.set(0, -0.035, -0.15);
         weapon.add(mount);
+
+        return weapon;
+    },
+
+    // ============================================
+    // RPG - Rocket Propelled Grenade Launcher
+    // ============================================
+    createRPG() {
+        const weapon = new THREE.Group();
+        const m = this.materials;
+
+        // Olive drab color for RPG
+        const rpgBody = new THREE.MeshStandardMaterial({
+            color: 0x4a5530,
+            roughness: 0.7,
+            metalness: 0.2
+        });
+
+        // === MAIN TUBE ===
+        const tubeGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.7, 16);
+        const tube = new THREE.Mesh(tubeGeo, rpgBody);
+        tube.rotation.x = Math.PI / 2;
+        tube.position.set(0, 0, -0.1);
+        weapon.add(tube);
+
+        // Front flare (muzzle)
+        const flareGeo = new THREE.CylinderGeometry(0.055, 0.045, 0.08, 16);
+        const flare = new THREE.Mesh(flareGeo, rpgBody);
+        flare.rotation.x = Math.PI / 2;
+        flare.position.set(0, 0, -0.48);
+        weapon.add(flare);
+
+        // Back cone (exhaust)
+        const coneGeo = new THREE.CylinderGeometry(0.035, 0.055, 0.12, 16);
+        const cone = new THREE.Mesh(coneGeo, rpgBody);
+        cone.rotation.x = Math.PI / 2;
+        cone.position.set(0, 0, 0.3);
+        weapon.add(cone);
+
+        // Exhaust shield
+        const shieldGeo = new THREE.CylinderGeometry(0.065, 0.06, 0.05, 16, 1, true);
+        const shield = new THREE.Mesh(shieldGeo, m.metalDark);
+        shield.rotation.x = Math.PI / 2;
+        shield.position.set(0, 0, 0.38);
+        weapon.add(shield);
+
+        // === ROCKET (visible in tube) ===
+        const rocketGeo = new THREE.CylinderGeometry(0.025, 0.035, 0.25, 12);
+        const rocketMat = new THREE.MeshStandardMaterial({
+            color: 0x556b2f,
+            roughness: 0.5,
+            metalness: 0.3
+        });
+        const rocket = new THREE.Mesh(rocketGeo, rocketMat);
+        rocket.rotation.x = Math.PI / 2;
+        rocket.position.set(0, 0, -0.35);
+        weapon.add(rocket);
+
+        // Rocket tip (warhead)
+        const tipGeo = new THREE.ConeGeometry(0.025, 0.08, 12);
+        const tipMat = new THREE.MeshStandardMaterial({
+            color: 0x8b0000,
+            roughness: 0.4,
+            metalness: 0.4
+        });
+        const tip = new THREE.Mesh(tipGeo, tipMat);
+        tip.rotation.x = -Math.PI / 2;
+        tip.position.set(0, 0, -0.52);
+        weapon.add(tip);
+
+        // Rocket fins
+        const finGeo = new THREE.BoxGeometry(0.06, 0.002, 0.05);
+        for (let i = 0; i < 4; i++) {
+            const fin = new THREE.Mesh(finGeo, rocketMat);
+            fin.position.set(0, 0, -0.25);
+            fin.rotation.z = (Math.PI / 2) * i;
+            weapon.add(fin);
+        }
+
+        // === GRIP ===
+        const gripGeo = new THREE.BoxGeometry(0.04, 0.1, 0.05);
+        const grip = new THREE.Mesh(gripGeo, m.polymer);
+        grip.position.set(0, -0.08, 0.1);
+        grip.rotation.x = 0.2;
+        weapon.add(grip);
+
+        // Trigger guard
+        const guardGeo = new THREE.BoxGeometry(0.045, 0.04, 0.008);
+        const guard = new THREE.Mesh(guardGeo, m.metalMedium);
+        guard.position.set(0, -0.04, 0.05);
+        weapon.add(guard);
+
+        // Trigger
+        const triggerGeo = new THREE.BoxGeometry(0.006, 0.025, 0.015);
+        const trigger = new THREE.Mesh(triggerGeo, m.metalDark);
+        trigger.position.set(0, -0.03, 0.08);
+        trigger.rotation.x = 0.3;
+        weapon.add(trigger);
+
+        // === FRONT GRIP ===
+        const fGripGeo = new THREE.BoxGeometry(0.035, 0.06, 0.04);
+        const fGrip = new THREE.Mesh(fGripGeo, m.polymer);
+        fGrip.position.set(0, -0.065, -0.15);
+        weapon.add(fGrip);
+
+        // === SIGHTS ===
+        // Front sight
+        const fSightGeo = new THREE.BoxGeometry(0.01, 0.04, 0.01);
+        const fSight = new THREE.Mesh(fSightGeo, m.metalDark);
+        fSight.position.set(0, 0.065, -0.35);
+        weapon.add(fSight);
+
+        // Rear sight (ladder style)
+        const rSightBaseGeo = new THREE.BoxGeometry(0.03, 0.015, 0.02);
+        const rSightBase = new THREE.Mesh(rSightBaseGeo, m.metalDark);
+        rSightBase.position.set(0, 0.055, 0.05);
+        weapon.add(rSightBase);
+
+        const rSightLeftGeo = new THREE.BoxGeometry(0.005, 0.04, 0.015);
+        const rSightLeft = new THREE.Mesh(rSightLeftGeo, m.metalDark);
+        rSightLeft.position.set(-0.012, 0.075, 0.05);
+        weapon.add(rSightLeft);
+
+        const rSightRight = new THREE.Mesh(rSightLeftGeo, m.metalDark);
+        rSightRight.position.set(0.012, 0.075, 0.05);
+        weapon.add(rSightRight);
+
+        // === SHOULDER REST ===
+        const shoulderGeo = new THREE.BoxGeometry(0.06, 0.08, 0.04);
+        const shoulder = new THREE.Mesh(shoulderGeo, m.polymer);
+        shoulder.position.set(0, -0.02, 0.35);
+        weapon.add(shoulder);
 
         return weapon;
     },
