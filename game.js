@@ -256,6 +256,7 @@ const DebugConsole = {
         fps: 0,
         frameCount: 0,
         lastFpsUpdate: 0,
+        totalDamage: 0,
     },
 
     // Bot state
@@ -747,11 +748,13 @@ const DebugConsole = {
                 const bloodEl = document.getElementById('debug-blood');
                 const aimbotEl = document.getElementById('debug-aimbot');
                 const godmodeEl = document.getElementById('debug-godmode');
+                const damageEl = document.getElementById('debug-damage');
                 if (fpsEl) fpsEl.textContent = this.debug.fps;
                 if (hitmarksEl) hitmarksEl.textContent = activeEffects.hitMarks.length;
                 if (bloodEl) bloodEl.textContent = activeEffects.bloodParticles.length;
                 if (aimbotEl) aimbotEl.textContent = this.debug.aimbot ? 'ON' : 'OFF';
                 if (godmodeEl) godmodeEl.textContent = this.debug.godMode ? 'ON' : 'OFF';
+                if (damageEl) damageEl.textContent = this.debug.totalDamage;
             } else {
                 debugStats.style.display = 'none';
             }
@@ -1470,6 +1473,9 @@ function sendShoot(hitPlayer = false, hitPoint = null, hitCover = false) {
 }
 
 function sendHit(damage, bodyPart) {
+    // Track total damage for debug stats (always, even in practice)
+    DebugConsole.debug.totalDamage += damage;
+
     if (!netState.connected || netState.status !== 'playing') return;
     sendPeerMessage({ type: 'hit', damage: damage, bodyPart: bodyPart });
 }
@@ -2101,6 +2107,139 @@ function fireProjectile(weaponConfig) {
         createdAt: Date.now(),
         lifetime: 10000, // 10 seconds max
     });
+}
+
+function firePellets(weaponConfig) {
+    const pelletCount = weaponConfig.damage.pellets || 8;
+    const spread = weaponConfig.damage.spread || 0.08;
+    const baseDamage = weaponConfig.damage.base;
+
+    // Get camera direction and position
+    const cameraDir = new THREE.Vector3();
+    camera.getWorldDirection(cameraDir);
+
+    // Get blocking objects once (for performance)
+    const blockingObjects = [];
+    scene.traverse((obj) => {
+        if (obj.isMesh && !obj.userData.isOpponent && !obj.userData.isTarget &&
+            !obj.userData.isDecal && obj !== ground && obj.visible) {
+            blockingObjects.push(obj);
+        }
+    });
+
+    let totalDamage = 0;
+    let hitCount = 0;
+
+    // Fire each pellet
+    for (let i = 0; i < pelletCount; i++) {
+        // Add random spread to direction
+        const pelletDir = cameraDir.clone();
+
+        // Random spread in a cone
+        const spreadX = (Math.random() - 0.5) * 2 * spread;
+        const spreadY = (Math.random() - 0.5) * 2 * spread;
+
+        // Create rotation quaternion for spread
+        const right = new THREE.Vector3();
+        const up = new THREE.Vector3();
+        right.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+        up.crossVectors(right, cameraDir).normalize();
+
+        pelletDir.add(right.multiplyScalar(spreadX));
+        pelletDir.add(up.multiplyScalar(spreadY));
+        pelletDir.normalize();
+
+        // Raycast for this pellet
+        const raycaster = new THREE.Raycaster();
+        raycaster.set(camera.position.clone(), pelletDir);
+        raycaster.near = 1;
+
+        // Check opponent hit
+        if (netState.opponent && netState.opponent.mesh) {
+            const opponentIntersects = raycaster.intersectObject(netState.opponent.mesh, true);
+
+            if (opponentIntersects.length > 0) {
+                const opponentHit = opponentIntersects[0];
+                const opponentDistance = opponentHit.distance;
+
+                // Check if cover blocks this pellet
+                const coverIntersects = raycaster.intersectObjects(blockingObjects, true);
+                let blocked = false;
+
+                if (coverIntersects.length > 0 && coverIntersects[0].distance < opponentDistance) {
+                    blocked = true;
+                    // Create hit mark on cover
+                    const coverHit = coverIntersects[0];
+                    if (coverHit.face) {
+                        const worldNormal = coverHit.face.normal.clone();
+                        if (coverHit.object.matrixWorld) {
+                            worldNormal.transformDirection(coverHit.object.matrixWorld);
+                        }
+                        createHitMark(coverHit.point.clone(), worldNormal, 'pellet-cover');
+                    }
+                }
+
+                if (!blocked) {
+                    // Pellet hit opponent
+                    const hitObject = opponentHit.object;
+                    const bodyPart = hitObject.userData.bodyPart || 'body';
+
+                    // Calculate damage for this pellet
+                    let pelletDamage = baseDamage;
+                    const bodyPartMults = {
+                        head: weaponConfig.damage.headshotMult || 1.5,
+                        chest: 1.0,
+                        belly: 0.8,
+                        arm: 0.5,
+                        leg: 0.6,
+                        body: 0.9,
+                    };
+                    pelletDamage *= bodyPartMults[bodyPart] || 1.0;
+                    pelletDamage = Math.round(pelletDamage);
+
+                    totalDamage += pelletDamage;
+                    hitCount++;
+
+                    // Create blood at hit point
+                    const hitPoint = opponentHit.point.clone();
+                    createBloodSplatter(hitPoint, pelletDir);
+                }
+            } else {
+                // Check for environment hits
+                const envIntersects = raycaster.intersectObjects(blockingObjects, true);
+                if (envIntersects.length > 0) {
+                    const envHit = envIntersects[0];
+                    if (envHit.face) {
+                        const worldNormal = envHit.face.normal.clone();
+                        if (envHit.object.matrixWorld) {
+                            worldNormal.transformDirection(envHit.object.matrixWorld);
+                        }
+                        createHitMark(envHit.point.clone(), worldNormal, 'pellet-env');
+                    }
+                }
+            }
+        } else {
+            // No opponent - just check environment
+            const envIntersects = raycaster.intersectObjects(blockingObjects, true);
+            if (envIntersects.length > 0) {
+                const envHit = envIntersects[0];
+                if (envHit.face) {
+                    const worldNormal = envHit.face.normal.clone();
+                    if (envHit.object.matrixWorld) {
+                        worldNormal.transformDirection(envHit.object.matrixWorld);
+                    }
+                    createHitMark(envHit.point.clone(), worldNormal, 'pellet-env');
+                }
+            }
+        }
+    }
+
+    // Apply total damage if any pellets hit
+    if (hitCount > 0) {
+        sendHit(totalDamage, 'body');
+        showHitMarker('body', null, null);
+        AudioSystem.playImpactPlayer();
+    }
 }
 
 function updateProjectiles(deltaTime) {
@@ -3721,6 +3860,12 @@ function shoot() {
         if (weaponConfig.projectile) {
             fireProjectile(weaponConfig);
             return; // Don't do hitscan for projectile weapons
+        }
+
+        // Check if this is a pellet weapon (like shotgun)
+        if (weaponConfig.damage.pellets) {
+            firePellets(weaponConfig);
+            return; // Don't do single hitscan for pellet weapons
         }
     }
 
