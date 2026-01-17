@@ -1283,7 +1283,8 @@ function handleConnection(conn) {
         if (netState.isHost) {
             sendPeerMessage({
                 type: 'tournament_mode',
-                enabled: netState.tournamentMode
+                enabled: netState.tournamentMode,
+                killsToWin: netState.tournamentKillsToWin
             });
         }
     }, 500);
@@ -1414,9 +1415,12 @@ function handlePeerMessage(data) {
         case 'tournament_mode':
             // Sync tournament mode from host
             netState.tournamentMode = data.enabled;
+            netState.tournamentKillsToWin = data.killsToWin || 5;
             const checkbox = document.getElementById('tournament-mode');
             if (checkbox) checkbox.checked = data.enabled;
-            console.log('[Tournament] Synced mode from host:', data.enabled ? 'ON' : 'OFF');
+            const killsSelect = document.getElementById('tournament-kills');
+            if (killsSelect) killsSelect.value = netState.tournamentKillsToWin;
+            console.log('[Tournament] Synced from host: mode=' + (data.enabled ? 'ON' : 'OFF') + ', kills=' + netState.tournamentKillsToWin);
             break;
 
         case 'reset':
@@ -1549,6 +1553,12 @@ function toggleTournamentMode() {
     const checkbox = document.getElementById('tournament-mode');
     netState.tournamentMode = checkbox ? checkbox.checked : false;
     console.log('[Tournament] Mode:', netState.tournamentMode ? 'ON' : 'OFF');
+}
+
+function updateTournamentKills() {
+    const select = document.getElementById('tournament-kills');
+    netState.tournamentKillsToWin = select ? parseInt(select.value) : 5;
+    console.log('[Tournament] Kills to win:', netState.tournamentKillsToWin);
 }
 
 function checkTournamentWin() {

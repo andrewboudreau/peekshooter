@@ -528,6 +528,16 @@
             height: 20px;
             cursor: pointer;
         }
+        #start-screen .tournament-toggle select {
+            padding: 5px 10px;
+            font-size: 16px;
+            border-radius: 4px;
+            border: none;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            cursor: pointer;
+            margin: 0 5px;
+        }
 
         /* Map Selection */
         #map-selection {
@@ -766,7 +776,15 @@
                 <div class="tournament-toggle">
                     <label>
                         <input type="checkbox" id="tournament-mode" onchange="toggleTournamentMode()">
-                        Tournament Mode (First to 5 kills)
+                        Tournament Mode - First to
+                        <select id="tournament-kills" onchange="updateTournamentKills()">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="7">7</option>
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                        </select>
+                        kills
                     </label>
                 </div>
                 <button class="back" onclick="showMainMenu()">Back</button>
