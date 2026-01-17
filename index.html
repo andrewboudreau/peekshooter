@@ -508,6 +508,26 @@
             font-size: 14px;
             opacity: 0.8;
         }
+        #start-screen .tournament-toggle {
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(255,165,0,0.2);
+            border-radius: 5px;
+            border: 1px solid rgba(255,165,0,0.4);
+        }
+        #start-screen .tournament-toggle label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 16px;
+        }
+        #start-screen .tournament-toggle input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
 
         /* Map Selection */
         #map-selection {
@@ -743,6 +763,12 @@
                     <button class="join" onclick="joinRoom()">Join</button>
                 </div>
                 <div id="connection-status" class="status-text"></div>
+                <div class="tournament-toggle">
+                    <label>
+                        <input type="checkbox" id="tournament-mode" onchange="toggleTournamentMode()">
+                        Tournament Mode (First to 5 kills)
+                    </label>
+                </div>
                 <button class="back" onclick="showMainMenu()">Back</button>
             </div>
         </div>

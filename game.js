@@ -1000,6 +1000,8 @@ const netState = {
     status: 'disconnected', // disconnected, connecting, waiting, playing
     scores: [0, 0],
     health: 100,
+    tournamentMode: false,  // First to 5 kills wins
+    tournamentKillsToWin: 5,
 };
 
 // Generate a random 4-character room code
@@ -1276,6 +1278,14 @@ function handleConnection(conn) {
     // Start the game
     setTimeout(() => {
         startOnlineGame();
+
+        // Host syncs tournament mode to joiner
+        if (netState.isHost) {
+            sendPeerMessage({
+                type: 'tournament_mode',
+                enabled: netState.tournamentMode
+            });
+        }
     }, 500);
 
     // Setup message handling
@@ -1367,6 +1377,11 @@ function handlePeerMessage(data) {
                 // Tell opponent we died
                 sendPeerMessage({ type: 'killed' });
 
+                // Check tournament win condition
+                if (checkTournamentWin()) {
+                    break; // Tournament ended, don't reset
+                }
+
                 // Reset after delay
                 setTimeout(() => {
                     resetRound();
@@ -1386,6 +1401,22 @@ function handlePeerMessage(data) {
                     victim: netState.opponent,
                 });
             }
+
+            // Check tournament win condition
+            checkTournamentWin();
+            break;
+
+        case 'tournament_end':
+            // Opponent's game ended the tournament
+            handleTournamentEnd(data.won);
+            break;
+
+        case 'tournament_mode':
+            // Sync tournament mode from host
+            netState.tournamentMode = data.enabled;
+            const checkbox = document.getElementById('tournament-mode');
+            if (checkbox) checkbox.checked = data.enabled;
+            console.log('[Tournament] Synced mode from host:', data.enabled ? 'ON' : 'OFF');
             break;
 
         case 'reset':
@@ -1511,6 +1542,95 @@ function updateScoreUI() {
     if (scoreEl && netState.gameMode === 'online') {
         scoreEl.textContent = `${netState.scores[netState.playerSlot]} - ${netState.scores[netState.playerSlot === 0 ? 1 : 0]}`;
     }
+}
+
+// Tournament Mode Functions
+function toggleTournamentMode() {
+    const checkbox = document.getElementById('tournament-mode');
+    netState.tournamentMode = checkbox ? checkbox.checked : false;
+    console.log('[Tournament] Mode:', netState.tournamentMode ? 'ON' : 'OFF');
+}
+
+function checkTournamentWin() {
+    if (!netState.tournamentMode) return false;
+
+    const myScore = netState.scores[netState.playerSlot];
+    const opponentScore = netState.scores[netState.playerSlot === 0 ? 1 : 0];
+
+    if (myScore >= netState.tournamentKillsToWin) {
+        showTournamentEnd(true); // We won
+        return true;
+    } else if (opponentScore >= netState.tournamentKillsToWin) {
+        showTournamentEnd(false); // We lost
+        return true;
+    }
+    return false;
+}
+
+function showTournamentEnd(won) {
+    const myScore = netState.scores[netState.playerSlot];
+    const opponentScore = netState.scores[netState.playerSlot === 0 ? 1 : 0];
+
+    // Create tournament end overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'tournament-end-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        color: white;
+        font-family: Arial, sans-serif;
+    `;
+
+    const title = document.createElement('h1');
+    title.textContent = won ? 'VICTORY!' : 'DEFEAT';
+    title.style.cssText = `
+        font-size: 72px;
+        margin-bottom: 20px;
+        color: ${won ? '#4CAF50' : '#f44336'};
+        text-shadow: 0 0 20px ${won ? '#4CAF50' : '#f44336'};
+    `;
+
+    const score = document.createElement('p');
+    score.textContent = `Final Score: ${myScore} - ${opponentScore}`;
+    score.style.cssText = `
+        font-size: 36px;
+        margin-bottom: 40px;
+    `;
+
+    const message = document.createElement('p');
+    message.textContent = 'Returning to main menu...';
+    message.style.cssText = `
+        font-size: 24px;
+        opacity: 0.7;
+    `;
+
+    overlay.appendChild(title);
+    overlay.appendChild(score);
+    overlay.appendChild(message);
+    document.body.appendChild(overlay);
+
+    // Send tournament end message to opponent
+    sendPeerMessage({ type: 'tournament_end', won: !won });
+
+    // Return to main menu after delay
+    setTimeout(() => {
+        overlay.remove();
+        endOnlineGame();
+    }, 3000);
+}
+
+function handleTournamentEnd(opponentWon) {
+    // Opponent sent us the tournament end message
+    showTournamentEnd(!opponentWon);
 }
 
 function showDamageEffect() {
