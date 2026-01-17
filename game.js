@@ -1546,6 +1546,21 @@ function updateScoreUI() {
     if (scoreEl && netState.gameMode === 'online') {
         scoreEl.textContent = `${netState.scores[netState.playerSlot]} - ${netState.scores[netState.playerSlot === 0 ? 1 : 0]}`;
     }
+
+    // Update tournament info display
+    const tournamentInfo = document.getElementById('tournament-info');
+    if (tournamentInfo) {
+        if (netState.tournamentMode && netState.gameMode === 'online') {
+            const myKills = netState.scores[netState.playerSlot];
+            const oppKills = netState.scores[netState.playerSlot === 0 ? 1 : 0];
+            const myRemaining = netState.tournamentKillsToWin - myKills;
+            const oppRemaining = netState.tournamentKillsToWin - oppKills;
+            tournamentInfo.innerHTML = `🏆 First to ${netState.tournamentKillsToWin}<br>You need: ${myRemaining} | They need: ${oppRemaining}`;
+            tournamentInfo.style.display = 'block';
+        } else {
+            tournamentInfo.style.display = 'none';
+        }
+    }
 }
 
 // Tournament Mode Functions

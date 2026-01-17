@@ -120,9 +120,22 @@
             z-index: 100;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
+        #tournament-info {
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            color: #ffa500;
+            font-size: 16px;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255,165,0,0.5);
+        }
         #network-status {
             position: absolute;
-            top: 55px;
+            top: 90px;
             right: 20px;
             color: white;
             font-size: 14px;
@@ -825,6 +838,7 @@
             ESC - Unlock Mouse
         </div>
         <div id="score">Score: <span id="score-value">0</span></div>
+        <div id="tournament-info" style="display: none;"></div>
         <div id="network-status" class="status-disconnected">Offline</div>
         <div id="weapon-hand">Hand: <span id="hand-value">RIGHT</span></div>
         <div id="fire-mode">Fire: SINGLE (100ms)</div>
