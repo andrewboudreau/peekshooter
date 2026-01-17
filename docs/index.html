@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peek Shooter - Technical Documentation</title>
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1f2937;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #1a1f35 0%, #0d1117 50%, #1a2332 100%);
+            padding: 80px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2358a6ff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero .subtitle {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: var(--accent-green);
+            color: #000;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title .icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-card);
+            border-radius: 8px;
+            font-size: 1.2rem;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--card-accent, var(--accent-blue)), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-blue);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--card-accent, var(--accent-blue)), transparent);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+        }
+
+        .card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            background: rgba(88, 166, 255, 0.1);
+            color: var(--accent-blue);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .architecture-overview {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            margin-top: 60px;
+        }
+
+        .architecture-overview h2 {
+            margin-bottom: 32px;
+        }
+
+        .arch-diagram {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .arch-layer {
+            padding: 24px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .arch-layer.presentation {
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.2), rgba(88, 166, 255, 0.05));
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+
+        .arch-layer.logic {
+            background: linear-gradient(135deg, rgba(63, 185, 80, 0.2), rgba(63, 185, 80, 0.05));
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+
+        .arch-layer.network {
+            background: linear-gradient(135deg, rgba(210, 153, 34, 0.2), rgba(210, 153, 34, 0.05));
+            border: 1px solid rgba(210, 153, 34, 0.3);
+        }
+
+        .arch-layer h4 {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .arch-layer ul {
+            list-style: none;
+            text-align: left;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .arch-layer li {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .arch-layer li:last-child {
+            border-bottom: none;
+        }
+
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .tech-item {
+            text-align: center;
+        }
+
+        .tech-item .tech-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--bg-dark);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 1.8rem;
+        }
+
+        .tech-item span {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .file-tree {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 24px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin-top: 32px;
+        }
+
+        .file-tree-item {
+            padding: 4px 0;
+            color: var(--text-secondary);
+        }
+
+        .file-tree-item.folder {
+            color: var(--accent-blue);
+        }
+
+        .file-tree-item.file-js {
+            color: var(--accent-orange);
+        }
+
+        .file-tree-item.file-html {
+            color: var(--accent-red);
+        }
+
+        .file-tree-item .comment {
+            color: var(--text-secondary);
+            opacity: 0.6;
+            margin-left: 20px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Card accent colors */
+        .card[data-accent="blue"] { --card-accent: var(--accent-blue); }
+        .card[data-accent="green"] { --card-accent: var(--accent-green); }
+        .card[data-accent="orange"] { --card-accent: var(--accent-orange); }
+        .card[data-accent="red"] { --card-accent: var(--accent-red); }
+        .card[data-accent="purple"] { --card-accent: var(--accent-purple); }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .stats {
+                gap: 24px;
+            }
+
+            .arch-diagram {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="hero">
+        <div class="hero-content">
+            <h1>Peek Shooter</h1>
+            <p class="subtitle">A Lean-and-Peek 3D Multiplayer Shooter</p>
+            <span class="version-badge">v29</span>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">~10K</div>
+                    <div class="stat-label">Lines of Code</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">P2P</div>
+                    <div class="stat-label">WebRTC Network</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">60Hz</div>
+                    <div class="stat-label">Network Sync Rate</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">5</div>
+                    <div class="stat-label">Weapon Types</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section>
+            <h2 class="section-title">
+                <span class="icon">📚</span>
+                Documentation
+            </h2>
+
+            <div class="cards-grid">
+                <a href="network-architecture.html" class="card" data-accent="orange">
+                    <div class="card-icon">🌐</div>
+                    <h3>Network Architecture</h3>
+                    <p>Deep dive into the P2P WebRTC networking, message protocols, state synchronization, and coordinate transformations.</p>
+                    <div class="card-tags">
+                        <span class="tag">WebRTC</span>
+                        <span class="tag">PeerJS</span>
+                        <span class="tag">Socket.io</span>
+                        <span class="tag">60Hz Sync</span>
+                    </div>
+                </a>
+
+                <a href="ecs-system.html" class="card" data-accent="green">
+                    <div class="card-icon">🧩</div>
+                    <h3>ECS Architecture</h3>
+                    <p>Entity-Component-System pattern implementation with Components, Entities, and the composition-based design approach.</p>
+                    <div class="card-tags">
+                        <span class="tag">Entity</span>
+                        <span class="tag">Component</span>
+                        <span class="tag">Player</span>
+                        <span class="tag">Opponent</span>
+                    </div>
+                </a>
+
+                <a href="game-systems.html" class="card" data-accent="blue">
+                    <div class="card-icon">⚡</div>
+                    <h3>Game Systems</h3>
+                    <p>Core systems including Shooting, Audio, Effects, and the main game loop with multi-phase hit detection.</p>
+                    <div class="card-tags">
+                        <span class="tag">ShootingSystem</span>
+                        <span class="tag">AudioSystem</span>
+                        <span class="tag">EffectsSystem</span>
+                    </div>
+                </a>
+
+                <a href="events.html" class="card" data-accent="purple">
+                    <div class="card-icon">📡</div>
+                    <h3>Event System</h3>
+                    <p>Central EventBus pub/sub architecture with all game events, listeners, and inter-system communication.</p>
+                    <div class="card-tags">
+                        <span class="tag">EventBus</span>
+                        <span class="tag">Pub/Sub</span>
+                        <span class="tag">GameEvents</span>
+                    </div>
+                </a>
+
+                <a href="configuration.html" class="card" data-accent="red">
+                    <div class="card-icon">⚙️</div>
+                    <h3>Configuration System</h3>
+                    <p>Data-driven game configuration including weapons, damage, physics, and map definitions.</p>
+                    <div class="card-tags">
+                        <span class="tag">WeaponConfig</span>
+                        <span class="tag">DamageConfig</span>
+                        <span class="tag">PhysicsConfig</span>
+                        <span class="tag">MapConfig</span>
+                    </div>
+                </a>
+
+                <a href="weapons.html" class="card" data-accent="orange">
+                    <div class="card-icon">🔫</div>
+                    <h3>Weapon System</h3>
+                    <p>Procedural weapon model generation, fire modes, recoil patterns, and the WeaponFactory.</p>
+                    <div class="card-tags">
+                        <span class="tag">WeaponFactory</span>
+                        <span class="tag">Recoil</span>
+                        <span class="tag">Fire Modes</span>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <section class="architecture-overview">
+            <h2 class="section-title">
+                <span class="icon">🏗️</span>
+                Architecture Overview
+            </h2>
+
+            <div class="arch-diagram">
+                <div class="arch-layer presentation">
+                    <h4>🖥️ Presentation Layer</h4>
+                    <ul>
+                        <li>index.html - Game UI</li>
+                        <li>Three.js Rendering</li>
+                        <li>WebGL Canvas</li>
+                        <li>HUD Elements</li>
+                        <li>CSS Animations</li>
+                    </ul>
+                </div>
+
+                <div class="arch-layer logic">
+                    <h4>🎮 Game Logic Layer</h4>
+                    <ul>
+                        <li>game.js - Main Engine</li>
+                        <li>ECS Components</li>
+                        <li>ShootingSystem</li>
+                        <li>AudioSystem</li>
+                        <li>EffectsSystem</li>
+                    </ul>
+                </div>
+
+                <div class="arch-layer network">
+                    <h4>🌐 Network Layer</h4>
+                    <ul>
+                        <li>PeerJS (WebRTC)</li>
+                        <li>Socket.io Server</li>
+                        <li>State Sync (60Hz)</li>
+                        <li>Message Protocol</li>
+                        <li>Room Management</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tech-stack">
+                <div class="tech-item">
+                    <div class="tech-icon">🎨</div>
+                    <span>Three.js</span>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">🔌</div>
+                    <span>WebRTC</span>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">🔊</div>
+                    <span>Web Audio</span>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">📦</div>
+                    <span>Socket.io</span>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">🖼️</div>
+                    <span>WebGL</span>
+                </div>
+            </div>
+
+            <div class="file-tree">
+                <div class="file-tree-item folder">peekshooter/</div>
+                <div class="file-tree-item file-js">├── game.js <span class="comment">// Main game engine (4,398 lines)</span></div>
+                <div class="file-tree-item file-js">├── server.js <span class="comment">// Socket.io fallback server</span></div>
+                <div class="file-tree-item file-html">├── index.html <span class="comment">// Game UI & entry point</span></div>
+                <div class="file-tree-item folder">├── src/</div>
+                <div class="file-tree-item folder">│   ├── config/ <span class="comment">// Data-driven configuration</span></div>
+                <div class="file-tree-item file-js">│   │   ├── WeaponConfig.js</div>
+                <div class="file-tree-item file-js">│   │   ├── DamageConfig.js</div>
+                <div class="file-tree-item file-js">│   │   ├── PhysicsConfig.js</div>
+                <div class="file-tree-item file-js">│   │   └── MapConfig.js</div>
+                <div class="file-tree-item folder">│   ├── core/</div>
+                <div class="file-tree-item file-js">│   │   └── EventBus.js <span class="comment">// Pub/sub event system</span></div>
+                <div class="file-tree-item folder">│   ├── components/ <span class="comment">// ECS Components</span></div>
+                <div class="file-tree-item file-js">│   │   ├── HealthComponent.js</div>
+                <div class="file-tree-item file-js">│   │   ├── TransformComponent.js</div>
+                <div class="file-tree-item file-js">│   │   └── HitboxComponent.js</div>
+                <div class="file-tree-item folder">│   ├── entities/ <span class="comment">// ECS Entities</span></div>
+                <div class="file-tree-item file-js">│   │   ├── Entity.js</div>
+                <div class="file-tree-item file-js">│   │   ├── Player.js</div>
+                <div class="file-tree-item file-js">│   │   └── Opponent.js</div>
+                <div class="file-tree-item folder">│   ├── systems/ <span class="comment">// Game Systems</span></div>
+                <div class="file-tree-item file-js">│   │   ├── ShootingSystem.js</div>
+                <div class="file-tree-item file-js">│   │   ├── AudioSystem.js</div>
+                <div class="file-tree-item file-js">│   │   └── EffectsSystem.js</div>
+                <div class="file-tree-item folder">│   └── weapons/</div>
+                <div class="file-tree-item file-js">│       └── WeaponFactory.js <span class="comment">// Procedural weapon models</span></div>
+                <div class="file-tree-item folder">└── lib/ <span class="comment">// Third-party libraries</span></div>
+                <div class="file-tree-item file-js">    ├── three.min.js</div>
+                <div class="file-tree-item file-js">    └── peerjs.min.js</div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Peek Shooter Documentation | Built with vanilla HTML/CSS/JS</p>
+        <p style="margin-top: 8px;">
+            <a href="../index.html">Play the Game</a> |
+            <a href="https://github.com" target="_blank">GitHub</a>
+        </p>
+    </footer>
+</body>
+</html>

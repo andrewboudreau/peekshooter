@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration System - Peek Shooter Docs</title>
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1f2937;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-cyan: #39c5cf;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        nav {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-right: 24px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover, nav a.active { color: var(--accent-blue); }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 800px;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            margin: 48px 0 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin: 32px 0 16px;
+            color: var(--accent-blue);
+        }
+
+        p { margin-bottom: 16px; color: var(--text-secondary); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+        }
+
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .property { color: #d2a8ff; }
+        .code-block .function { color: #d2a8ff; }
+
+        /* Config Files Grid */
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin: 32px 0;
+        }
+
+        .config-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .config-card:hover {
+            border-color: var(--accent-red);
+            transform: translateY(-4px);
+        }
+
+        .config-card.active {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 20px rgba(63, 185, 80, 0.2);
+        }
+
+        .config-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .config-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .config-icon.weapon { background: rgba(210, 153, 34, 0.2); }
+        .config-icon.damage { background: rgba(248, 81, 73, 0.2); }
+        .config-icon.physics { background: rgba(88, 166, 255, 0.2); }
+        .config-icon.map { background: rgba(63, 185, 80, 0.2); }
+
+        .config-name { font-weight: 600; }
+        .config-file {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .config-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Interactive Config Editor */
+        .config-editor {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .editor-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .editor-tab {
+            padding: 8px 16px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .editor-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .editor-tab.active {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+            color: #000;
+        }
+
+        .config-section {
+            display: none;
+        }
+
+        .config-section.active {
+            display: block;
+        }
+
+        /* Value Display */
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .value-item {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .value-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .value-display {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        .value-unit {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-left: 4px;
+        }
+
+        /* Slider Control */
+        .slider-control {
+            margin: 16px 0;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .slider-name {
+            font-weight: 500;
+        }
+
+        .slider-value {
+            font-family: monospace;
+            color: var(--accent-cyan);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--bg-dark);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-red);
+            cursor: pointer;
+        }
+
+        /* Body Part Damage Visual */
+        .body-diagram {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            background: var(--bg-dark);
+            border-radius: 12px;
+            margin: 24px 0;
+        }
+
+        .body-figure {
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .body-part {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .body-part:hover {
+            filter: brightness(1.3);
+        }
+
+        .body-part.active {
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+
+        .body-head {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent-red);
+            margin-bottom: 4px;
+        }
+
+        .body-chest {
+            width: 60px;
+            height: 50px;
+            background: var(--accent-orange);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .body-belly {
+            width: 50px;
+            height: 35px;
+            background: var(--accent-orange);
+            opacity: 0.7;
+        }
+
+        .body-arms {
+            display: flex;
+            gap: 50px;
+            margin-top: -80px;
+        }
+
+        .body-arm {
+            width: 15px;
+            height: 70px;
+            background: var(--accent-green);
+            border-radius: 8px;
+        }
+
+        .damage-info {
+            text-align: left;
+        }
+
+        .damage-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .damage-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+        }
+
+        .damage-color.head { background: var(--accent-red); }
+        .damage-color.chest { background: var(--accent-orange); }
+        .damage-color.belly { background: #cc8800; }
+        .damage-color.arm { background: var(--accent-green); }
+
+        .damage-label { flex: 1; }
+        .damage-value {
+            font-weight: 700;
+            font-family: monospace;
+            color: var(--accent-cyan);
+        }
+
+        /* Map Preview */
+        .map-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin: 24px 0;
+        }
+
+        .map-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .map-card:hover {
+            border-color: var(--accent-green);
+            transform: scale(1.02);
+        }
+
+        .map-visual {
+            height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-arena {
+            background: linear-gradient(180deg, #1a2332 0%, #0d1117 100%);
+        }
+
+        .map-warehouse {
+            background: linear-gradient(180deg, #2a1a1a 0%, #0d1117 100%);
+        }
+
+        .map-floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: repeating-linear-gradient(
+                90deg,
+                rgba(88, 166, 255, 0.05) 0px,
+                rgba(88, 166, 255, 0.05) 1px,
+                transparent 1px,
+                transparent 30px
+            );
+        }
+
+        .map-cover {
+            position: absolute;
+            background: var(--accent-orange);
+            opacity: 0.8;
+        }
+
+        .map-info {
+            padding: 16px;
+        }
+
+        .map-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .map-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Physics Values */
+        .physics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .physics-category {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .physics-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--accent-blue);
+        }
+
+        .physics-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.9rem;
+        }
+
+        .physics-item .name { color: var(--text-secondary); }
+        .physics-item .value {
+            font-family: monospace;
+            color: var(--accent-cyan);
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="network-architecture.html">Network</a>
+        <a href="ecs-system.html">ECS</a>
+        <a href="game-systems.html">Systems</a>
+        <a href="events.html">Events</a>
+        <a href="configuration.html" class="active">Config</a>
+        <a href="weapons.html">Weapons</a>
+    </nav>
+
+    <div class="container">
+        <h1>Configuration System</h1>
+        <p class="intro">
+            Peek Shooter uses a data-driven configuration system where all game mechanics are defined in
+            centralized config objects. This eliminates magic numbers and makes balancing easy.
+        </p>
+
+        <h2>📁 Config Files</h2>
+
+        <div class="config-grid">
+            <div class="config-card" onclick="selectConfig('weapon')">
+                <div class="config-header">
+                    <div class="config-icon weapon">🔫</div>
+                    <div>
+                        <div class="config-name">WeaponConfig</div>
+                        <div class="config-file">src/config/WeaponConfig.js</div>
+                    </div>
+                </div>
+                <div class="config-desc">All 5 weapon definitions with damage, fire rate, recoil patterns, and ADS settings.</div>
+            </div>
+
+            <div class="config-card" onclick="selectConfig('damage')">
+                <div class="config-header">
+                    <div class="config-icon damage">💥</div>
+                    <div>
+                        <div class="config-name">DamageConfig</div>
+                        <div class="config-file">src/config/DamageConfig.js</div>
+                    </div>
+                </div>
+                <div class="config-desc">Body part damage values, multipliers, health settings, and debug colors.</div>
+            </div>
+
+            <div class="config-card" onclick="selectConfig('physics')">
+                <div class="config-header">
+                    <div class="config-icon physics">⚡</div>
+                    <div>
+                        <div class="config-name">PhysicsConfig</div>
+                        <div class="config-file">src/config/PhysicsConfig.js</div>
+                    </div>
+                </div>
+                <div class="config-desc">Movement speeds, mouse sensitivity, particle physics, and network rates.</div>
+            </div>
+
+            <div class="config-card" onclick="selectConfig('map')">
+                <div class="config-header">
+                    <div class="config-icon map">🗺️</div>
+                    <div>
+                        <div class="config-name">MapConfig</div>
+                        <div class="config-file">src/config/MapConfig.js</div>
+                    </div>
+                </div>
+                <div class="config-desc">Map layouts, cover positions, lighting setups, and spawn points.</div>
+            </div>
+        </div>
+
+        <h2>💥 Damage Configuration</h2>
+
+        <div class="body-diagram">
+            <div class="body-figure">
+                <div class="body-part body-head" onclick="selectBodyPart('head')"></div>
+                <div class="body-part body-chest" onclick="selectBodyPart('chest')"></div>
+                <div class="body-part body-belly" onclick="selectBodyPart('belly')"></div>
+                <div class="body-arms">
+                    <div class="body-part body-arm" onclick="selectBodyPart('arm')"></div>
+                    <div class="body-part body-arm" onclick="selectBodyPart('arm')"></div>
+                </div>
+            </div>
+
+            <div class="damage-info">
+                <div class="damage-row">
+                    <div class="damage-color head"></div>
+                    <div class="damage-label">Head</div>
+                    <div class="damage-value">25 damage</div>
+                </div>
+                <div class="damage-row">
+                    <div class="damage-color chest"></div>
+                    <div class="damage-label">Chest</div>
+                    <div class="damage-value">15 damage</div>
+                </div>
+                <div class="damage-row">
+                    <div class="damage-color belly"></div>
+                    <div class="damage-label">Belly</div>
+                    <div class="damage-value">10 damage</div>
+                </div>
+                <div class="damage-row">
+                    <div class="damage-color arm"></div>
+                    <div class="damage-label">Arm</div>
+                    <div class="damage-value">5 damage</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// DamageConfig.js - Body part damage definitions</span>
+<span class="keyword">const</span> DamageConfig = {
+    bodyParts: {
+        head: {
+            baseDamage: <span class="number">25</span>,
+            multiplier: <span class="number">2.0</span>,
+            colorHex: <span class="number">0xff0000</span>,  <span class="comment">// Red</span>
+            description: <span class="string">'Critical hit zone'</span>
+        },
+        chest: {
+            baseDamage: <span class="number">15</span>,
+            multiplier: <span class="number">1.0</span>,
+            colorHex: <span class="number">0xff8800</span>,  <span class="comment">// Orange</span>
+            description: <span class="string">'Center mass'</span>
+        },
+        belly: {
+            baseDamage: <span class="number">10</span>,
+            multiplier: <span class="number">0.8</span>,
+            colorHex: <span class="number">0xffff00</span>,  <span class="comment">// Yellow</span>
+            description: <span class="string">'Lower torso'</span>
+        },
+        arm: {
+            baseDamage: <span class="number">5</span>,
+            multiplier: <span class="number">0.5</span>,
+            colorHex: <span class="number">0x00ff00</span>,  <span class="comment">// Green</span>
+            description: <span class="string">'Limb hit'</span>
+        }
+    },
+
+    health: {
+        player: <span class="number">100</span>,
+        opponent: <span class="number">100</span>
+    },
+
+    <span class="function">getDamage</span>(bodyPart) {
+        <span class="keyword">return</span> <span class="keyword">this</span>.bodyParts[bodyPart]?.baseDamage || <span class="number">10</span>;
+    }
+};
+        </div>
+
+        <h2>⚡ Physics Configuration</h2>
+
+        <div class="physics-grid">
+            <div class="physics-category">
+                <div class="physics-title">Player Movement</div>
+                <div class="physics-item">
+                    <span class="name">Crouch Speed</span>
+                    <span class="value">3.0</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Lean Speed</span>
+                    <span class="value">6.0</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Strafe Speed</span>
+                    <span class="value">4.0</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Smoothing</span>
+                    <span class="value">12.0</span>
+                </div>
+            </div>
+
+            <div class="physics-category">
+                <div class="physics-title">Mouse Settings</div>
+                <div class="physics-item">
+                    <span class="name">Sensitivity</span>
+                    <span class="value">0.002</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Pitch Limit</span>
+                    <span class="value">0.35 rad</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Yaw Limit</span>
+                    <span class="value">0.4 rad</span>
+                </div>
+            </div>
+
+            <div class="physics-category">
+                <div class="physics-title">Opponent Model</div>
+                <div class="physics-item">
+                    <span class="name">Head Radius</span>
+                    <span class="value">0.15</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Chest Height</span>
+                    <span class="value">0.35</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Belly Height</span>
+                    <span class="value">0.25</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Arm Length</span>
+                    <span class="value">0.45</span>
+                </div>
+            </div>
+
+            <div class="physics-category">
+                <div class="physics-title">Network</div>
+                <div class="physics-item">
+                    <span class="name">Update Rate</span>
+                    <span class="value">60 Hz</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Lerp Speed</span>
+                    <span class="value">15.0</span>
+                </div>
+            </div>
+
+            <div class="physics-category">
+                <div class="physics-title">Blood Particles</div>
+                <div class="physics-item">
+                    <span class="name">Count</span>
+                    <span class="value">8-15</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Lifetime</span>
+                    <span class="value">0.5-1.5s</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Gravity</span>
+                    <span class="value">-9.8</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Spread</span>
+                    <span class="value">0.5</span>
+                </div>
+            </div>
+
+            <div class="physics-category">
+                <div class="physics-title">Bot AI</div>
+                <div class="physics-item">
+                    <span class="name">Move Time</span>
+                    <span class="value">1.5-3.0s</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Peek Time</span>
+                    <span class="value">0.3-0.8s</span>
+                </div>
+                <div class="physics-item">
+                    <span class="name">Accuracy</span>
+                    <span class="value">0.4</span>
+                </div>
+            </div>
+        </div>
+
+        <h2>🗺️ Map Configuration</h2>
+
+        <div class="map-preview">
+            <div class="map-card">
+                <div class="map-visual map-arena">
+                    <div class="map-floor"></div>
+                    <div class="map-cover" style="width: 60px; height: 40px; bottom: 60px; left: 40px; border-radius: 4px;"></div>
+                    <div class="map-cover" style="width: 60px; height: 40px; bottom: 60px; right: 40px; border-radius: 4px;"></div>
+                </div>
+                <div class="map-info">
+                    <div class="map-name">Arena</div>
+                    <div class="map-stats">
+                        <span>30x15 units</span>
+                        <span>2 cover objects</span>
+                        <span>Blue fog</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-card">
+                <div class="map-visual map-warehouse">
+                    <div class="map-floor" style="background: repeating-linear-gradient(90deg, rgba(139, 69, 19, 0.1) 0px, rgba(139, 69, 19, 0.1) 1px, transparent 1px, transparent 30px);"></div>
+                    <div class="map-cover" style="width: 40px; height: 50px; bottom: 60px; left: 30px; border-radius: 2px;"></div>
+                    <div class="map-cover" style="width: 40px; height: 50px; bottom: 60px; left: 80px; border-radius: 2px;"></div>
+                    <div class="map-cover" style="width: 40px; height: 50px; bottom: 60px; right: 30px; border-radius: 2px;"></div>
+                    <div class="map-cover" style="width: 40px; height: 50px; bottom: 60px; right: 80px; border-radius: 2px;"></div>
+                </div>
+                <div class="map-info">
+                    <div class="map-name">Warehouse</div>
+                    <div class="map-stats">
+                        <span>40x20 units</span>
+                        <span>Multiple obstacles</span>
+                        <span>Orange lighting</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// MapConfig.js - Map definition structure</span>
+<span class="keyword">const</span> MapConfig = {
+    maps: {
+        arena: {
+            name: <span class="string">'Arena'</span>,
+            scene: {
+                background: <span class="number">0x1a2332</span>,
+                fog: { color: <span class="number">0x1a2332</span>, density: <span class="number">0.02</span> }
+            },
+            floor: {
+                width: <span class="number">30</span>,
+                depth: <span class="number">15</span>,
+                texture: <span class="string">'dev_grey'</span>
+            },
+            cover: {
+                playerSide: [
+                    { x: <span class="number">-3</span>, z: <span class="number">-1</span>, width: <span class="number">2</span>, height: <span class="number">1.2</span>, depth: <span class="number">0.5</span> }
+                ],
+                opponentSide: [
+                    { x: <span class="number">3</span>, z: <span class="number">-14</span>, width: <span class="number">2</span>, height: <span class="number">1.2</span>, depth: <span class="number">0.5</span> }
+                ]
+            },
+            lighting: {
+                hemisphere: { skyColor: <span class="number">0x87ceeb</span>, groundColor: <span class="number">0x444444</span>, intensity: <span class="number">0.4</span> },
+                directional: { color: <span class="number">0xffffff</span>, intensity: <span class="number">0.8</span>, position: [<span class="number">5</span>, <span class="number">10</span>, <span class="number">5</span>] }
+            },
+            spawnPoints: {
+                player0: { x: <span class="number">0</span>, y: <span class="number">1.6</span>, z: <span class="number">0</span> },
+                player1: { x: <span class="number">0</span>, y: <span class="number">1.6</span>, z: <span class="number">-15</span> }
+            }
+        }
+    },
+
+    <span class="function">getMap</span>(id) {
+        <span class="keyword">return</span> <span class="keyword">this</span>.maps[id] || <span class="keyword">this</span>.maps.arena;
+    }
+};
+        </div>
+
+        <h2>🛠️ Using Configs</h2>
+
+        <div class="card">
+            <h4>Accessing Configuration Values</h4>
+            <div class="code-block">
+<span class="comment">// Get weapon config</span>
+<span class="keyword">const</span> weapon = WeaponConfig.<span class="function">getWeapon</span>(<span class="string">'assault_rifle'</span>);
+console.<span class="function">log</span>(weapon.damage.base);  <span class="comment">// 15</span>
+console.<span class="function">log</span>(weapon.fireRate.rpm);   <span class="comment">// 600</span>
+
+<span class="comment">// Get damage for body part</span>
+<span class="keyword">const</span> damage = DamageConfig.<span class="function">getDamage</span>(<span class="string">'head'</span>);  <span class="comment">// 25</span>
+
+<span class="comment">// Get physics value</span>
+<span class="keyword">const</span> crouchSpeed = PhysicsConfig.player.crouchSpeed;  <span class="comment">// 3.0</span>
+
+<span class="comment">// Get map data</span>
+<span class="keyword">const</span> map = MapConfig.<span class="function">getMap</span>(<span class="string">'arena'</span>);
+console.<span class="function">log</span>(map.floor.width);  <span class="comment">// 30</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>Benefits of Data-Driven Design</h4>
+            <ul style="padding-left: 24px; color: var(--text-secondary);">
+                <li style="margin-bottom: 8px;"><strong>No Magic Numbers:</strong> All values have clear names and documentation</li>
+                <li style="margin-bottom: 8px;"><strong>Easy Balancing:</strong> Change one value to adjust game feel</li>
+                <li style="margin-bottom: 8px;"><strong>Consistency:</strong> Same values used everywhere they're needed</li>
+                <li style="margin-bottom: 8px;"><strong>Extensibility:</strong> Add new weapons/maps by adding config entries</li>
+                <li style="margin-bottom: 8px;"><strong>Debugging:</strong> Easy to log and inspect current config state</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function selectConfig(type) {
+            document.querySelectorAll('.config-card').forEach(c => c.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        function selectBodyPart(part) {
+            document.querySelectorAll('.body-part').forEach(p => p.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+    </script>
+</body>
+</html>

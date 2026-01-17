@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Architecture - Peek Shooter Docs</title>
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1f2937;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-cyan: #39c5cf;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        nav {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-right: 24px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover, nav a.active {
+            color: var(--accent-blue);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 800px;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            margin: 48px 0 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin: 32px 0 16px;
+            color: var(--accent-blue);
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card h4 {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        /* Interactive Network Diagram */
+        .network-diagram {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            margin: 32px 0;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .diagram-title {
+            text-align: center;
+            margin-bottom: 32px;
+            font-size: 1.2rem;
+            color: var(--accent-orange);
+        }
+
+        .diagram-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .peer-box {
+            width: 200px;
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.1), rgba(88, 166, 255, 0.02));
+            border: 2px solid var(--accent-blue);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .peer-box:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(88, 166, 255, 0.3);
+        }
+
+        .peer-box.active {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 20px rgba(63, 185, 80, 0.3);
+        }
+
+        .peer-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
+        .peer-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .peer-slot {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .connection-line {
+            flex: 1;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green), var(--accent-blue));
+            margin: 0 20px;
+            position: relative;
+            border-radius: 2px;
+        }
+
+        .connection-line::before {
+            content: 'WebRTC DataChannel';
+            position: absolute;
+            top: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            white-space: nowrap;
+        }
+
+        .packets {
+            position: absolute;
+            top: -8px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .packet {
+            width: 20px;
+            height: 20px;
+            background: var(--accent-orange);
+            border-radius: 4px;
+            animation: movePacket 2s infinite;
+            opacity: 0;
+        }
+
+        .packet:nth-child(2) { animation-delay: 0.5s; }
+        .packet:nth-child(3) { animation-delay: 1s; }
+        .packet.reverse { animation: movePacketReverse 2s infinite; background: var(--accent-green); }
+
+        @keyframes movePacket {
+            0% { transform: translateX(-100px); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(400px); opacity: 0; }
+        }
+
+        @keyframes movePacketReverse {
+            0% { transform: translateX(100px); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(-400px); opacity: 0; }
+        }
+
+        .signaling-server {
+            position: absolute;
+            top: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(163, 113, 247, 0.1);
+            border: 2px solid var(--accent-purple);
+            border-radius: 8px;
+            padding: 12px 20px;
+            text-align: center;
+        }
+
+        .signaling-server::after {
+            content: '';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 30px;
+            background: var(--accent-purple);
+            opacity: 0.5;
+        }
+
+        /* Message Flow Visualization */
+        .message-flow {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-blue);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .flow-step:hover {
+            background: var(--bg-card-hover);
+            transform: translateX(8px);
+        }
+
+        .flow-step.state { border-left-color: var(--accent-green); }
+        .flow-step.shoot { border-left-color: var(--accent-orange); }
+        .flow-step.hit { border-left-color: var(--accent-red); }
+        .flow-step.killed { border-left-color: var(--accent-purple); }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-blue);
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+        }
+
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .property { color: #d2a8ff; }
+        .code-block .function { color: #d2a8ff; }
+
+        /* Interactive State Diagram */
+        .state-machine {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .states-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 24px;
+        }
+
+        .state-node {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .state-node.disconnected {
+            background: linear-gradient(135deg, rgba(248, 81, 73, 0.2), rgba(248, 81, 73, 0.05));
+            border: 2px solid var(--accent-red);
+        }
+
+        .state-node.connecting {
+            background: linear-gradient(135deg, rgba(210, 153, 34, 0.2), rgba(210, 153, 34, 0.05));
+            border: 2px solid var(--accent-orange);
+        }
+
+        .state-node.waiting {
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.2), rgba(88, 166, 255, 0.05));
+            border: 2px solid var(--accent-blue);
+        }
+
+        .state-node.playing {
+            background: linear-gradient(135deg, rgba(63, 185, 80, 0.2), rgba(63, 185, 80, 0.05));
+            border: 2px solid var(--accent-green);
+        }
+
+        .state-node:hover {
+            transform: scale(1.1);
+        }
+
+        .state-node.active {
+            box-shadow: 0 0 30px currentColor;
+        }
+
+        .state-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .state-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Coordinate Transform Visualizer */
+        .coord-visualizer {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .arena-view {
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+            margin: 24px auto;
+            background: linear-gradient(180deg, #1a2332 0%, #0d1117 100%);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .arena-floor {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            right: 50px;
+            height: 200px;
+            background: repeating-linear-gradient(
+                90deg,
+                rgba(88, 166, 255, 0.1) 0px,
+                rgba(88, 166, 255, 0.1) 1px,
+                transparent 1px,
+                transparent 40px
+            ),
+            repeating-linear-gradient(
+                0deg,
+                rgba(88, 166, 255, 0.1) 0px,
+                rgba(88, 166, 255, 0.1) 1px,
+                transparent 1px,
+                transparent 40px
+            );
+            transform: perspective(500px) rotateX(60deg);
+            transform-origin: bottom center;
+        }
+
+        .arena-player {
+            position: absolute;
+            width: 40px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .arena-player.player0 {
+            bottom: 80px;
+            left: calc(50% - 100px);
+            background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+            border: 2px solid var(--accent-blue);
+        }
+
+        .arena-player.player1 {
+            top: 80px;
+            right: calc(50% - 100px);
+            background: linear-gradient(135deg, var(--accent-red), #dc2626);
+            border: 2px solid var(--accent-red);
+        }
+
+        .arena-label {
+            position: absolute;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: var(--bg-dark);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .arena-label.z0 {
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .arena-label.z-15 {
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .transform-formula {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 24px;
+            font-family: 'Fira Code', monospace;
+            text-align: center;
+        }
+
+        .formula-line {
+            margin: 8px 0;
+            color: var(--accent-cyan);
+        }
+
+        /* Message Types Table */
+        .message-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+
+        .message-table th,
+        .message-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .message-table th {
+            background: var(--bg-dark);
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .message-table tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .type-badge.state { background: rgba(63, 185, 80, 0.2); color: var(--accent-green); }
+        .type-badge.shoot { background: rgba(210, 153, 34, 0.2); color: var(--accent-orange); }
+        .type-badge.hit { background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }
+        .type-badge.killed { background: rgba(163, 113, 247, 0.2); color: var(--accent-purple); }
+        .type-badge.reset { background: rgba(88, 166, 255, 0.2); color: var(--accent-blue); }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .tab-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #000;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Rate Limiter Visualization */
+        .rate-viz {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+
+        .rate-bar {
+            height: 30px;
+            background: var(--border);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .rate-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+
+        .rate-ticks {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .play-btn {
+            padding: 12px 24px;
+            background: var(--accent-green);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .diagram-container {
+                flex-direction: column;
+                gap: 40px;
+            }
+
+            .connection-line {
+                width: 4px;
+                height: 100px;
+                margin: 20px 0;
+            }
+
+            .states-container {
+                gap: 16px;
+            }
+
+            .state-node {
+                width: 100px;
+                height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="network-architecture.html" class="active">Network</a>
+        <a href="ecs-system.html">ECS</a>
+        <a href="game-systems.html">Systems</a>
+        <a href="events.html">Events</a>
+        <a href="configuration.html">Config</a>
+        <a href="weapons.html">Weapons</a>
+    </nav>
+
+    <div class="container">
+        <h1>Network Architecture</h1>
+        <p class="intro">
+            Peek Shooter uses a peer-to-peer WebRTC architecture via PeerJS for real-time multiplayer gameplay.
+            The network layer handles state synchronization at 60Hz, hit registration, and coordinate transformation
+            between players on opposite sides of the arena.
+        </p>
+
+        <h2>🔗 Connection Architecture</h2>
+
+        <div class="network-diagram">
+            <div class="diagram-title">P2P WebRTC Connection Flow</div>
+
+            <div class="signaling-server">
+                <div style="font-size: 1.5rem; margin-bottom: 4px;">☁️</div>
+                <div style="font-size: 0.85rem;">PeerJS Signaling</div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="peer-box" id="peer0" onclick="togglePeer(0)">
+                    <div class="peer-icon">🎮</div>
+                    <div class="peer-label">Player 1 (Host)</div>
+                    <div class="peer-slot">Slot 0 | z = 0</div>
+                </div>
+
+                <div class="connection-line">
+                    <div class="packets">
+                        <div class="packet"></div>
+                        <div class="packet"></div>
+                        <div class="packet"></div>
+                        <div class="packet reverse"></div>
+                        <div class="packet reverse"></div>
+                    </div>
+                </div>
+
+                <div class="peer-box" id="peer1" onclick="togglePeer(1)">
+                    <div class="peer-icon">🎮</div>
+                    <div class="peer-label">Player 2 (Joiner)</div>
+                    <div class="peer-slot">Slot 1 | z = -15</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>Connection Flow</h4>
+            <ol style="padding-left: 24px; color: var(--text-secondary);">
+                <li style="margin-bottom: 8px;"><strong>Host creates room:</strong> Generates 4-character room code (e.g., "ABCD")</li>
+                <li style="margin-bottom: 8px;"><strong>PeerJS registers:</strong> Host registers as <code>peekshooter-ABCD</code> on signaling server</li>
+                <li style="margin-bottom: 8px;"><strong>Joiner connects:</strong> Enters code, connects to <code>peekshooter-ABCD</code></li>
+                <li style="margin-bottom: 8px;"><strong>WebRTC established:</strong> ICE candidates exchanged, DataChannel opens</li>
+                <li style="margin-bottom: 8px;"><strong>Game starts:</strong> Both players spawn on opposite sides, state sync begins</li>
+            </ol>
+        </div>
+
+        <h2>📊 Network State Machine</h2>
+
+        <div class="state-machine">
+            <p>Click on states to see their transitions and behaviors:</p>
+
+            <div class="states-container">
+                <div class="state-node disconnected" id="state-disconnected" onclick="selectState('disconnected')">
+                    <div class="state-icon">🔴</div>
+                    <div class="state-name">Disconnected</div>
+                </div>
+
+                <div class="state-node connecting" id="state-connecting" onclick="selectState('connecting')">
+                    <div class="state-icon">🟡</div>
+                    <div class="state-name">Connecting</div>
+                </div>
+
+                <div class="state-node waiting" id="state-waiting" onclick="selectState('waiting')">
+                    <div class="state-icon">🔵</div>
+                    <div class="state-name">Waiting</div>
+                </div>
+
+                <div class="state-node playing" id="state-playing" onclick="selectState('playing')">
+                    <div class="state-icon">🟢</div>
+                    <div class="state-name">Playing</div>
+                </div>
+            </div>
+
+            <div id="state-info" class="card" style="margin-top: 24px;">
+                <h4 id="state-title">Select a state</h4>
+                <p id="state-desc">Click on any state above to see detailed information about that network state.</p>
+            </div>
+        </div>
+
+        <h2>📨 Message Protocol</h2>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('overview')">Overview</button>
+            <button class="tab-btn" onclick="showTab('state')">State Sync</button>
+            <button class="tab-btn" onclick="showTab('shoot')">Shooting</button>
+            <button class="tab-btn" onclick="showTab('hit')">Hit Registration</button>
+        </div>
+
+        <div id="tab-overview" class="tab-content active">
+            <table class="message-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Direction</th>
+                        <th>Frequency</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="type-badge state">state</span></td>
+                        <td>Bidirectional</td>
+                        <td>60 Hz</td>
+                        <td>Player stance, look direction, weapon state</td>
+                    </tr>
+                    <tr>
+                        <td><span class="type-badge shoot">shoot</span></td>
+                        <td>Sender → Receiver</td>
+                        <td>On action</td>
+                        <td>Shot fired with hit point and target info</td>
+                    </tr>
+                    <tr>
+                        <td><span class="type-badge hit">hit</span></td>
+                        <td>Shooter → Victim</td>
+                        <td>On hit</td>
+                        <td>Damage amount and body part hit</td>
+                    </tr>
+                    <tr>
+                        <td><span class="type-badge killed">killed</span></td>
+                        <td>Victim → Shooter</td>
+                        <td>On death</td>
+                        <td>Confirmation of kill</td>
+                    </tr>
+                    <tr>
+                        <td><span class="type-badge reset">reset</span></td>
+                        <td>Bidirectional</td>
+                        <td>On round end</td>
+                        <td>Health and state reset for new round</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="tab-state" class="tab-content">
+            <h3>State Synchronization (60 Hz)</h3>
+            <p>Player state is synchronized every frame to ensure smooth interpolation on the opponent's screen.</p>
+
+            <div class="code-block">
+<span class="comment">// State message structure</span>
+{
+    <span class="property">type</span>: <span class="string">'state'</span>,
+    <span class="property">state</span>: {
+        <span class="property">crouch</span>: <span class="number">0.5</span>,        <span class="comment">// 0 (standing) to 1 (crouched)</span>
+        <span class="property">lean</span>: <span class="number">-0.3</span>,         <span class="comment">// -1 (left) to 1 (right)</span>
+        <span class="property">strafe</span>: <span class="number">0.2</span>,        <span class="comment">// -1 (left) to 1 (right)</span>
+        <span class="property">lookYaw</span>: <span class="number">0.15</span>,      <span class="comment">// Horizontal look angle (radians)</span>
+        <span class="property">lookPitch</span>: <span class="number">-0.08</span>,   <span class="comment">// Vertical look angle (radians)</span>
+        <span class="property">weaponHand</span>: <span class="string">'right'</span>, <span class="comment">// Current weapon hand</span>
+        <span class="property">weapon</span>: <span class="string">'assault_rifle'</span>,
+        <span class="property">health</span>: <span class="number">85</span>
+    }
+}
+            </div>
+
+            <div class="rate-viz">
+                <h4 style="margin-bottom: 16px;">Network Update Rate Visualization</h4>
+                <div class="rate-bar">
+                    <div class="rate-fill" id="rate-fill"></div>
+                </div>
+                <div class="rate-ticks">
+                    <span>0ms</span>
+                    <span>16.67ms (60Hz)</span>
+                    <span>33.33ms</span>
+                </div>
+                <button class="play-btn" onclick="animateRate()">▶ Visualize 60Hz Updates</button>
+            </div>
+        </div>
+
+        <div id="tab-shoot" class="tab-content">
+            <h3>Shooting Message</h3>
+            <p>When a player fires, the shot information is sent to the opponent for visual feedback.</p>
+
+            <div class="code-block">
+<span class="comment">// Shoot message - sent when player fires</span>
+{
+    <span class="property">type</span>: <span class="string">'shoot'</span>,
+    <span class="property">hitPlayer</span>: <span class="keyword">true</span>,      <span class="comment">// Did the shot hit the opponent?</span>
+    <span class="property">hitCover</span>: <span class="keyword">false</span>,       <span class="comment">// Did it hit cover?</span>
+    <span class="property">hitX</span>: <span class="number">-2.5</span>,            <span class="comment">// Hit point X (world coords)</span>
+    <span class="property">hitY</span>: <span class="number">1.3</span>,             <span class="comment">// Hit point Y (world coords)</span>
+    <span class="property">hitZ</span>: <span class="number">-12.8</span>            <span class="comment">// Hit point Z (world coords)</span>
+}
+            </div>
+
+            <div class="card">
+                <h4>Shot Processing Flow</h4>
+                <div class="message-flow" style="padding: 0;">
+                    <div class="flow-step shoot">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <div class="step-title">Local Hit Detection</div>
+                            <div class="step-desc">ShootingSystem performs raycast, determines hit target and body part</div>
+                        </div>
+                    </div>
+                    <div class="flow-step shoot">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <div class="step-title">Send Shoot Message</div>
+                            <div class="step-desc">Hit information sent to opponent via DataChannel</div>
+                        </div>
+                    </div>
+                    <div class="flow-step hit">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <div class="step-title">Send Hit Message</div>
+                            <div class="step-desc">If hit opponent, send damage amount and body part</div>
+                        </div>
+                    </div>
+                    <div class="flow-step state">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <div class="step-title">Visual Feedback</div>
+                            <div class="step-desc">Opponent shows muzzle flash, blood effects at transformed coordinates</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-hit" class="tab-content">
+            <h3>Hit Registration</h3>
+            <p>Peek Shooter uses <strong>client-authoritative hit detection</strong> - the shooter's client determines hits.</p>
+
+            <div class="code-block">
+<span class="comment">// Hit message - sent when shooter confirms hit</span>
+{
+    <span class="property">type</span>: <span class="string">'hit'</span>,
+    <span class="property">damage</span>: <span class="number">25</span>,           <span class="comment">// Damage amount</span>
+    <span class="property">bodyPart</span>: <span class="string">'head'</span>     <span class="comment">// Body part hit</span>
+}
+
+<span class="comment">// Killed message - sent when victim's health depletes</span>
+{
+    <span class="property">type</span>: <span class="string">'killed'</span>
+}
+            </div>
+
+            <div class="card">
+                <h4>Body Part Damage Values</h4>
+                <table class="message-table">
+                    <thead>
+                        <tr>
+                            <th>Body Part</th>
+                            <th>Base Damage</th>
+                            <th>Multiplier</th>
+                            <th>Color Code</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Head</td>
+                            <td>25</td>
+                            <td>2.0x</td>
+                            <td><span style="color: #ff0000;">■</span> Red</td>
+                        </tr>
+                        <tr>
+                            <td>Chest</td>
+                            <td>15</td>
+                            <td>1.0x</td>
+                            <td><span style="color: #ff8800;">■</span> Orange</td>
+                        </tr>
+                        <tr>
+                            <td>Belly</td>
+                            <td>10</td>
+                            <td>0.8x</td>
+                            <td><span style="color: #ffff00;">■</span> Yellow</td>
+                        </tr>
+                        <tr>
+                            <td>Arm</td>
+                            <td>5</td>
+                            <td>0.5x</td>
+                            <td><span style="color: #00ff00;">■</span> Green</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h2>🗺️ Coordinate Transformation</h2>
+
+        <div class="coord-visualizer">
+            <p>Players face each other from opposite ends of the arena. When receiving opponent positions, coordinates must be transformed to match the local player's perspective.</p>
+
+            <div class="arena-view">
+                <div class="arena-floor"></div>
+                <div class="arena-player player0">🧍</div>
+                <div class="arena-player player1">🧍</div>
+                <div class="arena-label z0">z = 0 (Player 0 spawn)</div>
+                <div class="arena-label z-15">z = -15 (Player 1 spawn)</div>
+            </div>
+
+            <div class="transform-formula">
+                <div class="formula-line"><strong>Coordinate Transformation for Received Data:</strong></div>
+                <div class="formula-line">transformedX = <span style="color: var(--accent-red);">-</span>receivedX</div>
+                <div class="formula-line">transformedZ = <span style="color: var(--accent-red);">-15</span> - receivedZ</div>
+            </div>
+
+            <div class="code-block">
+<span class="comment">// handleOpponentShot - Transform received hit coordinates</span>
+<span class="keyword">function</span> <span class="function">handleOpponentShot</span>(opponent, shotData) {
+    <span class="comment">// Transform coordinates to local space</span>
+    <span class="keyword">const</span> transformedX = -shotData.hitX;
+    <span class="keyword">const</span> transformedZ = -<span class="number">15</span> - shotData.hitZ;
+
+    <span class="comment">// Now we can render effects at the correct position</span>
+    <span class="keyword">const</span> hitPoint = <span class="keyword">new</span> THREE.Vector3(
+        transformedX,
+        shotData.hitY,
+        transformedZ
+    );
+
+    createBloodSplatter(hitPoint, direction);
+}
+            </div>
+        </div>
+
+        <h2>🖥️ Socket.io Fallback Server</h2>
+
+        <div class="card">
+            <h4>server.js Architecture</h4>
+            <p>The Socket.io server provides a fallback for environments where WebRTC P2P fails. It handles room management, state relay, and authoritative hit validation.</p>
+
+            <div class="code-block">
+<span class="comment">// Server-side Room and Player classes</span>
+<span class="keyword">class</span> <span class="function">Player</span> {
+    <span class="function">constructor</span>(id, slot) {
+        <span class="keyword">this</span>.id = id;
+        <span class="keyword">this</span>.slot = slot;  <span class="comment">// 0 or 1</span>
+        <span class="keyword">this</span>.state = {
+            crouch: <span class="number">0</span>,
+            lean: <span class="number">0</span>,
+            strafe: <span class="number">0</span>,
+            lookYaw: <span class="number">0</span>,
+            lookPitch: <span class="number">0</span>,
+            weaponHand: <span class="string">'right'</span>,
+            health: <span class="number">100</span>
+        };
+    }
+}
+
+<span class="keyword">class</span> <span class="function">Room</span> {
+    <span class="function">constructor</span>(id) {
+        <span class="keyword">this</span>.id = id;
+        <span class="keyword">this</span>.players = <span class="keyword">new</span> Map();
+        <span class="keyword">this</span>.state = <span class="string">'waiting'</span>; <span class="comment">// waiting | playing | finished</span>
+        <span class="keyword">this</span>.scores = [<span class="number">0</span>, <span class="number">0</span>];
+    }
+}
+            </div>
+        </div>
+
+        <h2>📈 Network Performance</h2>
+
+        <div class="card">
+            <h4>Optimization Strategies</h4>
+            <ul style="padding-left: 24px; color: var(--text-secondary);">
+                <li style="margin-bottom: 12px;"><strong>State Interpolation:</strong> Opponent positions are interpolated at 15x speed to smooth network jitter</li>
+                <li style="margin-bottom: 12px;"><strong>Delta Compression:</strong> Only changed state values need to be sent (implicit in message structure)</li>
+                <li style="margin-bottom: 12px;"><strong>Fixed Update Rate:</strong> 60Hz ensures consistent behavior across different frame rates</li>
+                <li style="margin-bottom: 12px;"><strong>Client-Authoritative Hits:</strong> Reduces perceived latency for the shooter</li>
+                <li style="margin-bottom: 12px;"><strong>Reliable DataChannel:</strong> All messages delivered in order via reliable mode</li>
+            </ul>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// OpponentPlayer.update() - Interpolation toward target state</span>
+<span class="function">update</span>(deltaTime) {
+    <span class="keyword">const</span> lerpSpeed = <span class="number">15</span>; <span class="comment">// Interpolation multiplier</span>
+    <span class="keyword">const</span> t = Math.<span class="function">min</span>(<span class="number">1</span>, lerpSpeed * deltaTime);
+
+    <span class="comment">// Smoothly interpolate all stance values</span>
+    <span class="keyword">this</span>.state.crouch += (<span class="keyword">this</span>.targetState.crouch - <span class="keyword">this</span>.state.crouch) * t;
+    <span class="keyword">this</span>.state.lean += (<span class="keyword">this</span>.targetState.lean - <span class="keyword">this</span>.state.lean) * t;
+    <span class="keyword">this</span>.state.strafe += (<span class="keyword">this</span>.targetState.strafe - <span class="keyword">this</span>.state.strafe) * t;
+    <span class="keyword">this</span>.state.lookYaw += (<span class="keyword">this</span>.targetState.lookYaw - <span class="keyword">this</span>.state.lookYaw) * t;
+    <span class="keyword">this</span>.state.lookPitch += (<span class="keyword">this</span>.targetState.lookPitch - <span class="keyword">this</span>.state.lookPitch) * t;
+}
+        </div>
+    </div>
+
+    <script>
+        // State machine interaction
+        const stateInfo = {
+            disconnected: {
+                title: 'Disconnected State',
+                desc: 'Initial state. No peer connection exists. Player can start offline game or initiate online connection. Transitions to "connecting" when player clicks "Play Online".'
+            },
+            connecting: {
+                title: 'Connecting State',
+                desc: 'PeerJS is initializing and registering with signaling server. Room code is being generated. Transitions to "waiting" on successful registration, or back to "disconnected" on error.'
+            },
+            waiting: {
+                title: 'Waiting State',
+                desc: 'Host has room code displayed and is waiting for opponent to join. Joiner is attempting to connect to host. Transitions to "playing" when DataChannel opens successfully.'
+            },
+            playing: {
+                title: 'Playing State',
+                desc: 'Game is active! State sync running at 60Hz. Players can shoot, take damage, and score points. Transitions to "disconnected" if peer disconnects.'
+            }
+        };
+
+        function selectState(state) {
+            document.querySelectorAll('.state-node').forEach(n => n.classList.remove('active'));
+            document.getElementById('state-' + state).classList.add('active');
+            document.getElementById('state-title').textContent = stateInfo[state].title;
+            document.getElementById('state-desc').textContent = stateInfo[state].desc;
+        }
+
+        // Tab switching
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+        }
+
+        // Peer box toggle
+        function togglePeer(index) {
+            document.getElementById('peer' + index).classList.toggle('active');
+        }
+
+        // Rate visualization
+        let rateAnimating = false;
+        function animateRate() {
+            if (rateAnimating) return;
+            rateAnimating = true;
+
+            const fill = document.getElementById('rate-fill');
+            let progress = 0;
+
+            function tick() {
+                progress += 100 / 60; // 60 updates per second visual
+                if (progress >= 100) {
+                    progress = 0;
+                }
+                fill.style.width = progress + '%';
+
+                if (rateAnimating) {
+                    setTimeout(tick, 16.67); // ~60fps
+                }
+            }
+
+            tick();
+
+            // Stop after 5 seconds
+            setTimeout(() => {
+                rateAnimating = false;
+                fill.style.width = '0%';
+            }, 5000);
+        }
+
+        // Initialize with disconnected state
+        selectState('disconnected');
+    </script>
+</body>
+</html>

@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Systems - Peek Shooter Docs</title>
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1f2937;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-cyan: #39c5cf;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        nav {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-right: 24px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover, nav a.active { color: var(--accent-blue); }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 800px;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            margin: 48px 0 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin: 32px 0 16px;
+            color: var(--accent-blue);
+        }
+
+        p { margin-bottom: 16px; color: var(--text-secondary); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+        }
+
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .property { color: #d2a8ff; }
+        .code-block .function { color: #d2a8ff; }
+
+        /* Shooting System Pipeline */
+        .pipeline {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .pipeline-stages {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 24px;
+        }
+
+        .stage {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg-dark);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stage::after {
+            content: '→';
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .stage:last-child::after { display: none; }
+
+        .stage:hover {
+            transform: translateY(-4px);
+        }
+
+        .stage.active {
+            border: 2px solid var(--accent-blue);
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.2);
+        }
+
+        .stage-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+
+        .stage-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .stage-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .stage-detail {
+            margin-top: 24px;
+            padding: 20px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            display: none;
+        }
+
+        .stage-detail.active {
+            display: block;
+        }
+
+        /* Hit Priority Diagram */
+        .priority-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 24px 0;
+        }
+
+        .priority-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .priority-item:hover {
+            transform: translateX(8px);
+        }
+
+        .priority-num {
+            width: 36px;
+            height: 36px;
+            background: var(--accent-blue);
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .priority-item:nth-child(1) .priority-num { background: var(--accent-green); }
+        .priority-item:nth-child(2) .priority-num { background: var(--accent-orange); }
+        .priority-item:nth-child(3) .priority-num { background: var(--accent-red); }
+
+        .priority-content {
+            flex: 1;
+        }
+
+        .priority-title { font-weight: 600; }
+        .priority-desc { font-size: 0.85rem; color: var(--text-secondary); }
+
+        /* Audio Visualizer */
+        .audio-viz {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .sound-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .sound-item {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .sound-item:hover {
+            border-color: var(--accent-orange);
+            transform: scale(1.02);
+        }
+
+        .sound-item.playing {
+            border-color: var(--accent-green);
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .sound-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .sound-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .sound-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Waveform Display */
+        .waveform {
+            height: 60px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .wave-bar {
+            width: 4px;
+            background: var(--accent-green);
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        /* Effects System */
+        .effects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin: 32px 0;
+        }
+
+        .effect-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .effect-card:hover {
+            border-color: var(--accent-purple);
+            transform: translateY(-4px);
+        }
+
+        .effect-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .effect-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background: rgba(163, 113, 247, 0.2);
+        }
+
+        .effect-name { font-weight: 600; }
+
+        .effect-preview {
+            height: 100px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Blood Particle Animation */
+        .blood-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .blood-particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-red);
+            border-radius: 50%;
+            opacity: 0;
+        }
+
+        .blood-particle.animate {
+            animation: bloodSpray 1s ease-out forwards;
+        }
+
+        @keyframes bloodSpray {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--dx), var(--dy)) scale(0.3);
+            }
+        }
+
+        /* Hit Mark Animation */
+        .hit-mark-demo {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #333;
+            position: relative;
+        }
+
+        .hit-mark-demo::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: #111;
+            border-radius: 50%;
+        }
+
+        /* Game Loop Diagram */
+        .game-loop {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .loop-stages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .loop-stage {
+            padding: 16px 24px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            text-align: center;
+            position: relative;
+        }
+
+        .loop-stage::after {
+            content: '→';
+            position: absolute;
+            right: -16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+
+        .loop-stage:last-child::after {
+            content: '↺';
+            right: -20px;
+        }
+
+        .loop-time {
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            margin-top: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .pipeline-stages { flex-direction: column; }
+            .stage::after { display: none; }
+            .loop-stages { flex-direction: column; }
+            .loop-stage::after { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="network-architecture.html">Network</a>
+        <a href="ecs-system.html">ECS</a>
+        <a href="game-systems.html" class="active">Systems</a>
+        <a href="events.html">Events</a>
+        <a href="configuration.html">Config</a>
+        <a href="weapons.html">Weapons</a>
+    </nav>
+
+    <div class="container">
+        <h1>Game Systems</h1>
+        <p class="intro">
+            Peek Shooter uses dedicated systems for specific game functionality. Each system is a singleton
+            that handles a particular aspect of gameplay - shooting, audio, and visual effects.
+        </p>
+
+        <h2>🎯 ShootingSystem</h2>
+
+        <div class="pipeline">
+            <p>The ShootingSystem processes shots in distinct phases for clarity and maintainability.</p>
+
+            <div class="pipeline-stages">
+                <div class="stage active" onclick="selectStage(0)">
+                    <div class="stage-icon">🔫</div>
+                    <div class="stage-title">Prepare</div>
+                    <div class="stage-desc">Audio, recoil, events</div>
+                </div>
+
+                <div class="stage" onclick="selectStage(1)">
+                    <div class="stage-icon">📡</div>
+                    <div class="stage-title">Raycast</div>
+                    <div class="stage-desc">Ray intersection</div>
+                </div>
+
+                <div class="stage" onclick="selectStage(2)">
+                    <div class="stage-icon">🎯</div>
+                    <div class="stage-title">Process</div>
+                    <div class="stage-desc">Hit detection</div>
+                </div>
+
+                <div class="stage" onclick="selectStage(3)">
+                    <div class="stage-icon">💥</div>
+                    <div class="stage-title">Effects</div>
+                    <div class="stage-desc">Visual feedback</div>
+                </div>
+            </div>
+
+            <div id="stage-detail-0" class="stage-detail active">
+                <h4>Phase 1: Prepare Shot</h4>
+                <ul style="padding-left: 24px; color: var(--text-secondary);">
+                    <li>Emit <code>WEAPON_FIRED</code> event</li>
+                    <li>Play gunshot audio via AudioSystem</li>
+                    <li>Apply weapon recoil to camera</li>
+                    <li>Send network shoot message</li>
+                </ul>
+            </div>
+
+            <div id="stage-detail-1" class="stage-detail">
+                <h4>Phase 2: Perform Raycast</h4>
+                <ul style="padding-left: 24px; color: var(--text-secondary);">
+                    <li>Create ray from camera center (screen center)</li>
+                    <li>Store ray origin and direction</li>
+                    <li>Return raycast result for hit processing</li>
+                </ul>
+            </div>
+
+            <div id="stage-detail-2" class="stage-detail">
+                <h4>Phase 3: Process Hits</h4>
+                <ul style="padding-left: 24px; color: var(--text-secondary);">
+                    <li>Check opponent intersection (multiplayer)</li>
+                    <li>Check practice target intersection (offline)</li>
+                    <li>Check environment intersection (walls, cover)</li>
+                    <li>Apply damage and emit events</li>
+                </ul>
+            </div>
+
+            <div id="stage-detail-3" class="stage-detail">
+                <h4>Phase 4: Create Effects</h4>
+                <ul style="padding-left: 24px; color: var(--text-secondary);">
+                    <li>Blood splatter particles (opponent hits)</li>
+                    <li>Blood decals on surfaces</li>
+                    <li>Bullet hole decals (environment)</li>
+                    <li>Hit marker UI feedback</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>Hit Priority System</h3>
+        <div class="priority-list">
+            <div class="priority-item">
+                <div class="priority-num">1</div>
+                <div class="priority-content">
+                    <div class="priority-title">Opponent Hit</div>
+                    <div class="priority-desc">Check if ray intersects opponent mesh. If hit, determine body part and apply damage.</div>
+                </div>
+            </div>
+            <div class="priority-item">
+                <div class="priority-num">2</div>
+                <div class="priority-content">
+                    <div class="priority-title">Target Hit</div>
+                    <div class="priority-desc">Check practice targets in offline mode. Award points on hit.</div>
+                </div>
+            </div>
+            <div class="priority-item">
+                <div class="priority-num">3</div>
+                <div class="priority-content">
+                    <div class="priority-title">Environment Hit</div>
+                    <div class="priority-desc">Check walls, cover, and other scenery. Create bullet hole decal.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// ShootingSystem main entry point</span>
+<span class="function">shoot</span>(context) {
+    <span class="keyword">const</span> { gameState, netState, targets } = context;
+
+    <span class="comment">// Phase 1: Prepare the shot</span>
+    <span class="keyword">const</span> shotData = <span class="keyword">this</span>.<span class="function">prepareShot</span>(gameState);
+
+    <span class="comment">// Phase 2: Perform raycast</span>
+    <span class="keyword">const</span> raycastResult = <span class="keyword">this</span>.<span class="function">performRaycast</span>();
+
+    <span class="comment">// Phase 3: Process hits in priority order</span>
+    <span class="keyword">let</span> result = <span class="keyword">null</span>;
+
+    <span class="comment">// Priority 1: Check opponent</span>
+    <span class="keyword">if</span> (netState?.gameMode === <span class="string">'online'</span>) {
+        result = <span class="keyword">this</span>.<span class="function">handleOpponentHit</span>(raycastResult, netState);
+        <span class="keyword">if</span> (result?.hit) <span class="keyword">return</span> result;
+    }
+
+    <span class="comment">// Priority 2: Check targets</span>
+    <span class="keyword">if</span> (targets?.length > <span class="number">0</span>) {
+        result = <span class="keyword">this</span>.<span class="function">handleTargetHit</span>(raycastResult, targets);
+        <span class="keyword">if</span> (result?.hit) <span class="keyword">return</span> result;
+    }
+
+    <span class="comment">// Priority 3: Check environment</span>
+    <span class="keyword">return</span> <span class="keyword">this</span>.<span class="function">handleEnvironmentHit</span>(raycastResult);
+}
+        </div>
+
+        <h2>🔊 AudioSystem</h2>
+
+        <div class="audio-viz">
+            <p>All sounds in Peek Shooter are procedurally generated using the Web Audio API - no pre-recorded audio files.</p>
+
+            <div class="sound-list">
+                <div class="sound-item" onclick="playSound('gunshot')">
+                    <div class="sound-icon">🔫</div>
+                    <div class="sound-name">Gunshot</div>
+                    <div class="sound-desc">3-layer: crack, body, thump</div>
+                    <div class="waveform" id="waveform-gunshot"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('hitmarker')">
+                    <div class="sound-icon">🎯</div>
+                    <div class="sound-name">Hit Marker</div>
+                    <div class="sound-desc">High-frequency ping</div>
+                    <div class="waveform" id="waveform-hitmarker"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('damage')">
+                    <div class="sound-icon">💔</div>
+                    <div class="sound-name">Damage</div>
+                    <div class="sound-desc">Low thud impact</div>
+                    <div class="waveform" id="waveform-damage"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('kill')">
+                    <div class="sound-icon">💀</div>
+                    <div class="sound-name">Kill</div>
+                    <div class="sound-desc">Descending chord</div>
+                    <div class="waveform" id="waveform-kill"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('wall')">
+                    <div class="sound-icon">🧱</div>
+                    <div class="sound-name">Wall Impact</div>
+                    <div class="sound-desc">Sharp crack</div>
+                    <div class="waveform" id="waveform-wall"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('barrier')">
+                    <div class="sound-icon">🛡️</div>
+                    <div class="sound-name">Barrier Impact</div>
+                    <div class="sound-desc">Metallic ping</div>
+                    <div class="waveform" id="waveform-barrier"></div>
+                </div>
+            </div>
+
+            <p style="margin-top: 24px; font-size: 0.9rem; text-align: center; color: var(--accent-cyan);">
+                Click any sound to see its waveform visualization
+            </p>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// AudioSystem - Procedural sound generation</span>
+<span class="keyword">const</span> AudioSystem = {
+    audioContext: <span class="keyword">null</span>,
+    masterGain: <span class="keyword">null</span>,
+    muted: <span class="keyword">false</span>,
+
+    <span class="function">init</span>() {
+        <span class="keyword">this</span>.audioContext = <span class="keyword">new</span> (window.AudioContext || window.webkitAudioContext)();
+        <span class="keyword">this</span>.masterGain = <span class="keyword">this</span>.audioContext.<span class="function">createGain</span>();
+        <span class="keyword">this</span>.masterGain.<span class="function">connect</span>(<span class="keyword">this</span>.audioContext.destination);
+    },
+
+    <span class="comment">// 3-layer gunshot: crack + body + thump</span>
+    <span class="function">playGunshot</span>() {
+        <span class="keyword">const</span> ctx = <span class="keyword">this</span>.audioContext;
+        <span class="keyword">const</span> now = ctx.currentTime;
+
+        <span class="comment">// Layer 1: High-frequency crack</span>
+        <span class="keyword">const</span> crack = ctx.<span class="function">createOscillator</span>();
+        crack.type = <span class="string">'sawtooth'</span>;
+        crack.frequency.value = <span class="number">2000</span>;
+        <span class="comment">// ... envelope and connect</span>
+
+        <span class="comment">// Layer 2: Mid-frequency body</span>
+        <span class="keyword">const</span> body = ctx.<span class="function">createOscillator</span>();
+        body.type = <span class="string">'square'</span>;
+        body.frequency.value = <span class="number">150</span>;
+
+        <span class="comment">// Layer 3: Low-frequency thump</span>
+        <span class="keyword">const</span> thump = ctx.<span class="function">createOscillator</span>();
+        thump.type = <span class="string">'sine'</span>;
+        thump.frequency.value = <span class="number">60</span>;
+    },
+};
+        </div>
+
+        <h2>✨ EffectsSystem</h2>
+
+        <div class="effects-grid">
+            <div class="effect-card">
+                <div class="effect-header">
+                    <div class="effect-icon">🩸</div>
+                    <div class="effect-name">Blood Splatter</div>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                    Particles spray from hit point in direction of shot. 8-15 particles with random spread,
+                    affected by gravity, lifetime 0.5-1.5 seconds.
+                </p>
+                <div class="effect-preview">
+                    <div class="blood-container" id="blood-demo" onclick="triggerBlood()">
+                        <div style="color: var(--text-secondary); font-size: 0.8rem;">Click to demo</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="effect-card">
+                <div class="effect-header">
+                    <div class="effect-icon">🔴</div>
+                    <div class="effect-name">Blood Decal</div>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                    Stain applied to surfaces behind hit point. Random rotation, size variation 0.1-0.3 units,
+                    slight offset to prevent z-fighting.
+                </p>
+                <div class="effect-preview">
+                    <div style="width: 40px; height: 40px; background: radial-gradient(circle, #8b0000 0%, transparent 70%); border-radius: 50%; opacity: 0.8;"></div>
+                </div>
+            </div>
+
+            <div class="effect-card">
+                <div class="effect-header">
+                    <div class="effect-icon">⚫</div>
+                    <div class="effect-name">Hit Mark</div>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                    Bullet hole decal on environment surfaces. Dark circular mark with centered hole,
+                    aligned to surface normal.
+                </p>
+                <div class="effect-preview">
+                    <div class="hit-mark-demo"></div>
+                </div>
+            </div>
+
+            <div class="effect-card">
+                <div class="effect-header">
+                    <div class="effect-icon">❌</div>
+                    <div class="effect-name">Hit Marker UI</div>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                    Screen center crosshair indicator. Flashes white on hit, red on headshot.
+                    Brief animation with CSS transitions.
+                </p>
+                <div class="effect-preview">
+                    <div style="font-size: 2rem; color: white; text-shadow: 0 0 10px white;">✕</div>
+                </div>
+            </div>
+        </div>
+
+        <h2>🔄 Main Game Loop</h2>
+
+        <div class="game-loop">
+            <p>The game runs at display refresh rate (typically 60fps) using requestAnimationFrame.</p>
+
+            <div class="loop-stages">
+                <div class="loop-stage">
+                    <div>Input</div>
+                    <div class="loop-time">~0.1ms</div>
+                </div>
+                <div class="loop-stage">
+                    <div>Stance</div>
+                    <div class="loop-time">~0.2ms</div>
+                </div>
+                <div class="loop-stage">
+                    <div>Camera</div>
+                    <div class="loop-time">~0.1ms</div>
+                </div>
+                <div class="loop-stage">
+                    <div>Weapon</div>
+                    <div class="loop-time">~0.1ms</div>
+                </div>
+                <div class="loop-stage">
+                    <div>Opponent</div>
+                    <div class="loop-time">~0.3ms</div>
+                </div>
+                <div class="loop-stage">
+                    <div>Effects</div>
+                    <div class="loop-time">~0.2ms</div>
+                </div>
+                <div class="loop-stage">
+                    <div>Network</div>
+                    <div class="loop-time">~0.1ms</div>
+                </div>
+                <div class="loop-stage">
+                    <div>Render</div>
+                    <div class="loop-time">~8ms</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// Main animation loop - game.js</span>
+<span class="keyword">function</span> <span class="function">animate</span>() {
+    requestAnimationFrame(animate);
+
+    <span class="keyword">const</span> now = performance.<span class="function">now</span>();
+    <span class="keyword">const</span> deltaTime = (now - lastTime) / <span class="number">1000</span>;
+    lastTime = now;
+
+    <span class="keyword">if</span> (!gameState.isRunning) <span class="keyword">return</span>;
+
+    <span class="comment">// 1. Update stance (crouch, lean, strafe)</span>
+    <span class="function">updateStance</span>(deltaTime);
+
+    <span class="comment">// 2. Update camera position and rotation</span>
+    <span class="function">updateCamera</span>();
+
+    <span class="comment">// 3. Update weapon position (hip/ADS)</span>
+    <span class="function">updateWeaponPosition</span>();
+
+    <span class="comment">// 4. Update opponent mesh from network state</span>
+    <span class="keyword">if</span> (netState.opponent) {
+        netState.opponent.<span class="function">update</span>(deltaTime);
+        <span class="function">updateOpponentMesh</span>(deltaTime);
+    }
+
+    <span class="comment">// 5. Update blood particles</span>
+    <span class="function">updateBloodParticles</span>(deltaTime);
+
+    <span class="comment">// 6. Update recoil recovery</span>
+    <span class="function">updateRecoil</span>(deltaTime);
+
+    <span class="comment">// 7. Send network state (60Hz)</span>
+    <span class="function">sendStateUpdate</span>();
+
+    <span class="comment">// 8. Render the scene</span>
+    renderer.<span class="function">render</span>(scene, camera);
+}
+        </div>
+
+        <h2>📊 System Dependencies</h2>
+
+        <div class="card">
+            <p>Systems are loosely coupled through the EventBus. Here's how they communicate:</p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <th style="padding: 12px; text-align: left; color: var(--accent-blue);">System</th>
+                    <th style="padding: 12px; text-align: left; color: var(--accent-blue);">Emits</th>
+                    <th style="padding: 12px; text-align: left; color: var(--accent-blue);">Listens To</th>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 12px;">ShootingSystem</td>
+                    <td style="padding: 12px; font-family: monospace; font-size: 0.85rem;">WEAPON_FIRED, HIT_OPPONENT, HIT_COVER, HIT_TARGET</td>
+                    <td style="padding: 12px; font-size: 0.85rem;">-</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 12px;">AudioSystem</td>
+                    <td style="padding: 12px; font-size: 0.85rem;">-</td>
+                    <td style="padding: 12px; font-family: monospace; font-size: 0.85rem;">WEAPON_FIRED, HIT_*, DAMAGE_*</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 12px;">EffectsSystem</td>
+                    <td style="padding: 12px; font-size: 0.85rem;">-</td>
+                    <td style="padding: 12px; font-family: monospace; font-size: 0.85rem;">EFFECT_BLOOD_*, EFFECT_HIT_MARK</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px;">Network Layer</td>
+                    <td style="padding: 12px; font-family: monospace; font-size: 0.85rem;">NET_CONNECTED, NET_MESSAGE</td>
+                    <td style="padding: 12px; font-family: monospace; font-size: 0.85rem;">HIT_OPPONENT, PLAYER_KILLED</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Stage selection
+        function selectStage(index) {
+            document.querySelectorAll('.stage').forEach((s, i) => {
+                s.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.stage-detail').forEach((d, i) => {
+                d.classList.toggle('active', i === index);
+            });
+        }
+
+        // Audio visualization
+        let audioCtx = null;
+
+        function playSound(type) {
+            // Initialize audio context on first click
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            const item = event.currentTarget;
+            item.classList.add('playing');
+            setTimeout(() => item.classList.remove('playing'), 500);
+
+            // Visualize waveform
+            const waveform = document.getElementById('waveform-' + type);
+            waveform.innerHTML = '';
+
+            const barCount = 20;
+            for (let i = 0; i < barCount; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'wave-bar';
+                const height = Math.random() * 40 + 10;
+                bar.style.height = height + 'px';
+                bar.style.animationDelay = (i * 0.02) + 's';
+                waveform.appendChild(bar);
+            }
+
+            // Actually play the sound
+            playSoundEffect(type);
+        }
+
+        function playSoundEffect(type) {
+            const now = audioCtx.currentTime;
+
+            switch(type) {
+                case 'gunshot':
+                    // High crack
+                    const crack = audioCtx.createOscillator();
+                    crack.type = 'sawtooth';
+                    crack.frequency.value = 2000;
+                    const crackGain = audioCtx.createGain();
+                    crackGain.gain.setValueAtTime(0.3, now);
+                    crackGain.gain.exponentialDecayTo(0.01, now + 0.05);
+                    crack.connect(crackGain).connect(audioCtx.destination);
+                    crack.start(now);
+                    crack.stop(now + 0.05);
+
+                    // Body
+                    const body = audioCtx.createOscillator();
+                    body.type = 'square';
+                    body.frequency.value = 150;
+                    const bodyGain = audioCtx.createGain();
+                    bodyGain.gain.setValueAtTime(0.2, now);
+                    bodyGain.gain.exponentialDecayTo(0.01, now + 0.1);
+                    body.connect(bodyGain).connect(audioCtx.destination);
+                    body.start(now);
+                    body.stop(now + 0.1);
+                    break;
+
+                case 'hitmarker':
+                    const ping = audioCtx.createOscillator();
+                    ping.type = 'sine';
+                    ping.frequency.value = 1800;
+                    const pingGain = audioCtx.createGain();
+                    pingGain.gain.setValueAtTime(0.2, now);
+                    pingGain.gain.exponentialDecayTo(0.01, now + 0.1);
+                    ping.connect(pingGain).connect(audioCtx.destination);
+                    ping.start(now);
+                    ping.stop(now + 0.1);
+                    break;
+
+                case 'damage':
+                    const thud = audioCtx.createOscillator();
+                    thud.type = 'sine';
+                    thud.frequency.value = 80;
+                    const thudGain = audioCtx.createGain();
+                    thudGain.gain.setValueAtTime(0.4, now);
+                    thudGain.gain.exponentialDecayTo(0.01, now + 0.2);
+                    thud.connect(thudGain).connect(audioCtx.destination);
+                    thud.start(now);
+                    thud.stop(now + 0.2);
+                    break;
+
+                case 'kill':
+                    [800, 600, 400].forEach((freq, i) => {
+                        const osc = audioCtx.createOscillator();
+                        osc.type = 'sine';
+                        osc.frequency.value = freq;
+                        const gain = audioCtx.createGain();
+                        gain.gain.setValueAtTime(0.15, now + i * 0.1);
+                        gain.gain.exponentialDecayTo(0.01, now + i * 0.1 + 0.2);
+                        osc.connect(gain).connect(audioCtx.destination);
+                        osc.start(now + i * 0.1);
+                        osc.stop(now + i * 0.1 + 0.2);
+                    });
+                    break;
+
+                default:
+                    const noise = audioCtx.createOscillator();
+                    noise.type = 'triangle';
+                    noise.frequency.value = 400;
+                    const noiseGain = audioCtx.createGain();
+                    noiseGain.gain.setValueAtTime(0.2, now);
+                    noiseGain.gain.exponentialDecayTo(0.01, now + 0.08);
+                    noise.connect(noiseGain).connect(audioCtx.destination);
+                    noise.start(now);
+                    noise.stop(now + 0.08);
+            }
+        }
+
+        // Polyfill for exponentialDecayTo
+        GainNode.prototype.exponentialDecayTo = function(value, time) {
+            this.gain.exponentialRampToValueAtTime(Math.max(0.0001, value), time);
+        };
+
+        // Blood effect demo
+        function triggerBlood() {
+            const container = document.getElementById('blood-demo');
+            container.innerHTML = '';
+
+            const centerX = container.offsetWidth / 2;
+            const centerY = container.offsetHeight / 2;
+
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'blood-particle';
+                particle.style.left = centerX + 'px';
+                particle.style.top = centerY + 'px';
+
+                const angle = (Math.random() - 0.5) * Math.PI;
+                const distance = 30 + Math.random() * 50;
+                const dx = Math.cos(angle) * distance;
+                const dy = Math.sin(angle) * distance - 20;
+
+                particle.style.setProperty('--dx', dx + 'px');
+                particle.style.setProperty('--dy', dy + 'px');
+
+                container.appendChild(particle);
+
+                setTimeout(() => particle.classList.add('animate'), 10);
+            }
+        }
+    </script>
+</body>
+</html>

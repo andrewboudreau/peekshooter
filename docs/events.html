@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event System - Peek Shooter Docs</title>
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1f2937;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-cyan: #39c5cf;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        nav {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-right: 24px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover, nav a.active { color: var(--accent-blue); }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 800px;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            margin: 48px 0 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin: 32px 0 16px;
+            color: var(--accent-blue);
+        }
+
+        p { margin-bottom: 16px; color: var(--text-secondary); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+        }
+
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .property { color: #d2a8ff; }
+        .code-block .function { color: #d2a8ff; }
+
+        /* Event Bus Diagram */
+        .eventbus-diagram {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            margin: 32px 0;
+            text-align: center;
+        }
+
+        .bus-line {
+            height: 8px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue), var(--accent-green));
+            border-radius: 4px;
+            margin: 40px 0;
+            position: relative;
+        }
+
+        .bus-label {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 4px 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            color: var(--accent-purple);
+            border: 1px solid var(--accent-purple);
+        }
+
+        .subscribers {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .subscriber {
+            background: var(--bg-dark);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 24px;
+            min-width: 140px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .subscriber:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-4px);
+        }
+
+        .subscriber.emitting {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 20px rgba(63, 185, 80, 0.3);
+        }
+
+        .subscriber-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .subscriber-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* Event Flow Animation */
+        .event-flow {
+            position: relative;
+            height: 60px;
+            margin: 20px 0;
+        }
+
+        .event-packet {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: var(--accent-purple);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            opacity: 0;
+        }
+
+        .event-packet.animate {
+            animation: flowEvent 1.5s ease-in-out forwards;
+        }
+
+        @keyframes flowEvent {
+            0% { left: 0; opacity: 0; transform: scale(0.5); }
+            20% { opacity: 1; transform: scale(1); }
+            80% { opacity: 1; transform: scale(1); }
+            100% { left: calc(100% - 40px); opacity: 0; transform: scale(0.5); }
+        }
+
+        /* Event Categories */
+        .event-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin: 32px 0;
+        }
+
+        .category-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .category-card:hover {
+            border-color: var(--accent-purple);
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .category-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .category-icon.weapon { background: rgba(210, 153, 34, 0.2); }
+        .category-icon.combat { background: rgba(248, 81, 73, 0.2); }
+        .category-icon.health { background: rgba(63, 185, 80, 0.2); }
+        .category-icon.game { background: rgba(88, 166, 255, 0.2); }
+        .category-icon.network { background: rgba(163, 113, 247, 0.2); }
+        .category-icon.ui { background: rgba(57, 197, 207, 0.2); }
+
+        .category-name {
+            font-weight: 600;
+        }
+
+        .event-list {
+            list-style: none;
+        }
+
+        .event-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+        }
+
+        .event-item:last-child {
+            border-bottom: none;
+        }
+
+        .event-name {
+            font-family: monospace;
+            color: var(--accent-cyan);
+        }
+
+        .event-desc {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* Interactive Demo */
+        .demo-area {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .demo-controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .emit-btn {
+            padding: 12px 24px;
+            background: var(--accent-purple);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .emit-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(163, 113, 247, 0.3);
+        }
+
+        .event-log {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .log-entry.emit {
+            background: rgba(163, 113, 247, 0.1);
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .log-entry.receive {
+            background: rgba(63, 185, 80, 0.1);
+            border-left: 3px solid var(--accent-green);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+
+        .log-event {
+            color: var(--accent-cyan);
+        }
+
+        .log-data {
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-size: 0.8rem;
+        }
+
+        /* API Reference */
+        .api-method {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        .method-signature {
+            font-family: monospace;
+            font-size: 1rem;
+            color: var(--accent-cyan);
+            margin-bottom: 12px;
+        }
+
+        .method-desc {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .method-params {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .param-item {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .param-item:last-child {
+            border-bottom: none;
+        }
+
+        .param-name {
+            font-family: monospace;
+            color: var(--accent-orange);
+            min-width: 100px;
+        }
+
+        .param-type {
+            color: var(--accent-purple);
+            min-width: 80px;
+        }
+
+        .param-desc {
+            color: var(--text-secondary);
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="network-architecture.html">Network</a>
+        <a href="ecs-system.html">ECS</a>
+        <a href="game-systems.html">Systems</a>
+        <a href="events.html" class="active">Events</a>
+        <a href="configuration.html">Config</a>
+        <a href="weapons.html">Weapons</a>
+    </nav>
+
+    <div class="container">
+        <h1>Event System</h1>
+        <p class="intro">
+            The EventBus provides a central pub/sub system for decoupling game systems. Any component can emit
+            events without knowing who's listening, and any system can subscribe to events without knowing who emits them.
+        </p>
+
+        <h2>📡 EventBus Architecture</h2>
+
+        <div class="eventbus-diagram">
+            <div class="subscribers">
+                <div class="subscriber" onclick="emitFrom('shooting')">
+                    <div class="subscriber-icon">🎯</div>
+                    <div class="subscriber-name">ShootingSystem</div>
+                </div>
+                <div class="subscriber" onclick="emitFrom('audio')">
+                    <div class="subscriber-icon">🔊</div>
+                    <div class="subscriber-name">AudioSystem</div>
+                </div>
+                <div class="subscriber" onclick="emitFrom('effects')">
+                    <div class="subscriber-icon">✨</div>
+                    <div class="subscriber-name">EffectsSystem</div>
+                </div>
+                <div class="subscriber" onclick="emitFrom('network')">
+                    <div class="subscriber-icon">🌐</div>
+                    <div class="subscriber-name">Network</div>
+                </div>
+            </div>
+
+            <div class="bus-line">
+                <div class="bus-label">EventBus</div>
+                <div class="event-flow">
+                    <div class="event-packet" id="event-packet">📨</div>
+                </div>
+            </div>
+
+            <div class="subscribers">
+                <div class="subscriber" id="sub-ui">
+                    <div class="subscriber-icon">🖥️</div>
+                    <div class="subscriber-name">UI</div>
+                </div>
+                <div class="subscriber" id="sub-health">
+                    <div class="subscriber-icon">❤️</div>
+                    <div class="subscriber-name">HealthComponent</div>
+                </div>
+                <div class="subscriber" id="sub-game">
+                    <div class="subscriber-icon">🎮</div>
+                    <div class="subscriber-name">GameState</div>
+                </div>
+            </div>
+
+            <p style="margin-top: 24px; font-size: 0.9rem; color: var(--text-secondary);">
+                Click on any system above to see event flow
+            </p>
+        </div>
+
+        <h2>🏷️ Event Categories</h2>
+
+        <div class="event-categories">
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-icon weapon">🔫</div>
+                    <div class="category-name">Weapon Events</div>
+                </div>
+                <ul class="event-list">
+                    <li class="event-item">
+                        <span class="event-name">weapon:fired</span>
+                        <span class="event-desc">Shot fired</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">weapon:reload</span>
+                        <span class="event-desc">Reload started</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">weapon:switch</span>
+                        <span class="event-desc">Weapon changed</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-icon combat">💥</div>
+                    <div class="category-name">Hit Events</div>
+                </div>
+                <ul class="event-list">
+                    <li class="event-item">
+                        <span class="event-name">hit:opponent</span>
+                        <span class="event-desc">Hit enemy player</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">hit:cover</span>
+                        <span class="event-desc">Hit cover object</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">hit:environment</span>
+                        <span class="event-desc">Hit walls/floor</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">hit:target</span>
+                        <span class="event-desc">Hit practice target</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-icon health">❤️</div>
+                    <div class="category-name">Health Events</div>
+                </div>
+                <ul class="event-list">
+                    <li class="event-item">
+                        <span class="event-name">damage:dealt</span>
+                        <span class="event-desc">Damage applied</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">damage:received</span>
+                        <span class="event-desc">Took damage</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">health:changed</span>
+                        <span class="event-desc">Health updated</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">health:depleted</span>
+                        <span class="event-desc">Health reached 0</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-icon game">🎮</div>
+                    <div class="category-name">Game Events</div>
+                </div>
+                <ul class="event-list">
+                    <li class="event-item">
+                        <span class="event-name">game:start</span>
+                        <span class="event-desc">Game started</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">game:end</span>
+                        <span class="event-desc">Game ended</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">player:killed</span>
+                        <span class="event-desc">Local player died</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">opponent:killed</span>
+                        <span class="event-desc">Enemy killed</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-icon network">🌐</div>
+                    <div class="category-name">Network Events</div>
+                </div>
+                <ul class="event-list">
+                    <li class="event-item">
+                        <span class="event-name">net:connected</span>
+                        <span class="event-desc">Peer connected</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">net:disconnected</span>
+                        <span class="event-desc">Peer disconnected</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">net:message</span>
+                        <span class="event-desc">Message received</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">net:stateUpdate</span>
+                        <span class="event-desc">State sync</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-icon ui">🖥️</div>
+                    <div class="category-name">UI/Effect Events</div>
+                </div>
+                <ul class="event-list">
+                    <li class="event-item">
+                        <span class="event-name">ui:showHitmarker</span>
+                        <span class="event-desc">Show hit indicator</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">effect:bloodSplatter</span>
+                        <span class="event-desc">Blood particles</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">effect:hitMark</span>
+                        <span class="event-desc">Bullet hole</span>
+                    </li>
+                    <li class="event-item">
+                        <span class="event-name">audio:play</span>
+                        <span class="event-desc">Play sound</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>🧪 Interactive Demo</h2>
+
+        <div class="demo-area">
+            <p style="margin-bottom: 16px;">Click buttons to emit events and see the pub/sub system in action:</p>
+
+            <div class="demo-controls">
+                <button class="emit-btn" onclick="demoEmit('weapon:fired', {weapon: 'assault_rifle'})">🔫 Fire Weapon</button>
+                <button class="emit-btn" onclick="demoEmit('hit:opponent', {bodyPart: 'head', damage: 25})">🎯 Hit Opponent</button>
+                <button class="emit-btn" onclick="demoEmit('damage:received', {amount: 15})">💔 Take Damage</button>
+                <button class="emit-btn" onclick="demoEmit('opponent:killed', {})">💀 Kill Opponent</button>
+                <button class="emit-btn" onclick="clearLog()">🗑️ Clear Log</button>
+            </div>
+
+            <div class="event-log" id="event-log">
+                <div style="color: var(--text-secondary); text-align: center; padding: 20px;">
+                    Click a button above to see events flow...
+                </div>
+            </div>
+        </div>
+
+        <h2>📖 API Reference</h2>
+
+        <div class="api-method">
+            <div class="method-signature">EventBus.on(event, callback, context?)</div>
+            <div class="method-desc">Subscribe to an event. Returns an unsubscribe function.</div>
+            <div class="method-params">
+                <div class="param-item">
+                    <span class="param-name">event</span>
+                    <span class="param-type">string</span>
+                    <span class="param-desc">Event name (e.g., 'weapon:fired')</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-name">callback</span>
+                    <span class="param-type">function</span>
+                    <span class="param-desc">Function called when event fires</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-name">context</span>
+                    <span class="param-type">object?</span>
+                    <span class="param-desc">Optional 'this' context for callback</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="api-method">
+            <div class="method-signature">EventBus.emit(event, data)</div>
+            <div class="method-desc">Emit an event to all subscribers.</div>
+            <div class="method-params">
+                <div class="param-item">
+                    <span class="param-name">event</span>
+                    <span class="param-type">string</span>
+                    <span class="param-desc">Event name to emit</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-name">data</span>
+                    <span class="param-type">object</span>
+                    <span class="param-desc">Data payload to send to listeners</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="api-method">
+            <div class="method-signature">EventBus.once(event, callback, context?)</div>
+            <div class="method-desc">Subscribe to an event for one-time execution only.</div>
+        </div>
+
+        <div class="api-method">
+            <div class="method-signature">EventBus.off(event, callback)</div>
+            <div class="method-desc">Unsubscribe a specific callback from an event.</div>
+        </div>
+
+        <h2>💡 Usage Example</h2>
+
+        <div class="code-block">
+<span class="comment">// Subscribe to events</span>
+<span class="keyword">const</span> unsubscribe = EventBus.<span class="function">on</span>(GameEvents.HIT_OPPONENT, (data) => {
+    console.<span class="function">log</span>(<span class="string">`Hit ${data.bodyPart} for ${data.damage} damage`</span>);
+
+    <span class="comment">// Play hit sound</span>
+    AudioSystem.<span class="function">playHitMarker</span>();
+
+    <span class="comment">// Show UI feedback</span>
+    <span class="function">showHitMarker</span>(data.bodyPart);
+});
+
+<span class="comment">// Emit events</span>
+EventBus.<span class="function">emit</span>(GameEvents.HIT_OPPONENT, {
+    bodyPart: <span class="string">'head'</span>,
+    damage: <span class="number">25</span>,
+    point: hitPoint,
+    direction: shotDirection,
+});
+
+<span class="comment">// Unsubscribe when done</span>
+<span class="function">unsubscribe</span>();
+
+<span class="comment">// Or use once() for one-time listeners</span>
+EventBus.<span class="function">once</span>(GameEvents.GAME_START, () => {
+    console.<span class="function">log</span>(<span class="string">'Game started!'</span>);
+});
+        </div>
+
+        <h2>📊 Event Data Structures</h2>
+
+        <div class="card">
+            <h4>HIT_OPPONENT Event</h4>
+            <div class="code-block">
+{
+    <span class="property">bodyPart</span>: <span class="string">'head'</span>,         <span class="comment">// 'head' | 'chest' | 'belly' | 'arm'</span>
+    <span class="property">damage</span>: <span class="number">25</span>,               <span class="comment">// Damage amount</span>
+    <span class="property">point</span>: Vector3,          <span class="comment">// World hit position</span>
+    <span class="property">direction</span>: Vector3,      <span class="comment">// Shot direction</span>
+    <span class="property">distance</span>: <span class="number">12.5</span>,          <span class="comment">// Distance to target</span>
+    <span class="property">hitObject</span>: Mesh,         <span class="comment">// Three.js mesh that was hit</span>
+    <span class="property">opponent</span>: OpponentPlayer <span class="comment">// Opponent entity</span>
+}
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>HEALTH_CHANGED Event</h4>
+            <div class="code-block">
+{
+    <span class="property">entity</span>: Entity,          <span class="comment">// Entity whose health changed</span>
+    <span class="property">previousHealth</span>: <span class="number">100</span>,     <span class="comment">// Health before change</span>
+    <span class="property">currentHealth</span>: <span class="number">75</span>,      <span class="comment">// Health after change</span>
+    <span class="property">maxHealth</span>: <span class="number">100</span>,          <span class="comment">// Maximum health</span>
+    <span class="property">delta</span>: <span class="number">-25</span>               <span class="comment">// Change amount (negative = damage)</span>
+}
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>WEAPON_FIRED Event</h4>
+            <div class="code-block">
+{
+    <span class="property">timestamp</span>: <span class="number">1705432100000</span>, <span class="comment">// When shot was fired</span>
+    <span class="property">weapon</span>: <span class="string">'assault_rifle'</span>, <span class="comment">// Weapon ID</span>
+    <span class="property">position</span>: Vector3,        <span class="comment">// Camera position</span>
+    <span class="property">direction</span>: Vector3        <span class="comment">// Shot direction</span>
+}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Demo event emitter
+        let logId = 0;
+
+        function demoEmit(event, data) {
+            const log = document.getElementById('event-log');
+
+            // Clear initial message
+            if (logId === 0) {
+                log.innerHTML = '';
+            }
+
+            // Add emit entry
+            const emitEntry = document.createElement('div');
+            emitEntry.className = 'log-entry emit';
+            emitEntry.innerHTML = `
+                <div class="log-time">${new Date().toLocaleTimeString()}</div>
+                <div><strong>EMIT:</strong> <span class="log-event">${event}</span></div>
+                <div class="log-data">${JSON.stringify(data)}</div>
+            `;
+            log.insertBefore(emitEntry, log.firstChild);
+
+            // Simulate listeners receiving the event
+            const listeners = getListenersFor(event);
+            listeners.forEach((listener, index) => {
+                setTimeout(() => {
+                    const receiveEntry = document.createElement('div');
+                    receiveEntry.className = 'log-entry receive';
+                    receiveEntry.innerHTML = `
+                        <div class="log-time">${new Date().toLocaleTimeString()}</div>
+                        <div><strong>RECEIVE:</strong> ${listener} got <span class="log-event">${event}</span></div>
+                    `;
+                    log.insertBefore(receiveEntry, emitEntry.nextSibling);
+                }, (index + 1) * 150);
+            });
+
+            logId++;
+        }
+
+        function getListenersFor(event) {
+            const mapping = {
+                'weapon:fired': ['AudioSystem', 'EffectsSystem', 'Network'],
+                'hit:opponent': ['AudioSystem', 'EffectsSystem', 'HealthComponent', 'UI'],
+                'damage:received': ['HealthComponent', 'AudioSystem', 'UI'],
+                'opponent:killed': ['GameState', 'AudioSystem', 'UI', 'Network']
+            };
+            return mapping[event] || ['Unknown'];
+        }
+
+        function clearLog() {
+            document.getElementById('event-log').innerHTML = `
+                <div style="color: var(--text-secondary); text-align: center; padding: 20px;">
+                    Click a button above to see events flow...
+                </div>
+            `;
+            logId = 0;
+        }
+
+        // Visual event flow
+        function emitFrom(system) {
+            const packet = document.getElementById('event-packet');
+            packet.classList.remove('animate');
+            void packet.offsetWidth; // Trigger reflow
+            packet.classList.add('animate');
+
+            // Highlight receiving subscribers
+            setTimeout(() => {
+                ['sub-ui', 'sub-health', 'sub-game'].forEach(id => {
+                    const el = document.getElementById(id);
+                    el.classList.add('emitting');
+                    setTimeout(() => el.classList.remove('emitting'), 500);
+                });
+            }, 1200);
+        }
+    </script>
+</body>
+</html>
