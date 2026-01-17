@@ -1412,6 +1412,28 @@ function handlePeerMessage(data) {
             handleTournamentEnd(data.won);
             break;
 
+        case 'rematch_request':
+            // Opponent wants a rematch
+            handleRematchRequest();
+            break;
+
+        case 'rematch_start':
+            // Opponent confirmed rematch, sync our state
+            const rematchOverlay = document.getElementById('tournament-end-overlay');
+            if (rematchOverlay) rematchOverlay.remove();
+            netState.scores = [0, 0];
+            netState.health = 100;
+            if (netState.opponent) {
+                netState.opponent.state.health = 100;
+            }
+            netState.rematchRequested = false;
+            netState.opponentWantsRematch = false;
+            updateScoreUI();
+            updateHealthUI();
+            hideDeathScreen();
+            console.log('[Tournament] Rematch started (from opponent)!');
+            break;
+
         case 'tournament_mode':
             // Sync tournament mode from host
             netState.tournamentMode = data.enabled;
@@ -1592,9 +1614,13 @@ function checkTournamentWin() {
     return false;
 }
 
-function showTournamentEnd(won) {
+function showTournamentEnd(won, fromOpponent = false) {
     const myScore = netState.scores[netState.playerSlot];
     const opponentScore = netState.scores[netState.playerSlot === 0 ? 1 : 0];
+
+    // Remove existing overlay if any
+    const existingOverlay = document.getElementById('tournament-end-overlay');
+    if (existingOverlay) existingOverlay.remove();
 
     // Create tournament end overlay
     const overlay = document.createElement('div');
@@ -1631,31 +1657,151 @@ function showTournamentEnd(won) {
         margin-bottom: 40px;
     `;
 
-    const message = document.createElement('p');
-    message.textContent = 'Returning to main menu...';
-    message.style.cssText = `
-        font-size: 24px;
-        opacity: 0.7;
+    // Button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
     `;
+
+    // Rematch button
+    const rematchBtn = document.createElement('button');
+    rematchBtn.id = 'rematch-btn';
+    rematchBtn.textContent = 'Rematch';
+    rematchBtn.style.cssText = `
+        padding: 15px 40px;
+        font-size: 24px;
+        background: #ff9800;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    `;
+    rematchBtn.onmouseover = () => rematchBtn.style.background = '#f57c00';
+    rematchBtn.onmouseout = () => rematchBtn.style.background = '#ff9800';
+    rematchBtn.onclick = () => requestRematch();
+
+    // Main menu button
+    const menuBtn = document.createElement('button');
+    menuBtn.textContent = 'Main Menu';
+    menuBtn.style.cssText = `
+        padding: 15px 40px;
+        font-size: 24px;
+        background: #666;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    `;
+    menuBtn.onmouseover = () => menuBtn.style.background = '#555';
+    menuBtn.onmouseout = () => menuBtn.style.background = '#666';
+    menuBtn.onclick = () => {
+        overlay.remove();
+        endOnlineGame();
+    };
+
+    // Status message for rematch
+    const statusMsg = document.createElement('p');
+    statusMsg.id = 'rematch-status';
+    statusMsg.style.cssText = `
+        font-size: 18px;
+        margin-top: 20px;
+        opacity: 0.8;
+        height: 25px;
+    `;
+
+    buttonContainer.appendChild(rematchBtn);
+    buttonContainer.appendChild(menuBtn);
 
     overlay.appendChild(title);
     overlay.appendChild(score);
-    overlay.appendChild(message);
+    overlay.appendChild(buttonContainer);
+    overlay.appendChild(statusMsg);
     document.body.appendChild(overlay);
 
-    // Send tournament end message to opponent
-    sendPeerMessage({ type: 'tournament_end', won: !won });
+    // Send tournament end message to opponent (only if we detected the win)
+    if (!fromOpponent) {
+        sendPeerMessage({ type: 'tournament_end', won: !won });
+    }
 
-    // Return to main menu after delay
-    setTimeout(() => {
-        overlay.remove();
-        endOnlineGame();
-    }, 3000);
+    // Reset rematch state
+    netState.rematchRequested = false;
+    netState.opponentWantsRematch = false;
+}
+
+function requestRematch() {
+    netState.rematchRequested = true;
+    sendPeerMessage({ type: 'rematch_request' });
+
+    const statusMsg = document.getElementById('rematch-status');
+    const rematchBtn = document.getElementById('rematch-btn');
+
+    if (netState.opponentWantsRematch) {
+        // Both want rematch - start it!
+        startRematch();
+    } else {
+        // Waiting for opponent
+        if (statusMsg) statusMsg.textContent = 'Waiting for opponent...';
+        if (rematchBtn) {
+            rematchBtn.textContent = 'Waiting...';
+            rematchBtn.disabled = true;
+            rematchBtn.style.background = '#888';
+        }
+    }
+}
+
+function handleRematchRequest() {
+    netState.opponentWantsRematch = true;
+
+    const statusMsg = document.getElementById('rematch-status');
+    const rematchBtn = document.getElementById('rematch-btn');
+
+    if (netState.rematchRequested) {
+        // Both want rematch - start it!
+        startRematch();
+    } else {
+        // Show that opponent wants rematch
+        if (statusMsg) statusMsg.textContent = 'Opponent wants a rematch!';
+        if (rematchBtn) {
+            rematchBtn.style.background = '#4CAF50';
+            rematchBtn.textContent = 'Accept Rematch';
+        }
+    }
+}
+
+function startRematch() {
+    // Remove overlay
+    const overlay = document.getElementById('tournament-end-overlay');
+    if (overlay) overlay.remove();
+
+    // Reset scores
+    netState.scores = [0, 0];
+    netState.health = 100;
+    if (netState.opponent) {
+        netState.opponent.state.health = 100;
+    }
+
+    // Reset rematch state
+    netState.rematchRequested = false;
+    netState.opponentWantsRematch = false;
+
+    // Update UI
+    updateScoreUI();
+    updateHealthUI();
+    hideDeathScreen();
+
+    // Send rematch start to sync
+    sendPeerMessage({ type: 'rematch_start' });
+
+    console.log('[Tournament] Rematch started!');
 }
 
 function handleTournamentEnd(opponentWon) {
     // Opponent sent us the tournament end message
-    showTournamentEnd(!opponentWon);
+    showTournamentEnd(!opponentWon, true);
 }
 
 function showDamageEffect() {
