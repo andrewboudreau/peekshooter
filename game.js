@@ -1428,6 +1428,7 @@ function handlePeerMessage(data) {
             }
             netState.rematchRequested = false;
             netState.opponentWantsRematch = false;
+            netState.tournamentEnded = false;
             updateScoreUI();
             updateHealthUI();
             hideDeathScreen();
@@ -1600,14 +1601,17 @@ function updateTournamentKills() {
 
 function checkTournamentWin() {
     if (!netState.tournamentMode) return false;
+    if (netState.tournamentEnded) return true; // Already ended
 
     const myScore = netState.scores[netState.playerSlot];
     const opponentScore = netState.scores[netState.playerSlot === 0 ? 1 : 0];
 
     if (myScore >= netState.tournamentKillsToWin) {
+        netState.tournamentEnded = true;
         showTournamentEnd(true); // We won
         return true;
     } else if (opponentScore >= netState.tournamentKillsToWin) {
+        netState.tournamentEnded = true;
         showTournamentEnd(false); // We lost
         return true;
     }
@@ -1615,6 +1619,10 @@ function checkTournamentWin() {
 }
 
 function showTournamentEnd(won, fromOpponent = false) {
+    // Prevent showing twice
+    if (fromOpponent && netState.tournamentEnded) return;
+    netState.tournamentEnded = true;
+
     const myScore = netState.scores[netState.playerSlot];
     const opponentScore = netState.scores[netState.playerSlot === 0 ? 1 : 0];
 
@@ -1787,6 +1795,7 @@ function startRematch() {
     // Reset rematch state
     netState.rematchRequested = false;
     netState.opponentWantsRematch = false;
+    netState.tournamentEnded = false;
 
     // Update UI
     updateScoreUI();
