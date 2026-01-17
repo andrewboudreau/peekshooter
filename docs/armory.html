@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Armory - Peek Shooter Docs</title>
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-card-hover: #1f2937;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-cyan: #39c5cf;
+            --accent-gold: #ffcc00;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        nav {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-right: 24px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover, nav a.active { color: var(--accent-blue); }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 800px;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            margin: 48px 0 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin: 32px 0 16px;
+            color: var(--accent-blue);
+        }
+
+        p { margin-bottom: 16px; color: var(--text-secondary); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            white-space: pre;
+        }
+
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .property { color: #d2a8ff; }
+        .code-block .function { color: #d2a8ff; }
+
+        /* Weapon Selector */
+        .weapon-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .weapon-btn {
+            background: var(--bg-dark);
+            border: 2px solid var(--border);
+            color: var(--text-secondary);
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .weapon-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border-color: var(--accent-orange);
+        }
+
+        .weapon-btn.active {
+            background: rgba(255, 204, 0, 0.15);
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .weapon-btn .slot {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Viewer Section */
+        .viewer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin: 24px 0;
+        }
+
+        @media (max-width: 1000px) {
+            .viewer-grid { grid-template-columns: 1fr; }
+        }
+
+        .viewer-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .viewer-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--accent-gold);
+        }
+
+        .viewer-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-btn {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .control-btn.active {
+            background: var(--accent-gold);
+            color: #000;
+            border-color: var(--accent-gold);
+        }
+
+        #viewer-canvas {
+            width: 100%;
+            height: 350px;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #1a2332 0%, #0d1117 100%);
+        }
+
+        .viewer-hint {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 12px;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .stats-header {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .stat-group {
+            margin-bottom: 24px;
+        }
+
+        .stat-group-title {
+            font-size: 0.85rem;
+            color: var(--accent-gold);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--accent-cyan);
+        }
+
+        .stat-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .stat-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-dark);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .stat-bar-fill.damage { background: linear-gradient(90deg, var(--accent-red), #dc2626); }
+        .stat-bar-fill.firerate { background: linear-gradient(90deg, var(--accent-green), #16a34a); }
+        .stat-bar-fill.accuracy { background: linear-gradient(90deg, var(--accent-purple), #7c3aed); }
+        .stat-bar-fill.range { background: linear-gradient(90deg, var(--accent-blue), #2563eb); }
+        .stat-bar-fill.recoil { background: linear-gradient(90deg, var(--accent-orange), #ea580c); }
+
+        .fire-modes {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .fire-mode-tag {
+            padding: 6px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .fire-mode-tag.available {
+            background: rgba(63, 185, 80, 0.15);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        /* Comparison Table */
+        .comparison-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+            overflow-x: auto;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table th {
+            background: var(--bg-dark);
+            color: var(--accent-blue);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .comparison-table tr {
+            transition: all 0.2s;
+        }
+
+        .comparison-table tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .comparison-table tr.active {
+            background: rgba(255, 204, 0, 0.1);
+        }
+
+        .comparison-table .weapon-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .slot-badge {
+            background: var(--bg-dark);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+            color: var(--text-secondary);
+        }
+
+        /* Documentation Section */
+        .doc-section {
+            margin-top: 48px;
+        }
+
+        .recoil-visualizer {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .recoil-canvas {
+            width: 100%;
+            max-width: 400px;
+            height: 250px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            margin: 24px auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .crosshair {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--accent-green);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: var(--accent-green);
+        }
+
+        .crosshair::before {
+            width: 2px;
+            height: 8px;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            width: 8px;
+            height: 2px;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .recoil-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--accent-orange);
+            border-radius: 50%;
+            opacity: 0;
+        }
+
+        .recoil-controls {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .recoil-btn {
+            padding: 12px 24px;
+            background: var(--accent-orange);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .recoil-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .recoil-btn.secondary {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .controls-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+
+        .controls-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .controls-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .controls-table td:first-child {
+            font-weight: 600;
+            width: 150px;
+        }
+
+        .controls-table td:last-child {
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="network-architecture.html">Network</a>
+        <a href="ecs-system.html">ECS</a>
+        <a href="game-systems.html">Systems</a>
+        <a href="events.html">Events</a>
+        <a href="configuration.html">Config</a>
+        <a href="armory.html" class="active">Armory</a>
+    </nav>
+
+    <div class="container">
+        <h1>Armory</h1>
+        <p class="intro">
+            Peek Shooter features 5 distinct weapons, each with unique characteristics. Explore the 3D models,
+            compare stats, and learn about the weapon system's implementation.
+        </p>
+
+        <h2>3D Weapon Viewer</h2>
+
+        <div id="weapon-selector" class="weapon-selector">
+            <!-- Populated by JS -->
+        </div>
+
+        <div class="viewer-grid">
+            <div class="viewer-section">
+                <div class="viewer-header">
+                    <div class="viewer-title" id="weapon-title">Assault Rifle</div>
+                    <div class="viewer-controls">
+                        <button class="control-btn active" id="btn-rotate" onclick="toggleRotation()">Auto Rotate</button>
+                        <button class="control-btn" onclick="resetView()">Reset View</button>
+                    </div>
+                </div>
+                <canvas id="viewer-canvas"></canvas>
+                <div class="viewer-hint">Drag to rotate | Scroll to zoom</div>
+            </div>
+
+            <div class="stats-section">
+                <div class="stats-header">Weapon Statistics</div>
+
+                <div class="stat-group">
+                    <div class="stat-group-title">Damage</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Base Damage</span>
+                        <div class="stat-bar-container">
+                            <div class="stat-bar"><div class="stat-bar-fill damage" id="stat-damage-bar"></div></div>
+                            <span class="stat-value" id="stat-damage">15</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Headshot Mult</span>
+                        <span class="stat-value" id="stat-headshot">2x</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Effective Range</span>
+                        <div class="stat-bar-container">
+                            <div class="stat-bar"><div class="stat-bar-fill range" id="stat-range-bar"></div></div>
+                            <span class="stat-value" id="stat-range">50m</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-group">
+                    <div class="stat-group-title">Handling</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Fire Rate</span>
+                        <div class="stat-bar-container">
+                            <div class="stat-bar"><div class="stat-bar-fill firerate" id="stat-firerate-bar"></div></div>
+                            <span class="stat-value" id="stat-firerate">600 RPM</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">ADS Speed</span>
+                        <div class="stat-bar-container">
+                            <div class="stat-bar"><div class="stat-bar-fill accuracy" id="stat-ads-bar"></div></div>
+                            <span class="stat-value" id="stat-ads">8</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Recoil</span>
+                        <div class="stat-bar-container">
+                            <div class="stat-bar"><div class="stat-bar-fill recoil" id="stat-recoil-bar"></div></div>
+                            <span class="stat-value" id="stat-recoil">Medium</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">ADS Zoom</span>
+                        <span class="stat-value" id="stat-zoom">45 FOV</span>
+                    </div>
+                </div>
+
+                <div class="stat-group">
+                    <div class="stat-group-title">Fire Modes</div>
+                    <div class="fire-modes" id="fire-modes">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-section">
+            <div class="stats-header">All Weapons Comparison</div>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Weapon</th>
+                        <th>Damage</th>
+                        <th>Fire Rate</th>
+                        <th>Range</th>
+                        <th>Recoil</th>
+                        <th>Fire Modes</th>
+                    </tr>
+                </thead>
+                <tbody id="comparison-body">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="doc-section">
+            <h2>Recoil System</h2>
+
+            <div class="recoil-visualizer">
+                <p>Recoil follows a deterministic pattern based on shot count. Click "Fire Burst" to visualize the pattern.</p>
+
+                <div class="recoil-canvas" id="recoil-canvas">
+                    <div class="crosshair"></div>
+                </div>
+
+                <div class="recoil-controls">
+                    <button class="recoil-btn" onclick="fireBurst()">Fire Burst (5 shots)</button>
+                    <button class="recoil-btn secondary" onclick="clearRecoil()">Reset</button>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="comment">// Recoil configuration in WeaponConfig.js</span>
+recoil: {
+    verticalBase: <span class="number">0.025</span>,       <span class="comment">// Base upward kick per shot</span>
+    verticalVariance: <span class="number">0.008</span>,   <span class="comment">// Random variance</span>
+    horizontalBase: <span class="number">0</span>,         <span class="comment">// Base horizontal (0 = none)</span>
+    horizontalVariance: <span class="number">0.015</span>, <span class="comment">// Random left/right</span>
+    recovery: <span class="number">4.0</span>,             <span class="comment">// Return-to-center speed</span>
+    pattern: [                   <span class="comment">// Shot multipliers</span>
+        <span class="number">1.0</span>, <span class="number">1.1</span>, <span class="number">1.2</span>, <span class="number">1.15</span>, <span class="number">1.1</span>, <span class="number">1.0</span>, <span class="number">0.95</span>, <span class="number">0.9</span>
+    ],
+    weaponKickBack: <span class="number">0.03</span>,      <span class="comment">// Visual weapon push-back</span>
+    weaponKickUp: <span class="number">0.02</span>,        <span class="comment">// Visual weapon rise</span>
+}</div>
+
+            <h2>WeaponFactory</h2>
+
+            <p>All weapon models are procedurally generated using Three.js geometry. No external model files required.</p>
+
+            <div class="code-block"><span class="comment">// WeaponFactory usage</span>
+<span class="keyword">const</span> WeaponFactory = {
+    <span class="comment">// Create first-person weapon model</span>
+    <span class="function">createWeapon</span>(weaponId) {
+        <span class="keyword">const</span> config = WeaponConfig.<span class="function">getWeapon</span>(weaponId);
+        <span class="keyword">const</span> group = <span class="keyword">new</span> THREE.Group();
+
+        <span class="comment">// Create receiver (main body)</span>
+        <span class="keyword">const</span> receiver = <span class="keyword">new</span> THREE.Mesh(
+            <span class="keyword">new</span> THREE.BoxGeometry(<span class="number">0.04</span>, <span class="number">0.08</span>, <span class="number">0.25</span>),
+            <span class="keyword">new</span> THREE.MeshStandardMaterial({ color: <span class="number">0x222222</span> })
+        );
+        group.add(receiver);
+
+        <span class="comment">// Create barrel, stock, grip, etc...</span>
+        <span class="keyword">return</span> group;
+    },
+
+    <span class="comment">// Create simplified third-person model</span>
+    <span class="function">createOpponentWeapon</span>(weaponId) {
+        <span class="keyword">return</span> <span class="keyword">this</span>.<span class="function">createWeapon</span>(weaponId);
+    }
+};</div>
+
+            <h2>Controls</h2>
+
+            <div class="controls-card">
+                <table class="controls-table">
+                    <tr>
+                        <td>Left Click</td>
+                        <td>Fire weapon</td>
+                    </tr>
+                    <tr>
+                        <td>Right Click</td>
+                        <td>Aim down sights (ADS)</td>
+                    </tr>
+                    <tr>
+                        <td>1-5 Keys</td>
+                        <td>Switch weapons (1=Pistol, 2=SMG, 3=AR, 4=Shotgun, 5=Sniper)</td>
+                    </tr>
+                    <tr>
+                        <td>R Key</td>
+                        <td>Reload (future feature)</td>
+                    </tr>
+                    <tr>
+                        <td>B Key</td>
+                        <td>Toggle fire mode (Single/Burst/Auto)</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="../lib/three.min.js"></script>
+    <script src="../src/config/WeaponConfig.js"></script>
+    <script src="../src/weapons/WeaponFactory.js"></script>
+    <script>
+        // Viewer state
+        let scene, camera, renderer, weaponModel;
+        let isRotating = true;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let currentWeaponId = 'assault_rifle';
+        let rotationY = 0;
+        let rotationX = 0;
+
+        // Recoil visualization
+        let recoilDots = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initViewer();
+            initWeaponSelector();
+            initComparisonTable();
+            selectWeapon('assault_rifle');
+            animate();
+        });
+
+        function initViewer() {
+            const canvas = document.getElementById('viewer-canvas');
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 100);
+            camera.position.set(0, 0.1, 0.8);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 0);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const keyLight = new THREE.DirectionalLight(0xffffff, 1);
+            keyLight.position.set(1, 1, 2);
+            scene.add(keyLight);
+
+            const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+            fillLight.position.set(-1, 0, 1);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0xffcc00, 0.4);
+            rimLight.position.set(0, 1, -1);
+            scene.add(rimLight);
+
+            // Mouse controls
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('mouseleave', onMouseUp);
+            canvas.addEventListener('wheel', onMouseWheel);
+
+            window.addEventListener('resize', () => {
+                const w = canvas.clientWidth;
+                const h = canvas.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+        }
+
+        function initWeaponSelector() {
+            const container = document.getElementById('weapon-selector');
+            const weapons = WeaponConfig.getWeaponsBySlot();
+
+            weapons.forEach(weapon => {
+                const btn = document.createElement('button');
+                btn.className = 'weapon-btn';
+                btn.dataset.weaponId = weapon.id;
+                btn.innerHTML = `<span class="slot">${weapon.slot}</span> ${weapon.name}`;
+                btn.onclick = () => selectWeapon(weapon.id);
+                container.appendChild(btn);
+            });
+        }
+
+        function initComparisonTable() {
+            const tbody = document.getElementById('comparison-body');
+            const weapons = WeaponConfig.getWeaponsBySlot();
+
+            weapons.forEach(weapon => {
+                const tr = document.createElement('tr');
+                tr.dataset.weaponId = weapon.id;
+                tr.onclick = () => selectWeapon(weapon.id);
+                tr.style.cursor = 'pointer';
+
+                const recoilLevel = getRecoilLevel(weapon.recoil.verticalBase);
+                const modes = weapon.allowedModes.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ');
+
+                tr.innerHTML = `
+                    <td class="weapon-name">${weapon.name}<span class="slot-badge">${weapon.slot}</span></td>
+                    <td>${weapon.damage.base}${weapon.damage.pellets ? ' x' + weapon.damage.pellets : ''}</td>
+                    <td>${weapon.fireRate} RPM</td>
+                    <td>${weapon.damage.range}m</td>
+                    <td>${recoilLevel}</td>
+                    <td>${modes}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function selectWeapon(weaponId) {
+            currentWeaponId = weaponId;
+            const weapon = WeaponConfig.getWeapon(weaponId);
+
+            document.querySelectorAll('.weapon-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.weaponId === weaponId);
+            });
+
+            document.querySelectorAll('.comparison-table tr').forEach(tr => {
+                tr.classList.toggle('active', tr.dataset.weaponId === weaponId);
+            });
+
+            document.getElementById('weapon-title').textContent = weapon.name;
+            updateStats(weapon);
+            updateWeaponModel(weaponId);
+
+            rotationY = Math.PI;
+            rotationX = 0;
+        }
+
+        function updateStats(weapon) {
+            const maxDamage = 70;
+            const damagePercent = (weapon.damage.base / maxDamage) * 100;
+            document.getElementById('stat-damage').textContent = weapon.damage.base + (weapon.damage.pellets ? ' x' + weapon.damage.pellets : '');
+            document.getElementById('stat-damage-bar').style.width = damagePercent + '%';
+
+            document.getElementById('stat-headshot').textContent = weapon.damage.headshotMult + 'x';
+
+            const maxRange = 100;
+            const rangePercent = (weapon.damage.range / maxRange) * 100;
+            document.getElementById('stat-range').textContent = weapon.damage.range + 'm';
+            document.getElementById('stat-range-bar').style.width = rangePercent + '%';
+
+            const maxFireRate = 900;
+            const fireRatePercent = (weapon.fireRate / maxFireRate) * 100;
+            document.getElementById('stat-firerate').textContent = weapon.fireRate + ' RPM';
+            document.getElementById('stat-firerate-bar').style.width = fireRatePercent + '%';
+
+            const maxAds = 10;
+            const adsPercent = (weapon.ads.speed / maxAds) * 100;
+            document.getElementById('stat-ads').textContent = weapon.ads.speed;
+            document.getElementById('stat-ads-bar').style.width = adsPercent + '%';
+
+            const maxRecoil = 0.08;
+            const recoilPercent = (weapon.recoil.verticalBase / maxRecoil) * 100;
+            document.getElementById('stat-recoil').textContent = getRecoilLevel(weapon.recoil.verticalBase);
+            document.getElementById('stat-recoil-bar').style.width = recoilPercent + '%';
+
+            document.getElementById('stat-zoom').textContent = weapon.ads.fov + ' FOV';
+
+            const modesContainer = document.getElementById('fire-modes');
+            modesContainer.innerHTML = '';
+            ['single', 'burst', 'auto'].forEach(mode => {
+                const tag = document.createElement('span');
+                tag.className = 'fire-mode-tag';
+                if (weapon.allowedModes.includes(mode)) {
+                    tag.classList.add('available');
+                }
+                tag.textContent = mode.toUpperCase();
+                modesContainer.appendChild(tag);
+            });
+        }
+
+        function getRecoilLevel(verticalBase) {
+            if (verticalBase <= 0.02) return 'Low';
+            if (verticalBase <= 0.04) return 'Medium';
+            if (verticalBase <= 0.06) return 'High';
+            return 'Very High';
+        }
+
+        function updateWeaponModel(weaponId) {
+            if (weaponModel) {
+                scene.remove(weaponModel);
+                WeaponFactory.disposeWeapon(weaponModel);
+            }
+
+            WeaponFactory.initMaterials();
+            weaponModel = WeaponFactory.createWeapon(weaponId);
+
+            const box = new THREE.Box3().setFromObject(weaponModel);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+
+            weaponModel.position.sub(center);
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 0.5 / maxDim;
+            weaponModel.scale.setScalar(scale);
+
+            scene.add(weaponModel);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (weaponModel) {
+                if (isRotating && !isDragging) {
+                    rotationY += 0.005;
+                }
+                weaponModel.rotation.y = rotationY;
+                weaponModel.rotation.x = rotationX;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onMouseDown(e) {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+
+        function onMouseMove(e) {
+            if (!isDragging) return;
+
+            const deltaX = e.clientX - previousMousePosition.x;
+            const deltaY = e.clientY - previousMousePosition.y;
+
+            rotationY += deltaX * 0.01;
+            rotationX += deltaY * 0.01;
+            rotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationX));
+
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function onMouseWheel(e) {
+            e.preventDefault();
+            camera.position.z += e.deltaY * 0.001;
+            camera.position.z = Math.max(0.3, Math.min(2, camera.position.z));
+        }
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+            document.getElementById('btn-rotate').classList.toggle('active', isRotating);
+        }
+
+        function resetView() {
+            rotationY = Math.PI;
+            rotationX = 0;
+            camera.position.set(0, 0.1, 0.8);
+        }
+
+        // Recoil visualization
+        function fireBurst() {
+            const canvas = document.getElementById('recoil-canvas');
+            const centerX = canvas.offsetWidth / 2;
+            const centerY = canvas.offsetHeight / 2;
+
+            clearRecoil();
+
+            const pattern = [1.0, 1.1, 1.2, 1.15, 1.1];
+            let currentY = centerY;
+
+            pattern.forEach((mult, i) => {
+                setTimeout(() => {
+                    const dot = document.createElement('div');
+                    dot.className = 'recoil-dot';
+
+                    const verticalKick = 20 * mult;
+                    const horizontalKick = (Math.random() - 0.5) * 15;
+
+                    currentY -= verticalKick;
+
+                    dot.style.left = (centerX + horizontalKick - 3) + 'px';
+                    dot.style.top = (currentY - 3) + 'px';
+                    dot.style.opacity = '1';
+
+                    canvas.appendChild(dot);
+                    recoilDots.push(dot);
+                }, i * 100);
+            });
+        }
+
+        function clearRecoil() {
+            recoilDots.forEach(dot => dot.remove());
+            recoilDots = [];
+        }
+    </script>
+</body>
+</html>
