@@ -3,7 +3,7 @@
 // ============================================
 // VERSION - Auto-incremented on deploy
 // ============================================
-const GAME_VERSION = 33;
+const GAME_VERSION = 35;
 
 // ============================================
 // NOISE GENERATOR - Seeded deterministic noise
@@ -2324,6 +2324,7 @@ function createExplosion(position, splashConfig, damageConfig) {
 
     // Visual explosion effect
     const explosionGroup = new THREE.Group();
+    explosionGroup.userData.isDecal = true; // Mark so raycasts ignore it
 
     // Central flash
     const flashGeo = new THREE.SphereGeometry(1, 16, 16);
@@ -2335,6 +2336,7 @@ function createExplosion(position, splashConfig, damageConfig) {
     const flash = new THREE.Mesh(flashGeo, flashMat);
     flash.castShadow = false;
     flash.receiveShadow = false;
+    flash.userData.isDecal = true; // Mark so raycasts ignore it
     explosionGroup.add(flash);
 
     // Explosion light (no shadows for performance)
@@ -2353,6 +2355,7 @@ function createExplosion(position, splashConfig, damageConfig) {
         const smoke = new THREE.Mesh(smokeGeo, smokeMat);
         smoke.castShadow = false;
         smoke.receiveShadow = false;
+        smoke.userData.isDecal = true; // Mark so raycasts ignore it
         smoke.position.set(
             (Math.random() - 0.5) * 2,
             Math.random() * 1.5,
