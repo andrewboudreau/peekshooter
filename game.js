@@ -1618,6 +1618,48 @@ function checkTournamentWin() {
     return false;
 }
 
+function createConfetti(container) {
+    const colors = ['#ff0', '#0f0', '#0ff', '#f0f', '#f90', '#09f'];
+    const confettiCount = 100;
+
+    for (let i = 0; i < confettiCount; i++) {
+        const confetti = document.createElement('div');
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const left = Math.random() * 100;
+        const animDuration = 2 + Math.random() * 2;
+        const delay = Math.random() * 0.5;
+
+        confetti.style.cssText = `
+            position: absolute;
+            width: ${5 + Math.random() * 10}px;
+            height: ${5 + Math.random() * 10}px;
+            background: ${color};
+            left: ${left}%;
+            top: -20px;
+            opacity: ${0.7 + Math.random() * 0.3};
+            transform: rotate(${Math.random() * 360}deg);
+            animation: confettiFall ${animDuration}s ease-out ${delay}s forwards;
+        `;
+        container.appendChild(confetti);
+    }
+
+    // Add confetti animation style
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes confettiFall {
+            0% {
+                top: -20px;
+                transform: rotate(0deg) translateX(0);
+            }
+            100% {
+                top: 110%;
+                transform: rotate(${360 + Math.random() * 360}deg) translateX(${(Math.random() - 0.5) * 200}px);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 function showTournamentEnd(won, fromOpponent = false) {
     // Prevent showing twice
     if (fromOpponent && netState.tournamentEnded) return;
@@ -1629,6 +1671,13 @@ function showTournamentEnd(won, fromOpponent = false) {
     // Remove existing overlay if any
     const existingOverlay = document.getElementById('tournament-end-overlay');
     if (existingOverlay) existingOverlay.remove();
+
+    // Play sound effect
+    if (won) {
+        AudioSystem.playSound?.('victory') || console.log('[Tournament] Victory!');
+    } else {
+        AudioSystem.playSound?.('defeat') || console.log('[Tournament] Defeat!');
+    }
 
     // Create tournament end overlay
     const overlay = document.createElement('div');
@@ -1647,7 +1696,25 @@ function showTournamentEnd(won, fromOpponent = false) {
         z-index: 10000;
         color: white;
         font-family: Arial, sans-serif;
+        overflow: hidden;
     `;
+
+    // Add effects based on outcome
+    if (won) {
+        // Victory confetti effect
+        createConfetti(overlay);
+    } else {
+        // Defeat red pulse effect
+        overlay.style.animation = 'defeatPulse 0.5s ease-out';
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes defeatPulse {
+                0% { background: rgba(255, 0, 0, 0.5); }
+                100% { background: rgba(0, 0, 0, 0.85); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
     const title = document.createElement('h1');
     title.textContent = won ? 'VICTORY!' : 'DEFEAT';
@@ -1731,8 +1798,9 @@ function showTournamentEnd(won, fromOpponent = false) {
     document.body.appendChild(overlay);
 
     // Send tournament end message to opponent (only if we detected the win)
+    // Send "I won" so opponent knows they lost
     if (!fromOpponent) {
-        sendPeerMessage({ type: 'tournament_end', won: !won });
+        sendPeerMessage({ type: 'tournament_end', won: won });
     }
 
     // Reset rematch state
