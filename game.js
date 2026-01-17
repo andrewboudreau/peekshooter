@@ -2319,6 +2319,9 @@ function updateProjectiles(deltaTime) {
 }
 
 function createExplosion(position, splashConfig, damageConfig) {
+    // Play explosion sound
+    AudioSystem.playExplosion();
+
     // Visual explosion effect
     const explosionGroup = new THREE.Group();
 
@@ -2330,10 +2333,13 @@ function createExplosion(position, splashConfig, damageConfig) {
         opacity: 1
     });
     const flash = new THREE.Mesh(flashGeo, flashMat);
+    flash.castShadow = false;
+    flash.receiveShadow = false;
     explosionGroup.add(flash);
 
-    // Explosion light
+    // Explosion light (no shadows for performance)
     const explosionLight = new THREE.PointLight(0xff6600, 10, 15);
+    explosionLight.castShadow = false;
     explosionGroup.add(explosionLight);
 
     // Smoke particles
@@ -2345,6 +2351,8 @@ function createExplosion(position, splashConfig, damageConfig) {
             opacity: 0.7
         });
         const smoke = new THREE.Mesh(smokeGeo, smokeMat);
+        smoke.castShadow = false;
+        smoke.receiveShadow = false;
         smoke.position.set(
             (Math.random() - 0.5) * 2,
             Math.random() * 1.5,
@@ -2733,14 +2741,23 @@ function createOpponentMesh(opponent) {
     rightArm.userData.damage = 5;
     group.add(rightArm);
 
-    // Simple weapon
-    const weaponGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.4);
-    const weaponMaterial = new THREE.MeshStandardMaterial({
-        color: 0x222222,
-        metalness: 0.8,
-    });
-    const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
-    weapon.position.set(0.3, 0.9, -0.2);
+    // Create weapon using WeaponFactory for proper model
+    let weapon;
+    const weaponId = opponent.currentWeapon || 'assault_rifle';
+    if (typeof WeaponFactory !== 'undefined') {
+        WeaponFactory.initMaterials();
+        weapon = WeaponFactory.createOpponentWeapon(weaponId);
+    } else {
+        // Fallback to simple box if WeaponFactory not available
+        const weaponGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.4);
+        const weaponMaterial = new THREE.MeshStandardMaterial({
+            color: 0x222222,
+            metalness: 0.8,
+        });
+        weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+    }
+    const handOffset = opponent.state?.weaponHand === 'right' ? -0.3 : 0.3;
+    weapon.position.set(handOffset, 0.9, -0.2);
     group.add(weapon);
     opponent.weaponMesh = weapon;
 

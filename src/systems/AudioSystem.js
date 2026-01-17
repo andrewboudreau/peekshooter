@@ -471,6 +471,112 @@ const AudioSystem = {
         thud.start(now);
         thud.stop(now + 0.08);
     },
+
+    // Explosion sound (RPG, grenades, etc.)
+    playExplosion() {
+        if (!this.initialized) return;
+        this.resume();
+
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // INITIAL BLAST - loud low frequency boom
+        const blastOsc = ctx.createOscillator();
+        blastOsc.type = 'sine';
+        blastOsc.frequency.setValueAtTime(80, now);
+        blastOsc.frequency.exponentialRampToValueAtTime(20, now + 0.3);
+
+        const blastGain = ctx.createGain();
+        blastGain.gain.setValueAtTime(1.0, now);
+        blastGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+        // Distortion for grit
+        const blastDist = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+            const x = (i / 128) - 1;
+            curve[i] = Math.tanh(x * 3);
+        }
+        blastDist.curve = curve;
+
+        blastOsc.connect(blastDist);
+        blastDist.connect(blastGain);
+        blastGain.connect(this.masterGain);
+
+        // NOISE BURST - explosive debris/shrapnel
+        const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+            const decay = Math.exp(-i / (ctx.sampleRate * 0.15));
+            noiseData[i] = (Math.random() * 2 - 1) * decay;
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.setValueAtTime(3000, now);
+        noiseFilter.frequency.exponentialRampToValueAtTime(500, now + 0.4);
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.8, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+
+        // MID RUMBLE - sustained explosion body
+        const rumbleOsc = ctx.createOscillator();
+        rumbleOsc.type = 'sawtooth';
+        rumbleOsc.frequency.setValueAtTime(50, now);
+        rumbleOsc.frequency.exponentialRampToValueAtTime(25, now + 0.5);
+
+        const rumbleFilter = ctx.createBiquadFilter();
+        rumbleFilter.type = 'lowpass';
+        rumbleFilter.frequency.value = 150;
+
+        const rumbleGain = ctx.createGain();
+        rumbleGain.gain.setValueAtTime(0.6, now + 0.05);
+        rumbleGain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+
+        rumbleOsc.connect(rumbleFilter);
+        rumbleFilter.connect(rumbleGain);
+        rumbleGain.connect(this.masterGain);
+
+        // HIGH CRACK - initial shockwave
+        const crackBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
+        const crackData = crackBuffer.getChannelData(0);
+        for (let i = 0; i < crackData.length; i++) {
+            crackData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.004));
+        }
+
+        const crack = ctx.createBufferSource();
+        crack.buffer = crackBuffer;
+
+        const crackFilter = ctx.createBiquadFilter();
+        crackFilter.type = 'highpass';
+        crackFilter.frequency.value = 2000;
+
+        const crackGain = ctx.createGain();
+        crackGain.gain.setValueAtTime(0.7, now);
+        crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+
+        crack.connect(crackFilter);
+        crackFilter.connect(crackGain);
+        crackGain.connect(this.masterGain);
+
+        // Play all layers
+        blastOsc.start(now);
+        blastOsc.stop(now + 0.4);
+        noise.start(now);
+        noise.stop(now + 0.5);
+        rumbleOsc.start(now);
+        rumbleOsc.stop(now + 0.6);
+        crack.start(now);
+        crack.stop(now + 0.03);
+    },
 };
 
 // Export for module usage

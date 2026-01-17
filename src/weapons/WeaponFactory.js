@@ -90,56 +90,20 @@ const WeaponFactory = {
     },
 
     // ============================================
-    // Simplified Opponent Weapon
+    // Realistic Opponent Weapon (uses full detailed models)
     // ============================================
     createOpponentWeapon(weaponId) {
-        this.initMaterials();
-        const group = new THREE.Group();
-        const m = this.materials;
+        // Use the full detailed weapon model
+        const weapon = this.createWeapon(weaponId);
 
-        // Dimensions per weapon type
-        const dims = {
-            pistol: { w: 0.04, h: 0.10, d: 0.16 },
-            smg: { w: 0.05, h: 0.07, d: 0.32 },
-            assault_rifle: { w: 0.05, h: 0.07, d: 0.45 },
-            shotgun: { w: 0.045, h: 0.06, d: 0.50 },
-            sniper: { w: 0.045, h: 0.07, d: 0.65 },
-            rpg: { w: 0.08, h: 0.08, d: 0.80 },
-        };
+        // Scale down slightly for third-person view (weapons are designed for FPS close-up)
+        const scale = 0.7;
+        weapon.scale.set(scale, scale, scale);
 
-        const d = dims[weaponId] || dims.assault_rifle;
+        // No extra rotation needed - opponent mesh already faces player
+        // Weapon points in -Z which becomes +Z (toward player) after opponent's 180° rotation
 
-        // Main body
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(d.w, d.h, d.d),
-            m.metalDark
-        );
-        group.add(body);
-
-        // Add barrel for longer weapons
-        if (weaponId !== 'pistol') {
-            const barrel = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.008, 0.01, d.d * 0.3, 8),
-                m.metalDark
-            );
-            barrel.rotation.x = Math.PI / 2;
-            barrel.position.z = -d.d * 0.5 - d.d * 0.15;
-            group.add(barrel);
-        }
-
-        // Add scope for sniper
-        if (weaponId === 'sniper') {
-            const scope = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.02, 0.02, 0.15, 8),
-                m.scope
-            );
-            scope.rotation.x = Math.PI / 2;
-            scope.position.y = 0.05;
-            scope.position.z = -0.05;
-            group.add(scope);
-        }
-
-        return group;
+        return weapon;
     },
 
     // ============================================
