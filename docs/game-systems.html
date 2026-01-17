@@ -612,57 +612,171 @@
 }
         </div>
 
+        <h2>🏆 Tournament Mode</h2>
+
+        <div class="card" style="border-left: 4px solid var(--accent-orange);">
+            <h3 style="margin-top: 0; color: var(--accent-orange);">First to X Kills</h3>
+            <p>Tournament mode transforms casual matches into competitive showdowns with a defined win condition.</p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
+                <div style="background: var(--bg-dark); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">🎯</div>
+                    <div style="font-weight: 600;">Kill Targets</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">3, 5, 7, 10, or 15 kills</div>
+                </div>
+                <div style="background: var(--bg-dark); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">📡</div>
+                    <div style="font-weight: 600;">Host Synced</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">Settings sync to joiner</div>
+                </div>
+                <div style="background: var(--bg-dark); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">🔄</div>
+                    <div style="font-weight: 600;">Rematch Ready</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">Quick restart option</div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Tournament Flow</h3>
+        <div class="priority-list">
+            <div class="priority-item">
+                <div class="priority-num" style="background: var(--accent-orange);">1</div>
+                <div class="priority-content">
+                    <div class="priority-title">Enable Tournament Mode</div>
+                    <div class="priority-desc">Host enables tournament mode and selects kill target in the online menu before starting.</div>
+                </div>
+            </div>
+            <div class="priority-item">
+                <div class="priority-num" style="background: var(--accent-orange);">2</div>
+                <div class="priority-content">
+                    <div class="priority-title">Settings Sync</div>
+                    <div class="priority-desc">When opponent joins, tournament settings are automatically synced via <code>tournament_mode</code> message.</div>
+                </div>
+            </div>
+            <div class="priority-item">
+                <div class="priority-num" style="background: var(--accent-orange);">3</div>
+                <div class="priority-content">
+                    <div class="priority-title">Live Scoreboard</div>
+                    <div class="priority-desc">HUD displays "First to X" with remaining kills needed for each player.</div>
+                </div>
+            </div>
+            <div class="priority-item">
+                <div class="priority-num" style="background: var(--accent-green);">4</div>
+                <div class="priority-content">
+                    <div class="priority-title">Victory & Rematch</div>
+                    <div class="priority-desc">Winner declared when target reached. Both players see end overlay with rematch option.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// Tournament state in netState</span>
+netState = {
+    tournamentMode: <span class="keyword">false</span>,      <span class="comment">// Is tournament mode active?</span>
+    tournamentKillsToWin: <span class="number">5</span>,    <span class="comment">// Target kills (3, 5, 7, 10, 15)</span>
+};
+
+<span class="comment">// Check win condition after each kill</span>
+<span class="keyword">function</span> <span class="function">checkTournamentWin</span>() {
+    <span class="keyword">if</span> (!netState.tournamentMode) <span class="keyword">return</span> <span class="keyword">false</span>;
+
+    <span class="keyword">const</span> myScore = netState.myKills;
+    <span class="keyword">const</span> opponentScore = netState.opponentKills;
+
+    <span class="keyword">if</span> (myScore >= netState.tournamentKillsToWin) {
+        <span class="function">showTournamentEnd</span>(<span class="keyword">true</span>);  <span class="comment">// Victory!</span>
+    } <span class="keyword">else if</span> (opponentScore >= netState.tournamentKillsToWin) {
+        <span class="function">showTournamentEnd</span>(<span class="keyword">false</span>); <span class="comment">// Defeat</span>
+    }
+}
+
+<span class="comment">// Sync tournament settings to joiner</span>
+<span class="function">sendPeerMessage</span>({
+    type: <span class="string">'tournament_mode'</span>,
+    enabled: netState.tournamentMode,
+    killsToWin: netState.tournamentKillsToWin
+});
+        </div>
+
         <h2>🔊 AudioSystem</h2>
 
         <div class="audio-viz">
-            <p>All sounds in Peek Shooter are procedurally generated using the Web Audio API - no pre-recorded audio files.</p>
+            <p>All sounds in Peek Shooter are procedurally generated using the Web Audio API - no pre-recorded audio files. Click any sound to hear it!</p>
 
             <div class="sound-list">
-                <div class="sound-item" onclick="playSound('gunshot')">
+                <div class="sound-item" onclick="playSound('gunshot', this)">
                     <div class="sound-icon">🔫</div>
                     <div class="sound-name">Gunshot</div>
                     <div class="sound-desc">3-layer: crack, body, thump</div>
                     <div class="waveform" id="waveform-gunshot"></div>
                 </div>
 
-                <div class="sound-item" onclick="playSound('hitmarker')">
+                <div class="sound-item" onclick="playSound('hitmarker', this)">
                     <div class="sound-icon">🎯</div>
                     <div class="sound-name">Hit Marker</div>
-                    <div class="sound-desc">High-frequency ping</div>
+                    <div class="sound-desc">Dual-frequency ping</div>
                     <div class="waveform" id="waveform-hitmarker"></div>
                 </div>
 
-                <div class="sound-item" onclick="playSound('damage')">
+                <div class="sound-item" onclick="playSound('damage', this)">
                     <div class="sound-icon">💔</div>
                     <div class="sound-name">Damage</div>
-                    <div class="sound-desc">Low thud impact</div>
+                    <div class="sound-desc">Low distorted thud</div>
                     <div class="waveform" id="waveform-damage"></div>
                 </div>
 
-                <div class="sound-item" onclick="playSound('kill')">
+                <div class="sound-item" onclick="playSound('kill', this)">
                     <div class="sound-icon">💀</div>
                     <div class="sound-name">Kill</div>
-                    <div class="sound-desc">Descending chord</div>
+                    <div class="sound-desc">Descending square wave</div>
                     <div class="waveform" id="waveform-kill"></div>
                 </div>
 
-                <div class="sound-item" onclick="playSound('wall')">
-                    <div class="sound-icon">🧱</div>
-                    <div class="sound-name">Wall Impact</div>
-                    <div class="sound-desc">Sharp crack</div>
-                    <div class="waveform" id="waveform-wall"></div>
+                <div class="sound-item" onclick="playSound('death', this)">
+                    <div class="sound-icon">☠️</div>
+                    <div class="sound-name">Death</div>
+                    <div class="sound-desc">Low sawtooth descent</div>
+                    <div class="waveform" id="waveform-death"></div>
                 </div>
 
-                <div class="sound-item" onclick="playSound('barrier')">
+                <div class="sound-item" onclick="playSound('explosion', this)">
+                    <div class="sound-icon">💥</div>
+                    <div class="sound-name">Explosion</div>
+                    <div class="sound-desc">4-layer: blast, noise, rumble, crack</div>
+                    <div class="waveform" id="waveform-explosion"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('target', this)">
+                    <div class="sound-icon">🎪</div>
+                    <div class="sound-name">Target Hit</div>
+                    <div class="sound-desc">Metallic ping</div>
+                    <div class="waveform" id="waveform-target"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('player', this)">
+                    <div class="sound-icon">🩸</div>
+                    <div class="sound-name">Player Hit</div>
+                    <div class="sound-desc">Flesh impact thud</div>
+                    <div class="waveform" id="waveform-player"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('barrier', this)">
                     <div class="sound-icon">🛡️</div>
                     <div class="sound-name">Barrier Impact</div>
-                    <div class="sound-desc">Metallic ping</div>
+                    <div class="sound-desc">Construction thud</div>
                     <div class="waveform" id="waveform-barrier"></div>
+                </div>
+
+                <div class="sound-item" onclick="playSound('wall', this)">
+                    <div class="sound-icon">🧱</div>
+                    <div class="sound-name">Wall Impact</div>
+                    <div class="sound-desc">Sharp crack + thud</div>
+                    <div class="waveform" id="waveform-wall"></div>
                 </div>
             </div>
 
-            <p style="margin-top: 24px; font-size: 0.9rem; text-align: center; color: var(--accent-cyan);">
-                Click any sound to see its waveform visualization
+            <p style="margin-top: 24px; font-size: 0.9rem; text-align: center; color: var(--accent-green);">
+                🔊 Click any sound card to play it
             </p>
         </div>
 
@@ -892,120 +1006,403 @@
             });
         }
 
-        // Audio visualization
+        // Audio System - matches the actual game implementation
         let audioCtx = null;
 
-        function playSound(type) {
+        function playSound(type, element) {
             // Initialize audio context on first click
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
 
-            const item = event.currentTarget;
-            item.classList.add('playing');
-            setTimeout(() => item.classList.remove('playing'), 500);
-
-            // Visualize waveform
-            const waveform = document.getElementById('waveform-' + type);
-            waveform.innerHTML = '';
-
-            const barCount = 20;
-            for (let i = 0; i < barCount; i++) {
-                const bar = document.createElement('div');
-                bar.className = 'wave-bar';
-                const height = Math.random() * 40 + 10;
-                bar.style.height = height + 'px';
-                bar.style.animationDelay = (i * 0.02) + 's';
-                waveform.appendChild(bar);
+            // Resume if suspended
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
             }
 
-            // Actually play the sound
+            element.classList.add('playing');
+            setTimeout(() => element.classList.remove('playing'), 500);
+
+            // Visualize waveform
+            const waveform = element.querySelector('.waveform');
+            if (waveform) {
+                waveform.innerHTML = '';
+                const barCount = 20;
+                for (let i = 0; i < barCount; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'wave-bar';
+                    const height = Math.random() * 40 + 10;
+                    bar.style.height = height + 'px';
+                    waveform.appendChild(bar);
+                }
+            }
+
+            // Play the actual sound
             playSoundEffect(type);
         }
 
         function playSoundEffect(type) {
-            const now = audioCtx.currentTime;
+            const ctx = audioCtx;
+            const now = ctx.currentTime;
 
             switch(type) {
-                case 'gunshot':
-                    // High crack
-                    const crack = audioCtx.createOscillator();
-                    crack.type = 'sawtooth';
-                    crack.frequency.value = 2000;
-                    const crackGain = audioCtx.createGain();
-                    crackGain.gain.setValueAtTime(0.3, now);
-                    crackGain.gain.exponentialDecayTo(0.01, now + 0.05);
-                    crack.connect(crackGain).connect(audioCtx.destination);
+                case 'gunshot': {
+                    // HIGH CRACK - sharp transient noise burst
+                    const crackBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.04, ctx.sampleRate);
+                    const crackData = crackBuffer.getChannelData(0);
+                    for (let i = 0; i < crackData.length; i++) {
+                        const decay = Math.exp(-i / (ctx.sampleRate * 0.008));
+                        crackData[i] = (Math.random() * 2 - 1) * decay;
+                    }
+                    const crack = ctx.createBufferSource();
+                    crack.buffer = crackBuffer;
+                    const crackFilter = ctx.createBiquadFilter();
+                    crackFilter.type = 'highpass';
+                    crackFilter.frequency.value = 2500;
+                    const crackGain = ctx.createGain();
+                    crackGain.gain.setValueAtTime(1.2, now);
+                    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+                    crack.connect(crackFilter);
+                    crackFilter.connect(crackGain);
+                    crackGain.connect(ctx.destination);
+
+                    // MID BODY
+                    const bodyBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+                    const bodyData = bodyBuffer.getChannelData(0);
+                    for (let i = 0; i < bodyData.length; i++) {
+                        bodyData[i] = (Math.random() * 2 - 1);
+                    }
+                    const body = ctx.createBufferSource();
+                    body.buffer = bodyBuffer;
+                    const bodyFilter = ctx.createBiquadFilter();
+                    bodyFilter.type = 'bandpass';
+                    bodyFilter.frequency.value = 800;
+                    const bodyGain = ctx.createGain();
+                    bodyGain.gain.setValueAtTime(0.6, now);
+                    bodyGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                    body.connect(bodyFilter);
+                    bodyFilter.connect(bodyGain);
+                    bodyGain.connect(ctx.destination);
+
+                    // LOW THUMP
+                    const thump = ctx.createOscillator();
+                    thump.type = 'sine';
+                    thump.frequency.setValueAtTime(120, now);
+                    thump.frequency.exponentialRampToValueAtTime(35, now + 0.08);
+                    const thumpGain = ctx.createGain();
+                    thumpGain.gain.setValueAtTime(0.9, now);
+                    thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    thump.connect(thumpGain);
+                    thumpGain.connect(ctx.destination);
+
                     crack.start(now);
-                    crack.stop(now + 0.05);
-
-                    // Body
-                    const body = audioCtx.createOscillator();
-                    body.type = 'square';
-                    body.frequency.value = 150;
-                    const bodyGain = audioCtx.createGain();
-                    bodyGain.gain.setValueAtTime(0.2, now);
-                    bodyGain.gain.exponentialDecayTo(0.01, now + 0.1);
-                    body.connect(bodyGain).connect(audioCtx.destination);
+                    crack.stop(now + 0.04);
                     body.start(now);
-                    body.stop(now + 0.1);
+                    body.stop(now + 0.08);
+                    thump.start(now);
+                    thump.stop(now + 0.12);
                     break;
+                }
 
-                case 'hitmarker':
-                    const ping = audioCtx.createOscillator();
-                    ping.type = 'sine';
-                    ping.frequency.value = 1800;
-                    const pingGain = audioCtx.createGain();
-                    pingGain.gain.setValueAtTime(0.2, now);
-                    pingGain.gain.exponentialDecayTo(0.01, now + 0.1);
-                    ping.connect(pingGain).connect(audioCtx.destination);
-                    ping.start(now);
-                    ping.stop(now + 0.1);
+                case 'hitmarker': {
+                    const osc1 = ctx.createOscillator();
+                    osc1.type = 'sine';
+                    osc1.frequency.value = 1800;
+                    const osc2 = ctx.createOscillator();
+                    osc2.type = 'sine';
+                    osc2.frequency.value = 2400;
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.1);
+                    osc2.stop(now + 0.1);
                     break;
+                }
 
-                case 'damage':
-                    const thud = audioCtx.createOscillator();
-                    thud.type = 'sine';
-                    thud.frequency.value = 80;
-                    const thudGain = audioCtx.createGain();
-                    thudGain.gain.setValueAtTime(0.4, now);
-                    thudGain.gain.exponentialDecayTo(0.01, now + 0.2);
-                    thud.connect(thudGain).connect(audioCtx.destination);
-                    thud.start(now);
-                    thud.stop(now + 0.2);
+                case 'damage': {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(80, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.7, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    const distortion = ctx.createWaveShaper();
+                    const curve = new Float32Array(256);
+                    for (let i = 0; i < 256; i++) {
+                        const x = (i / 128) - 1;
+                        curve[i] = Math.tanh(x * 2);
+                    }
+                    distortion.curve = curve;
+                    osc.connect(distortion);
+                    distortion.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
                     break;
+                }
 
-                case 'kill':
-                    [800, 600, 400].forEach((freq, i) => {
-                        const osc = audioCtx.createOscillator();
-                        osc.type = 'sine';
-                        osc.frequency.value = freq;
-                        const gain = audioCtx.createGain();
-                        gain.gain.setValueAtTime(0.15, now + i * 0.1);
-                        gain.gain.exponentialDecayTo(0.01, now + i * 0.1 + 0.2);
-                        osc.connect(gain).connect(audioCtx.destination);
-                        osc.start(now + i * 0.1);
-                        osc.stop(now + i * 0.1 + 0.2);
-                    });
+                case 'kill': {
+                    const osc1 = ctx.createOscillator();
+                    osc1.type = 'square';
+                    osc1.frequency.setValueAtTime(600, now);
+                    osc1.frequency.setValueAtTime(500, now + 0.1);
+                    osc1.frequency.setValueAtTime(400, now + 0.2);
+                    const osc2 = ctx.createOscillator();
+                    osc2.type = 'square';
+                    osc2.frequency.setValueAtTime(900, now);
+                    osc2.frequency.setValueAtTime(750, now + 0.1);
+                    osc2.frequency.setValueAtTime(600, now + 0.2);
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.setValueAtTime(0.25, now + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 2000;
+                    osc1.connect(filter);
+                    osc2.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.35);
+                    osc2.stop(now + 0.35);
                     break;
+                }
 
-                default:
-                    const noise = audioCtx.createOscillator();
-                    noise.type = 'triangle';
-                    noise.frequency.value = 400;
-                    const noiseGain = audioCtx.createGain();
-                    noiseGain.gain.setValueAtTime(0.2, now);
-                    noiseGain.gain.exponentialDecayTo(0.01, now + 0.08);
-                    noise.connect(noiseGain).connect(audioCtx.destination);
+                case 'death': {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(50, now + 0.5);
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(800, now);
+                    filter.frequency.exponentialRampToValueAtTime(200, now + 0.5);
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                    break;
+                }
+
+                case 'explosion': {
+                    // INITIAL BLAST
+                    const blastOsc = ctx.createOscillator();
+                    blastOsc.type = 'sine';
+                    blastOsc.frequency.setValueAtTime(80, now);
+                    blastOsc.frequency.exponentialRampToValueAtTime(20, now + 0.3);
+                    const blastGain = ctx.createGain();
+                    blastGain.gain.setValueAtTime(1.0, now);
+                    blastGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    const blastDist = ctx.createWaveShaper();
+                    const curve = new Float32Array(256);
+                    for (let i = 0; i < 256; i++) {
+                        const x = (i / 128) - 1;
+                        curve[i] = Math.tanh(x * 3);
+                    }
+                    blastDist.curve = curve;
+                    blastOsc.connect(blastDist);
+                    blastDist.connect(blastGain);
+                    blastGain.connect(ctx.destination);
+
+                    // NOISE BURST
+                    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+                    const noiseData = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < noiseData.length; i++) {
+                        const decay = Math.exp(-i / (ctx.sampleRate * 0.15));
+                        noiseData[i] = (Math.random() * 2 - 1) * decay;
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const noiseFilter = ctx.createBiquadFilter();
+                    noiseFilter.type = 'lowpass';
+                    noiseFilter.frequency.setValueAtTime(3000, now);
+                    noiseFilter.frequency.exponentialRampToValueAtTime(500, now + 0.4);
+                    const noiseGain = ctx.createGain();
+                    noiseGain.gain.setValueAtTime(0.8, now);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    noise.connect(noiseFilter);
+                    noiseFilter.connect(noiseGain);
+                    noiseGain.connect(ctx.destination);
+
+                    // MID RUMBLE
+                    const rumbleOsc = ctx.createOscillator();
+                    rumbleOsc.type = 'sawtooth';
+                    rumbleOsc.frequency.setValueAtTime(50, now);
+                    rumbleOsc.frequency.exponentialRampToValueAtTime(25, now + 0.5);
+                    const rumbleFilter = ctx.createBiquadFilter();
+                    rumbleFilter.type = 'lowpass';
+                    rumbleFilter.frequency.value = 150;
+                    const rumbleGain = ctx.createGain();
+                    rumbleGain.gain.setValueAtTime(0.6, now + 0.05);
+                    rumbleGain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    rumbleOsc.connect(rumbleFilter);
+                    rumbleFilter.connect(rumbleGain);
+                    rumbleGain.connect(ctx.destination);
+
+                    blastOsc.start(now);
+                    blastOsc.stop(now + 0.4);
+                    noise.start(now);
+                    noise.stop(now + 0.5);
+                    rumbleOsc.start(now);
+                    rumbleOsc.stop(now + 0.6);
+                    break;
+                }
+
+                case 'target': {
+                    const osc1 = ctx.createOscillator();
+                    osc1.type = 'triangle';
+                    osc1.frequency.value = 600 + Math.random() * 100;
+                    const osc2 = ctx.createOscillator();
+                    osc2.type = 'triangle';
+                    osc2.frequency.value = 1400 + Math.random() * 150;
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 2000;
+                    osc1.connect(filter);
+                    osc2.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.08);
+                    osc2.stop(now + 0.08);
+                    break;
+                }
+
+                case 'player': {
+                    // Noise burst (splat)
+                    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+                    const noiseData = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < noiseData.length; i++) {
+                        noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.015));
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 600;
+                    const noiseGain = ctx.createGain();
+                    noiseGain.gain.setValueAtTime(0.5, now);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    noise.connect(filter);
+                    filter.connect(noiseGain);
+                    noiseGain.connect(ctx.destination);
+
+                    // Low thump
+                    const thump = ctx.createOscillator();
+                    thump.type = 'sine';
+                    thump.frequency.setValueAtTime(100, now);
+                    thump.frequency.exponentialRampToValueAtTime(50, now + 0.06);
+                    const thumpGain = ctx.createGain();
+                    thumpGain.gain.setValueAtTime(0.4, now);
+                    thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    thump.connect(thumpGain);
+                    thumpGain.connect(ctx.destination);
+
                     noise.start(now);
                     noise.stop(now + 0.08);
+                    thump.start(now);
+                    thump.stop(now + 0.1);
+                    break;
+                }
+
+                case 'barrier': {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    const distortion = ctx.createWaveShaper();
+                    const curve = new Float32Array(256);
+                    for (let i = 0; i < 256; i++) {
+                        const x = (i / 128) - 1;
+                        curve[i] = Math.tanh(x * 1.5);
+                    }
+                    distortion.curve = curve;
+                    osc.connect(distortion);
+                    distortion.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    // Noise texture
+                    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
+                    const noiseData = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < noiseData.length; i++) {
+                        noiseData[i] = (Math.random() * 2 - 1);
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const noiseFilter = ctx.createBiquadFilter();
+                    noiseFilter.type = 'bandpass';
+                    noiseFilter.frequency.value = 400;
+                    const noiseGain = ctx.createGain();
+                    noiseGain.gain.setValueAtTime(0.25, now);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                    noise.connect(noiseFilter);
+                    noiseFilter.connect(noiseGain);
+                    noiseGain.connect(ctx.destination);
+
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                    noise.start(now);
+                    noise.stop(now + 0.04);
+                    break;
+                }
+
+                case 'wall': {
+                    // Sharp crack
+                    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.025, ctx.sampleRate);
+                    const noiseData = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < noiseData.length; i++) {
+                        noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.006));
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.value = 1500;
+                    const noiseGain = ctx.createGain();
+                    noiseGain.gain.setValueAtTime(0.35, now);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                    noise.connect(filter);
+                    filter.connect(noiseGain);
+                    noiseGain.connect(ctx.destination);
+
+                    // Low thud
+                    const thud = ctx.createOscillator();
+                    thud.type = 'sine';
+                    thud.frequency.setValueAtTime(90, now);
+                    thud.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+                    const thudGain = ctx.createGain();
+                    thudGain.gain.setValueAtTime(0.3, now);
+                    thudGain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+                    thud.connect(thudGain);
+                    thudGain.connect(ctx.destination);
+
+                    noise.start(now);
+                    noise.stop(now + 0.04);
+                    thud.start(now);
+                    thud.stop(now + 0.08);
+                    break;
+                }
             }
         }
-
-        // Polyfill for exponentialDecayTo
-        GainNode.prototype.exponentialDecayTo = function(value, time) {
-            this.gain.exponentialRampToValueAtTime(Math.max(0.0001, value), time);
-        };
 
         // Blood effect demo
         function triggerBlood() {
