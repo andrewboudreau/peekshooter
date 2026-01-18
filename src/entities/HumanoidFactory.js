@@ -42,10 +42,10 @@ const HumanoidFactory = {
     joints: {
         // Spine chain (bottom-up) - tighter spacing
         pelvis: { y: 0.90 },  // Hip height from ground
-        stomach: { y: 0.10 }, // Relative to pelvis (tighter)
-        chest: { y: 0.12 },   // Relative to stomach (tighter)
-        neck: { y: 0.13 },    // Relative to chest (much closer - was 0.28!)
-        head: { y: 0.06 },    // Relative to neck (sits on top)
+        stomach: { y: 0.08 }, // Relative to pelvis (tighter)
+        chest: { y: 0.10 },   // Relative to stomach (tighter)
+        neck: { y: 0.10 },    // Relative to chest (lowered from 0.13)
+        head: { y: 0.04 },    // Relative to neck (lowered from 0.06)
 
         // Arms (relative to chest) - at shoulder height
         shoulderL: { x: -0.16, y: 0.12 },
