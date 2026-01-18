@@ -24,6 +24,9 @@ class Opponent extends Entity {
         this.mesh = null;
         this.weaponMesh = null;
 
+        // Humanoid model reference
+        this.humanoid = null;
+
         // Network interpolation
         this.lastUpdate = Date.now();
 
@@ -85,7 +88,7 @@ class Opponent extends Entity {
     // ============================================
 
     /**
-     * Create the opponent's 3D mesh
+     * Create the opponent's 3D mesh using HumanoidFactory
      * @param {THREE.Scene} scene - Scene to add mesh to
      */
     createMesh(scene) {
@@ -94,10 +97,62 @@ class Opponent extends Entity {
         }
 
         const config = typeof PhysicsConfig !== 'undefined' ? PhysicsConfig.opponent : null;
-        const group = new THREE.Group();
-
         const teamColor = this.slot === 0 ? 0x4444aa : 0xaa4444;
+
+        // Use HumanoidFactory if available, otherwise fall back to simple mesh
+        if (typeof HumanoidFactory !== 'undefined') {
+            this.humanoid = HumanoidFactory.create({
+                teamColor: teamColor,
+                skinColor: 0xddccbb,
+                eyeColor: 0x446688,
+                hasMask: false,
+                slot: this.slot
+            });
+
+            const group = this.humanoid.root;
+
+            // Register hitboxes from humanoid
+            const damage = typeof DamageConfig !== 'undefined' ? DamageConfig.bodyParts : null;
+            this.humanoid.hitboxes.forEach(hb => {
+                const partDamage = damage?.[hb.part]?.damage || 10;
+                this.hitbox.addPart(hb.bone, hb.mesh, partDamage, { isCritical: hb.critical || false });
+            });
+
+            // Create and attach weapon to hand
+            if (typeof WeaponFactory !== 'undefined') {
+                this.weaponMesh = WeaponFactory.createOpponentWeapon(this.currentWeapon);
+                const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
+                this.humanoid.attachToBone(handBone, this.weaponMesh);
+                // Position weapon in hand
+                this.weaponMesh.position.set(0, -0.12, 0.08);
+                this.weaponMesh.rotation.set(-Math.PI / 2, 0, 0);
+            }
+
+            // Apply initial rifle hold pose
+            this.applyWeaponPose();
+
+            // Position in arena
+            group.position.z = config?.spawnZ || -15;
+
+            this.mesh = group;
+            this.transform.attachMesh(group);
+            this.hitbox.setMeshGroup(group);
+
+            scene.add(group);
+            return group;
+        }
+
+        // Fallback: simple mesh (legacy)
+        return this.createSimpleMesh(scene, config, teamColor);
+    }
+
+    /**
+     * Fallback simple mesh creation (legacy compatibility)
+     */
+    createSimpleMesh(scene, config, teamColor) {
+        const group = new THREE.Group();
         const skinColor = 0xddccbb;
+        const damage = typeof DamageConfig !== 'undefined' ? DamageConfig.bodyParts : null;
 
         // Head
         const headRadius = config?.headRadius || 0.18;
@@ -107,9 +162,6 @@ class Opponent extends Entity {
         head.position.y = config?.headY || 1.45;
         head.userData.isOpponent = true;
         group.add(head);
-
-        // Register head hitbox
-        const damage = typeof DamageConfig !== 'undefined' ? DamageConfig.bodyParts : null;
         this.hitbox.addPart('head', head, damage?.head?.damage || 25, { isCritical: true });
 
         // Chest
@@ -176,8 +228,56 @@ class Opponent extends Entity {
         this.hitbox.setMeshGroup(group);
 
         scene.add(group);
-
         return group;
+    }
+
+    /**
+     * Apply weapon-appropriate pose to humanoid
+     */
+    applyWeaponPose() {
+        if (!this.humanoid || typeof HumanoidFactory === 'undefined') return;
+
+        // Get weapon type
+        const weaponConfig = typeof WeaponConfig !== 'undefined' ?
+            WeaponConfig.weapons[this.currentWeapon] : null;
+
+        let basePose;
+        if (weaponConfig?.type === 'pistol') {
+            basePose = HumanoidFactory.poses.pistolHold;
+        } else {
+            basePose = HumanoidFactory.poses.rifleHold;
+        }
+
+        // Mirror pose if left-handed
+        if (this.weaponHand === 'left') {
+            basePose = this.mirrorPose(basePose);
+        }
+
+        this.humanoid.setPose(basePose);
+    }
+
+    /**
+     * Mirror a pose from right to left hand
+     */
+    mirrorPose(pose) {
+        const mirrored = {};
+        Object.entries(pose).forEach(([bone, rotation]) => {
+            // Swap L and R in bone names
+            let newBone = bone;
+            if (bone.endsWith('L')) {
+                newBone = bone.slice(0, -1) + 'R';
+            } else if (bone.endsWith('R')) {
+                newBone = bone.slice(0, -1) + 'L';
+            }
+
+            // Mirror X and Z rotations for lateral bones
+            mirrored[newBone] = {
+                x: rotation.x,
+                y: rotation.y !== undefined ? -rotation.y : undefined,
+                z: rotation.z !== undefined ? -rotation.z : undefined
+            };
+        });
+        return mirrored;
     }
 
     /**
@@ -209,11 +309,53 @@ class Opponent extends Entity {
         // Lean tilt (mirrored)
         this.mesh.rotation.z = -state.lean * (config?.leanTilt || 0.15);
 
-        // Update weapon hand position (mirrored)
-        if (this.weaponMesh) {
-            const handOffset = this.weaponHand === 'right' ? -0.3 : 0.3;
-            this.weaponMesh.position.x = handOffset;
+        // Apply stance poses to humanoid if available
+        if (this.humanoid && typeof HumanoidFactory !== 'undefined') {
+            this.applyStancePose(state);
         }
+    }
+
+    /**
+     * Apply stance-based pose (crouch, lean) to humanoid
+     */
+    applyStancePose(state) {
+        if (!this.humanoid || typeof HumanoidFactory === 'undefined') return;
+
+        // Get weapon hold pose
+        const weaponConfig = typeof WeaponConfig !== 'undefined' ?
+            WeaponConfig.weapons[this.currentWeapon] : null;
+
+        let weaponPose;
+        if (weaponConfig?.type === 'pistol') {
+            weaponPose = HumanoidFactory.poses.pistolHold;
+        } else {
+            weaponPose = HumanoidFactory.poses.rifleHold;
+        }
+
+        // Mirror if left-handed
+        if (this.weaponHand === 'left') {
+            weaponPose = this.mirrorPose(weaponPose);
+        }
+
+        // Blend crouch pose
+        let stancePose = {};
+        if (state.crouch > 0.1) {
+            stancePose = HumanoidFactory.blendPoses({}, HumanoidFactory.poses.crouch, state.crouch);
+        }
+
+        // Add lean pose
+        if (Math.abs(state.lean) > 0.1) {
+            const leanPose = state.lean > 0 ?
+                HumanoidFactory.poses.leanRight :
+                HumanoidFactory.poses.leanLeft;
+            const leanAmount = Math.abs(state.lean);
+            const blendedLean = HumanoidFactory.blendPoses({}, leanPose, leanAmount);
+            stancePose = HumanoidFactory.combinePoses(stancePose, blendedLean);
+        }
+
+        // Combine weapon pose with stance pose
+        const finalPose = HumanoidFactory.combinePoses(weaponPose, stancePose);
+        this.humanoid.setPose(finalPose);
     }
 
     // ============================================
@@ -252,17 +394,32 @@ class Opponent extends Entity {
         this.currentWeapon = weaponId;
 
         // Update weapon mesh if we have one
-        if (this.weaponMesh && this.mesh) {
-            // Remove old weapon
-            this.mesh.remove(this.weaponMesh);
+        if (this.weaponMesh) {
+            // Remove old weapon from parent (hand bone or mesh group)
+            if (this.weaponMesh.parent) {
+                this.weaponMesh.parent.remove(this.weaponMesh);
+            }
             if (this.weaponMesh.geometry) this.weaponMesh.geometry.dispose();
 
             // Create new weapon using WeaponFactory if available
             if (typeof WeaponFactory !== 'undefined') {
                 this.weaponMesh = WeaponFactory.createOpponentWeapon(weaponId);
-                const handOffset = this.weaponHand === 'right' ? -0.3 : 0.3;
-                this.weaponMesh.position.set(handOffset, 0.9, -0.2);
-                this.mesh.add(this.weaponMesh);
+
+                // Attach to humanoid hand bone if available
+                if (this.humanoid) {
+                    const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
+                    this.humanoid.attachToBone(handBone, this.weaponMesh);
+                    this.weaponMesh.position.set(0, -0.12, 0.08);
+                    this.weaponMesh.rotation.set(-Math.PI / 2, 0, 0);
+                } else if (this.mesh) {
+                    // Fallback to mesh group
+                    const handOffset = this.weaponHand === 'right' ? -0.3 : 0.3;
+                    this.weaponMesh.position.set(handOffset, 0.9, -0.2);
+                    this.mesh.add(this.weaponMesh);
+                }
+
+                // Re-apply weapon pose
+                this.applyWeaponPose();
             }
         }
     }
@@ -277,6 +434,7 @@ class Opponent extends Entity {
         }
         this.mesh = null;
         this.weaponMesh = null;
+        this.humanoid = null;
         super.destroy();
     }
 

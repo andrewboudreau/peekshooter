@@ -36,6 +36,20 @@ const DamageConfig = {
             color: '#00ff00',
             colorHex: 0x00ff00,
         },
+        leg: {
+            damage: 5,
+            multiplier: 1.0,
+            label: 'LEG',
+            color: '#00ff00',
+            colorHex: 0x00ff00,
+        },
+        pelvis: {
+            damage: 8,
+            multiplier: 1.0,
+            label: 'BODY',
+            color: '#ffff00',
+            colorHex: 0xffff00,
+        },
     },
 
     // Default/fallback damage
