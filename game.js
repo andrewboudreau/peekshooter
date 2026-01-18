@@ -3090,8 +3090,10 @@ function createOpponentMesh(opponent) {
         const weaponHand = opponent.state?.weaponHand || 'right';
         const handBone = weaponHand === 'right' ? 'handR' : 'handL';
         humanoid.attachToBone(handBone, weapon);
-        weapon.position.set(0, -0.12, 0.08);
-        weapon.rotation.set(-Math.PI / 2, 0, 0);
+        // Position: slightly forward and down from hand center
+        // Rotation: weapon model points -Z, rotate to align with arm direction
+        weapon.position.set(0, -0.08, 0.05);
+        weapon.rotation.set(Math.PI / 2, 0, Math.PI);
         opponent.weaponMesh = weapon;
 
         // Apply weapon hold pose

@@ -125,9 +125,10 @@ class Opponent extends Entity {
                 this.weaponMesh = WeaponFactory.createOpponentWeapon(this.currentWeapon);
                 const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
                 this.humanoid.attachToBone(handBone, this.weaponMesh);
-                // Position weapon in hand
-                this.weaponMesh.position.set(0, -0.12, 0.08);
-                this.weaponMesh.rotation.set(-Math.PI / 2, 0, 0);
+                // Position: slightly forward and down from hand center
+                // Rotation: weapon model points -Z, rotate to align with arm direction
+                this.weaponMesh.position.set(0, -0.08, 0.05);
+                this.weaponMesh.rotation.set(Math.PI / 2, 0, Math.PI);
             }
 
             // Apply initial rifle hold pose
@@ -411,8 +412,8 @@ class Opponent extends Entity {
                 if (this.humanoid) {
                     const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
                     this.humanoid.attachToBone(handBone, this.weaponMesh);
-                    this.weaponMesh.position.set(0, -0.12, 0.08);
-                    this.weaponMesh.rotation.set(-Math.PI / 2, 0, 0);
+                    this.weaponMesh.position.set(0, -0.08, 0.05);
+                    this.weaponMesh.rotation.set(Math.PI / 2, 0, Math.PI);
                 } else if (this.mesh) {
                     // Fallback to mesh group
                     const handOffset = this.weaponHand === 'right' ? -0.3 : 0.3;

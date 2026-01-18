@@ -9,33 +9,33 @@ const HumanoidFactory = {
     // Body proportions (in meters, based on average adult)
     proportions: {
         // Total height ~1.75m
-        head: { radius: 0.10, height: 0.22 },
-        neck: { radius: 0.05, height: 0.08 },
+        head: { radius: 0.11, height: 0.24 },
+        neck: { radius: 0.07, height: 0.10 },
 
         // Torso
-        chest: { width: 0.36, height: 0.28, depth: 0.22 },
-        stomach: { width: 0.30, height: 0.16, depth: 0.18 },
-        pelvis: { width: 0.32, height: 0.14, depth: 0.20 },
+        chest: { width: 0.38, height: 0.30, depth: 0.24 },
+        stomach: { width: 0.32, height: 0.18, depth: 0.20 },
+        pelvis: { width: 0.34, height: 0.16, depth: 0.22 },
 
-        // Arms
-        shoulder: { radius: 0.06 },
-        upperArm: { radius: 0.045, length: 0.28 },
-        forearm: { radius: 0.038, length: 0.26 },
-        wrist: { radius: 0.028 },
-        hand: { width: 0.08, height: 0.10, depth: 0.025 },
-        finger: { radius: 0.012, length: 0.07 },
-        thumb: { radius: 0.014, length: 0.05 },
+        // Arms (increased for visibility)
+        shoulder: { radius: 0.08 },
+        upperArm: { radius: 0.055, length: 0.30 },
+        forearm: { radius: 0.048, length: 0.28 },
+        wrist: { radius: 0.035 },
+        hand: { width: 0.09, height: 0.11, depth: 0.03 },
+        finger: { radius: 0.014, length: 0.07 },
+        thumb: { radius: 0.016, length: 0.05 },
 
         // Legs
-        thigh: { radius: 0.07, length: 0.42 },
-        knee: { radius: 0.055 },
-        shin: { radius: 0.05, length: 0.38 },
-        ankle: { radius: 0.035 },
-        foot: { width: 0.10, height: 0.08, length: 0.24 },
+        thigh: { radius: 0.08, length: 0.44 },
+        knee: { radius: 0.06 },
+        shin: { radius: 0.055, length: 0.40 },
+        ankle: { radius: 0.04 },
+        foot: { width: 0.11, height: 0.09, length: 0.26 },
 
         // Eyes
-        eye: { radius: 0.015 },
-        eyeOffset: { x: 0.035, y: 0.04, z: 0.08 },
+        eye: { radius: 0.018 },
+        eyeOffset: { x: 0.04, y: 0.04, z: 0.09 },
     },
 
     // Joint positions relative to parent bone (Y-up)
