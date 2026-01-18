@@ -216,8 +216,15 @@
 
         <h2>Debug Info</h2>
         <div id="debug-info">Loading...</div>
+
+        <h2>Export</h2>
+        <div class="control-group">
+            <button id="export-zip">Download Snapshot (.zip)</button>
+        </div>
+        <div id="export-status" style="font-size:11px; color:#4af; margin-top:4px;"></div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="../lib/three.min.js"></script>
     <script src="../src/entities/HumanoidFactory.js"></script>
     <script>
@@ -550,6 +557,130 @@
             const props = JSON.stringify(HumanoidFactory.proportions, null, 2);
             navigator.clipboard.writeText(props);
             alert('Proportions copied to clipboard!');
+        });
+
+        // Export functionality
+        document.getElementById('export-zip').addEventListener('click', async () => {
+            const status = document.getElementById('export-status');
+            status.textContent = 'Generating snapshot...';
+
+            try {
+                // Generate unique filename with timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const filename = `humanoid-snapshot-${timestamp}`;
+
+                // Render one frame to ensure canvas is up to date
+                renderer.render(scene, camera);
+
+                // Capture screenshot as blob
+                const screenshotBlob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/png');
+                });
+
+                // Collect full model state
+                const modelState = {
+                    exportDate: new Date().toISOString(),
+                    version: '1.0',
+
+                    // Factory configuration
+                    proportions: JSON.parse(JSON.stringify(HumanoidFactory.proportions)),
+                    joints: JSON.parse(JSON.stringify(HumanoidFactory.joints)),
+                    poses: JSON.parse(JSON.stringify(HumanoidFactory.poses)),
+
+                    // Current model options
+                    options: {
+                        teamColor: document.getElementById('team-color').value,
+                        showBones: document.getElementById('show-bones').checked,
+                        showWireframe: document.getElementById('show-wireframe').checked,
+                        showGrid: document.getElementById('show-grid').checked,
+                    },
+
+                    // Camera state
+                    camera: {
+                        angle: cameraAngle,
+                        pitch: cameraPitch,
+                        distance: parseFloat(document.getElementById('camera-dist').value),
+                        position: {
+                            x: camera.position.x,
+                            y: camera.position.y,
+                            z: camera.position.z
+                        }
+                    },
+
+                    // Current bone rotations
+                    boneRotations: {},
+
+                    // Bone world positions (for debugging)
+                    boneWorldPositions: {}
+                };
+
+                // Capture current bone rotations and world positions
+                if (humanoid && humanoid.bones) {
+                    Object.entries(humanoid.bones).forEach(([name, bone]) => {
+                        modelState.boneRotations[name] = {
+                            x: bone.rotation.x,
+                            y: bone.rotation.y,
+                            z: bone.rotation.z
+                        };
+
+                        const worldPos = new THREE.Vector3();
+                        bone.getWorldPosition(worldPos);
+                        modelState.boneWorldPositions[name] = {
+                            x: worldPos.x,
+                            y: worldPos.y,
+                            z: worldPos.z
+                        };
+                    });
+                }
+
+                // Create ZIP file
+                const zip = new JSZip();
+                zip.file(`${filename}.png`, screenshotBlob);
+                zip.file(`${filename}.json`, JSON.stringify(modelState, null, 2));
+
+                // Add a README
+                const readme = `Humanoid Model Snapshot
+=======================
+Exported: ${modelState.exportDate}
+
+Files:
+- ${filename}.png - Screenshot of the model
+- ${filename}.json - Full model state (proportions, joints, poses, bone rotations)
+
+To use this state:
+1. Copy the proportions/joints from the JSON into HumanoidFactory.js
+2. Or load the JSON in the viewer to restore the exact state
+
+Camera Position:
+- Angle: ${cameraAngle.toFixed(3)} rad
+- Pitch: ${cameraPitch.toFixed(3)} rad
+- Distance: ${modelState.camera.distance}
+`;
+                zip.file('README.txt', readme);
+
+                // Generate and download
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${filename}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                status.textContent = `Downloaded: ${filename}.zip`;
+                setTimeout(() => { status.textContent = ''; }, 3000);
+
+            } catch (err) {
+                console.error('Export failed:', err);
+                status.textContent = 'Export failed: ' + err.message;
+                status.style.color = '#f44';
+                setTimeout(() => {
+                    status.textContent = '';
+                    status.style.color = '#4af';
+                }, 5000);
+            }
         });
 
         // Resize handler
