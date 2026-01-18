@@ -12,7 +12,6 @@ Or manually:
 
 import bpy
 import os
-import sys
 
 # Get the project root (where this script is run from)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
