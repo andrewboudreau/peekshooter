@@ -115,7 +115,6 @@ def main():
     print("=" * 50 + "\n")
 
     # Also copy/rename the main character for the game
-    character_fbx = os.path.join(ASSETS_DIR, "characters", "character.fbx")
     opponent_glb = os.path.join(ASSETS_DIR, "characters", "opponent.glb")
     character_glb = os.path.join(ASSETS_DIR, "characters", "character.glb")
 
