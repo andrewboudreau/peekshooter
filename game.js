@@ -3348,7 +3348,7 @@ function createEnvironment() {
         }
     }
 
-    // Static obstacles (for warehouse etc.)
+    // Static obstacles (shelves, barrels, car lift, dugout, etc.)
     if (mapConfig?.staticObstacles) {
         mapConfig.staticObstacles.forEach(obs => {
             let obstacle;
@@ -3356,8 +3356,10 @@ function createEnvironment() {
                 obstacle = MapConfig.createShelf(THREE, obs.position, obs.color);
             } else if (obs.type === 'barrel' && MapConfig.createBarrel) {
                 obstacle = MapConfig.createBarrel(THREE, obs.position, obs.color);
-            } else if (obs.type === 'forklift' && MapConfig.createForklift) {
-                obstacle = MapConfig.createForklift(THREE, obs.position, obs.color);
+            } else if (obs.type === 'car_lift' && MapConfig.createCarLift) {
+                obstacle = MapConfig.createCarLift(THREE, obs.position, obs.color);
+            } else if (obs.type === 'dugout' && MapConfig.createDugout) {
+                obstacle = MapConfig.createDugout(THREE, obs.position, obs.color);
             } else if (obs.type === 'box') {
                 const boxGeo = new THREE.BoxGeometry(...obs.size);
                 const boxMat = new THREE.MeshStandardMaterial({ color: obs.color, roughness: 0.7, metalness: 0.1 });

@@ -80,10 +80,10 @@ const MapConfig = {
             }
         },
 
-        warehouse: {
-            id: 'warehouse',
-            name: 'Warehouse',
-            description: 'Industrial warehouse with crates and equipment',
+        garage: {
+            id: 'garage',
+            name: 'Garage',
+            description: 'Auto shop with car lift and mechanic pit',
 
             // Scene settings
             scene: {
@@ -142,22 +142,22 @@ const MapConfig = {
                 ]
             },
 
-            // Static obstacles - warehouse equipment
+            // Static obstacles - garage equipment
             staticObstacles: [
-                // Shelving units on sides
+                // Tool shelves on sides
                 { type: 'shelf', position: [-8, 0, -8], color: 0x555555 },
                 { type: 'shelf', position: [8, 0, -8], color: 0x555555 },
-                { type: 'shelf', position: [-8, 0, -16], color: 0x555555 },
                 { type: 'shelf', position: [8, 0, -16], color: 0x555555 },
-                // Barrels mid-field
-                { type: 'barrel', position: [-4, 0, -7], color: 0x333333 },
+                // Oil drums
                 { type: 'barrel', position: [4.5, 0, -8], color: 0x333333 },
                 { type: 'barrel', position: [-3.5, 0, -12], color: 0xaa4400 },
-                { type: 'barrel', position: [3, 0, -11], color: 0xaa4400 },
-                // Forklift
-                { type: 'forklift', position: [6, 0, -5], color: 0xffaa00 },
-                // Large crate
-                { type: 'box', size: [2, 2, 2], position: [-5, 1, -10], color: 0x8B4513 }
+                { type: 'barrel', position: [3, 0, -11], color: 0x333333 },
+                // Car lift - center-right
+                { type: 'car_lift', position: [5, 0, -7], color: 0xcc2222 },
+                // Mechanic's dugout/pit on left side
+                { type: 'dugout', position: [-7, 0, -10], color: 0x444444 },
+                // Tire stack
+                { type: 'box', size: [1.5, 1.5, 1.5], position: [-4, 0.75, -6], color: 0x222222 }
             ],
 
             // No random obstacles
@@ -165,7 +165,7 @@ const MapConfig = {
                 count: 0
             },
 
-            // Lighting - industrial warehouse
+            // Lighting - garage shop
             lighting: {
                 hemisphere: { skyColor: 0x999999, groundColor: 0x444433, intensity: 0.3 },
                 ambient: { color: 0x555550, intensity: 0.4 },
@@ -210,7 +210,7 @@ const MapConfig = {
         }));
     },
 
-    // Create shelf obstacle (for warehouse)
+    // Create shelf obstacle (for garage)
     createShelf(THREE, position, color) {
         const group = new THREE.Group();
         const metalMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: 0.6, metalness: 0.4 });
@@ -265,62 +265,139 @@ const MapConfig = {
         return group;
     },
 
-    // Create forklift obstacle
-    createForklift(THREE, position, color) {
+    // Create two-post car lift
+    createCarLift(THREE, position, color) {
         const group = new THREE.Group();
-        const bodyMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.3 });
-        const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.5 });
+        const postMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.5 });
+        const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 });
+        const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7, metalness: 0.3 });
 
-        // Main body
-        const bodyGeo = new THREE.BoxGeometry(1.2, 1.0, 2.0);
-        const body = new THREE.Mesh(bodyGeo, bodyMaterial);
-        body.position.set(0, 0.7, 0);
-        body.castShadow = true;
-        group.add(body);
+        // Two vertical posts
+        const postGeo = new THREE.BoxGeometry(0.3, 3.5, 0.3);
+        [[-1.2, 1.75, 0], [1.2, 1.75, 0]].forEach(pos => {
+            const post = new THREE.Mesh(postGeo, postMaterial);
+            post.position.set(...pos);
+            post.castShadow = true;
+            group.add(post);
+        });
 
-        // Overhead guard
-        const guardGeo = new THREE.BoxGeometry(1.3, 0.1, 1.8);
-        const guard = new THREE.Mesh(guardGeo, metalMaterial);
-        guard.position.set(0, 1.8, 0);
-        guard.castShadow = true;
-        group.add(guard);
+        // Base plates
+        const baseGeo = new THREE.BoxGeometry(0.8, 0.1, 0.8);
+        [[-1.2, 0.05, 0], [1.2, 0.05, 0]].forEach(pos => {
+            const base = new THREE.Mesh(baseGeo, baseMaterial);
+            base.position.set(...pos);
+            base.receiveShadow = true;
+            group.add(base);
+        });
 
-        // Guard posts
-        const postGeo = new THREE.BoxGeometry(0.08, 0.7, 0.08);
-        [[-0.55, 1.45, 0.8], [0.55, 1.45, 0.8], [-0.55, 1.45, -0.8], [0.55, 1.45, -0.8]].forEach(pos => {
-            const post = new THREE.Mesh(postGeo, metalMaterial);
+        // Cross beam at top
+        const beamGeo = new THREE.BoxGeometry(2.7, 0.2, 0.25);
+        const beam = new THREE.Mesh(beamGeo, metalMaterial);
+        beam.position.set(0, 3.4, 0);
+        beam.castShadow = true;
+        group.add(beam);
+
+        // Lift arms (extended position) - 4 arms total
+        const armGeo = new THREE.BoxGeometry(0.1, 0.1, 1.8);
+        const armPositions = [
+            [-1.1, 1.2, 1.0],  // left front
+            [-1.1, 1.2, -1.0], // left rear
+            [1.1, 1.2, 1.0],   // right front
+            [1.1, 1.2, -1.0]   // right rear
+        ];
+        armPositions.forEach(pos => {
+            const arm = new THREE.Mesh(armGeo, metalMaterial);
+            arm.position.set(...pos);
+            arm.castShadow = true;
+            group.add(arm);
+        });
+
+        // Arm pads (where car sits)
+        const padGeo = new THREE.BoxGeometry(0.25, 0.08, 0.4);
+        const padMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        armPositions.forEach(pos => {
+            const pad = new THREE.Mesh(padGeo, padMaterial);
+            pad.position.set(pos[0] > 0 ? pos[0] + 0.5 : pos[0] - 0.5, pos[1], pos[2]);
+            group.add(pad);
+        });
+
+        // Control box on one post
+        const controlGeo = new THREE.BoxGeometry(0.2, 0.4, 0.15);
+        const controlMaterial = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 });
+        const control = new THREE.Mesh(controlGeo, controlMaterial);
+        control.position.set(-1.35, 1.0, 0);
+        group.add(control);
+
+        group.position.set(...position);
+        return group;
+    },
+
+    // Create mechanic's dugout/pit
+    createDugout(THREE, position, color) {
+        const group = new THREE.Group();
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8, metalness: 0.2 });
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+        const railMaterial = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5, metalness: 0.3 });
+
+        // Pit dimensions: 4m long, 1m wide, 1.5m deep
+        const pitLength = 4;
+        const pitWidth = 1.2;
+        const pitDepth = 1.2;
+        const wallThickness = 0.15;
+
+        // Pit floor (sunken)
+        const floorGeo = new THREE.BoxGeometry(pitLength, 0.1, pitWidth);
+        const floor = new THREE.Mesh(floorGeo, floorMaterial);
+        floor.position.set(0, -pitDepth + 0.05, 0);
+        floor.receiveShadow = true;
+        group.add(floor);
+
+        // Long walls (sides)
+        const sideWallGeo = new THREE.BoxGeometry(pitLength, pitDepth, wallThickness);
+        [pitWidth / 2 + wallThickness / 2, -pitWidth / 2 - wallThickness / 2].forEach(z => {
+            const wall = new THREE.Mesh(sideWallGeo, wallMaterial);
+            wall.position.set(0, -pitDepth / 2, z);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            group.add(wall);
+        });
+
+        // Short walls (ends)
+        const endWallGeo = new THREE.BoxGeometry(wallThickness, pitDepth, pitWidth + wallThickness * 2);
+        [pitLength / 2 + wallThickness / 2, -pitLength / 2 - wallThickness / 2].forEach(x => {
+            const wall = new THREE.Mesh(endWallGeo, wallMaterial);
+            wall.position.set(x, -pitDepth / 2, 0);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            group.add(wall);
+        });
+
+        // Safety rails around the pit
+        const railGeo = new THREE.BoxGeometry(pitLength + 0.6, 0.08, 0.08);
+        [pitWidth / 2 + 0.4, -pitWidth / 2 - 0.4].forEach(z => {
+            const rail = new THREE.Mesh(railGeo, railMaterial);
+            rail.position.set(0, 0.9, z);
+            group.add(rail);
+        });
+
+        // Rail posts
+        const postGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.9, 8);
+        const postPositions = [
+            [-pitLength / 2 - 0.2, 0.45, pitWidth / 2 + 0.4],
+            [0, 0.45, pitWidth / 2 + 0.4],
+            [pitLength / 2 + 0.2, 0.45, pitWidth / 2 + 0.4],
+            [-pitLength / 2 - 0.2, 0.45, -pitWidth / 2 - 0.4],
+            [0, 0.45, -pitWidth / 2 - 0.4],
+            [pitLength / 2 + 0.2, 0.45, -pitWidth / 2 - 0.4]
+        ];
+        postPositions.forEach(pos => {
+            const post = new THREE.Mesh(postGeo, railMaterial);
             post.position.set(...pos);
             group.add(post);
         });
 
-        // Forks
-        const forkGeo = new THREE.BoxGeometry(0.15, 0.08, 1.5);
-        [[-0.3, 0.15, -1.5], [0.3, 0.15, -1.5]].forEach(pos => {
-            const fork = new THREE.Mesh(forkGeo, metalMaterial);
-            fork.position.set(...pos);
-            fork.castShadow = true;
-            group.add(fork);
-        });
-
-        // Mast
-        const mastGeo = new THREE.BoxGeometry(0.8, 2.2, 0.15);
-        const mast = new THREE.Mesh(mastGeo, metalMaterial);
-        mast.position.set(0, 1.1, -0.85);
-        mast.castShadow = true;
-        group.add(mast);
-
-        // Wheels
-        const wheelGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.2, 16);
-        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-        [[-0.55, 0.25, 0.6], [0.55, 0.25, 0.6], [-0.4, 0.2, -0.6], [0.4, 0.2, -0.6]].forEach(pos => {
-            const wheel = new THREE.Mesh(wheelGeo, wheelMaterial);
-            wheel.rotation.z = Math.PI / 2;
-            wheel.position.set(...pos);
-            group.add(wheel);
-        });
-
         group.position.set(...position);
-        group.rotation.y = Math.PI / 4; // Angled
+        group.rotation.y = Math.PI / 2; // Oriented lengthwise along Z
         return group;
     }
 };

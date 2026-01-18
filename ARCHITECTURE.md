@@ -168,7 +168,7 @@ PhysicsConfig = {
 Map layouts with cover, obstacles, and lighting:
 
 ```javascript
-MapConfig.maps.warehouse = {
+MapConfig.maps.garage = {
     scene: { background: 0x1a1815, fogDensity: 0.012 },
     floor: { width: 55, height: 55 },
     walls: [{ type: 'back', width: 55, height: 18, position: [...] }],
@@ -181,8 +181,9 @@ MapConfig.maps.warehouse = {
     opponentCover: { z: -14.5, elements: [...] },
     staticObstacles: [
         { type: 'shelf', position: [-8, 0, -8] },
-        { type: 'barrel', position: [-4, 0, -7] },
-        { type: 'forklift', position: [6, 0, -5] }
+        { type: 'barrel', position: [4.5, 0, -8] },
+        { type: 'car_lift', position: [5, 0, -7] },
+        { type: 'dugout', position: [-7, 0, -10] }
     ],
     lighting: {
         hemisphere: { skyColor, groundColor, intensity },
@@ -194,7 +195,8 @@ MapConfig.maps.warehouse = {
 // Helper methods for obstacle creation
 MapConfig.createShelf(THREE, position, color)
 MapConfig.createBarrel(THREE, position, color)
-MapConfig.createForklift(THREE, position, color)
+MapConfig.createCarLift(THREE, position, color)
+MapConfig.createDugout(THREE, position, color)
 ```
 
 ---
