@@ -172,13 +172,17 @@ const BotController = {
 
         // Set look direction for aim IK
         // Bot aims toward center (player position) with slight variation
-        if (opponent.transform) {
-            // Add some variation based on lean direction
-            const lookYaw = lean * 0.3;  // Look in direction of lean
-            const lookPitch = -0.1;      // Slightly down toward player
+        const lookYaw = lean * 0.3;  // Look in direction of lean
+        const lookPitch = -0.1;      // Slightly down toward player
 
+        // Support both new Opponent class (transform) and legacy OpponentPlayer (targetState)
+        if (opponent.transform) {
             opponent.transform.look.yaw = lookYaw;
             opponent.transform.look.pitch = lookPitch;
+        }
+        if (opponent.targetState) {
+            opponent.targetState.lookYaw = lookYaw;
+            opponent.targetState.lookPitch = lookPitch;
         }
     },
 

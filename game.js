@@ -3178,6 +3178,26 @@ function createOpponentMesh(opponent) {
         // Store humanoid reference for pose updates
         opponent.humanoid = humanoid;
 
+        // Initialize animation system
+        if (typeof AnimationController !== 'undefined') {
+            opponent.animController = new AnimationController(group);
+
+            // Add bones from humanoid to animation controller
+            if (humanoid.bones) {
+                opponent.animController.addBones(humanoid.bones);
+            }
+
+            // Initialize animation state machine
+            if (typeof AnimationStateMachine !== 'undefined') {
+                opponent.stateMachine = new AnimationStateMachine(opponent.animController);
+                opponent.animController.attachStateMachine(opponent.stateMachine);
+            }
+
+            // Enable aim IK
+            opponent.animController.enableAimIK();
+            console.log('[createOpponentMesh] Animation system initialized');
+        }
+
         // Position opponent on opposite side of arena
         group.position.z = -15;
         opponent.mesh = group;
@@ -3336,6 +3356,38 @@ function updateOpponentMesh(opponent, deltaTime) {
         // Combine weapon pose with stance pose
         const finalPose = HumanoidFactory.combinePoses(weaponPose, stancePose);
         opponent.humanoid.setPose(finalPose);
+
+        // Apply aim IK after stance poses (so it layers on top)
+        if (opponent.animController?.aimIK && opponent.animController.aimIK.enabled) {
+            // Set aim target from look direction
+            opponent.animController.aimIK.setAimDirect(state.lookYaw, state.lookPitch);
+
+            // Apply aim IK to spine bones
+            const aimIK = opponent.animController.aimIK;
+            const bones = opponent.humanoid.bones;
+
+            // Smooth interpolation
+            const lerpFactor = 1 - Math.exp(-aimIK.config.lerpSpeed * deltaTime);
+            aimIK.currentYaw += (aimIK.targetYaw - aimIK.currentYaw) * lerpFactor;
+            aimIK.currentPitch += (aimIK.targetPitch - aimIK.currentPitch) * lerpFactor;
+
+            // Apply rotation to spine bones
+            for (const boneConfig of aimIK.config.spineBones) {
+                const bone = bones[boneConfig.name];
+                if (!bone) continue;
+
+                const yawAmount = aimIK.config.enableYaw ? aimIK.currentYaw * boneConfig.weight : 0;
+                const pitchAmount = aimIK.config.enablePitch ? aimIK.currentPitch * boneConfig.weight : 0;
+
+                bone.rotation.y += yawAmount;
+                bone.rotation.x += pitchAmount;
+            }
+        }
+
+        // Update state machine if present
+        if (opponent.stateMachine) {
+            opponent.stateMachine.update(deltaTime);
+        }
     } else if (opponent.weaponMesh) {
         // Legacy: Update weapon hand position (mirrored)
         const handOffset = state.weaponHand === 'right' ? -0.3 : 0.3;
