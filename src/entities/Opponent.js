@@ -32,6 +32,9 @@ class Opponent extends Entity {
         this.useAnimatedModel = false;
         this.animatedBones = null;
 
+        // Animation state machine
+        this.stateMachine = null;
+
         // Network interpolation
         this.lastUpdate = Date.now();
 
@@ -150,6 +153,15 @@ class Opponent extends Entity {
                     this.animController.addClip(name, clip);
                 });
 
+                // Initialize animation state machine
+                if (typeof AnimationStateMachine !== 'undefined') {
+                    this.stateMachine = new AnimationStateMachine(this.animController);
+                    this.animController.attachStateMachine(this.stateMachine);
+                }
+
+                // Enable aim IK
+                this.animController.enableAimIK();
+
                 // Try to play idle animation
                 if (this.animController.hasClip('idle')) {
                     this.animController.play('idle');
@@ -234,6 +246,25 @@ class Opponent extends Entity {
 
             // Apply initial rifle hold pose
             this.applyWeaponPose();
+
+            // Create animation controller for procedural humanoid
+            if (typeof AnimationController !== 'undefined') {
+                this.animController = new AnimationController(group);
+
+                // Add bones from humanoid
+                if (this.humanoid.bones) {
+                    this.animController.addBones(this.humanoid.bones);
+                }
+
+                // Initialize animation state machine
+                if (typeof AnimationStateMachine !== 'undefined') {
+                    this.stateMachine = new AnimationStateMachine(this.animController);
+                    this.animController.attachStateMachine(this.stateMachine);
+                }
+
+                // Enable aim IK
+                this.animController.enableAimIK();
+            }
 
             // Position in arena
             group.position.z = config?.spawnZ || -15;
@@ -403,9 +434,17 @@ class Opponent extends Entity {
         // Lean tilt (mirrored)
         this.mesh.rotation.z = -state.lean * (config?.leanTilt || 0.15);
 
+        // Update aim IK target (set before animation controller update)
+        if (this.animController?.aimIK) {
+            this.animController.aimIK.setAimDirect(
+                this.transform.look.yaw,
+                this.transform.look.pitch
+            );
+        }
+
         // Update based on model type
         if (this.useAnimatedModel && this.animController) {
-            // Update animation mixer
+            // Update animation mixer (includes state machine, aim IK, pose overlay)
             this.animController.update(deltaTime);
 
             // Apply stance pose overlay on top of animation
@@ -414,6 +453,10 @@ class Opponent extends Entity {
                 this.animController.applyPoseOverlay(stancePose, 1.0);
             }
         } else if (this.humanoid && typeof HumanoidFactory !== 'undefined') {
+            // Update animation controller for procedural humanoid (includes aim IK)
+            if (this.animController) {
+                this.animController.update(deltaTime);
+            }
             // Apply stance poses to procedural humanoid
             this.applyStancePose(state);
         }
@@ -582,6 +625,9 @@ class Opponent extends Entity {
             this.animController.dispose();
             this.animController = null;
         }
+
+        // Clean up state machine reference
+        this.stateMachine = null;
 
         if (this.mesh && this.mesh.parent) {
             this.mesh.parent.remove(this.mesh);

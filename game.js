@@ -428,6 +428,10 @@ const DebugConsole = {
                 this.log('  screenshot - Capture screenshot with timestamp', 'info');
                 this.log('  clear - Clear console', 'info');
                 this.log('  status - Show game state', 'info');
+                this.log('  animstate - Show current animation state', 'info');
+                this.log('  animfire - Trigger firing animation state', 'info');
+                this.log('  animhit - Trigger hit animation state', 'info');
+                this.log('  aimik [on|off] - Toggle aim IK for opponent', 'info');
                 break;
 
             case 'debug':
@@ -646,6 +650,72 @@ const DebugConsole = {
                 } catch (e) {
                     this.log(`Screenshot failed: ${e.message}`, 'error');
                 }
+                break;
+
+            case 'animstate':
+                if (!netState.opponent) {
+                    this.log('No opponent to show animation state', 'warn');
+                    break;
+                }
+                const sm = netState.opponent.stateMachine;
+                if (sm) {
+                    const info = sm.getDebugInfo();
+                    this.log('=== Animation State ===', 'info');
+                    this.log(`  State: ${info.state}`, 'log');
+                    this.log(`  State Time: ${info.stateTime}s`, 'log');
+                    this.log(`  Remaining: ${info.remainingTime}s`, 'log');
+                    this.log(`  Can Interrupt: ${info.canInterrupt}`, 'log');
+                } else {
+                    this.log('Opponent has no state machine', 'warn');
+                }
+                // Also show aim IK state
+                const aimIK = netState.opponent.animController?.aimIK;
+                if (aimIK) {
+                    const aimInfo = aimIK.getDebugInfo();
+                    this.log('=== Aim IK ===', 'info');
+                    this.log(`  Enabled: ${aimInfo.enabled}`, 'log');
+                    this.log(`  Current Yaw: ${aimInfo.currentYaw}`, 'log');
+                    this.log(`  Current Pitch: ${aimInfo.currentPitch}`, 'log');
+                }
+                break;
+
+            case 'animfire':
+                if (!netState.opponent || !netState.opponent.stateMachine) {
+                    this.log('No opponent or state machine', 'warn');
+                    break;
+                }
+                if (netState.opponent.stateMachine.fire()) {
+                    this.log('Triggered FIRING state', 'success');
+                } else {
+                    this.log('Could not trigger FIRING state', 'warn');
+                }
+                break;
+
+            case 'animhit':
+                if (!netState.opponent || !netState.opponent.stateMachine) {
+                    this.log('No opponent or state machine', 'warn');
+                    break;
+                }
+                if (netState.opponent.stateMachine.hit()) {
+                    this.log('Triggered HIT state', 'success');
+                } else {
+                    this.log('Could not trigger HIT state', 'warn');
+                }
+                break;
+
+            case 'aimik':
+                if (!netState.opponent || !netState.opponent.animController) {
+                    this.log('No opponent or animation controller', 'warn');
+                    break;
+                }
+                const aimIKInstance = netState.opponent.animController.aimIK;
+                if (!aimIKInstance) {
+                    this.log('Aim IK not initialized', 'warn');
+                    break;
+                }
+                const aimState = args[0] === 'off' ? false : args[0] === 'on' ? true : !aimIKInstance.enabled;
+                aimIKInstance.setEnabled(aimState);
+                this.log(aimState ? 'Aim IK enabled' : 'Aim IK disabled', aimState ? 'success' : 'warn');
                 break;
 
             default:

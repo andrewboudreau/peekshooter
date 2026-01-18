@@ -22,6 +22,12 @@ class AnimationController {
         this.poseOverlay = null;
         this.poseWeight = 0;
 
+        // Animation state machine (optional)
+        this.stateMachine = null;
+
+        // Aim IK (optional)
+        this.aimIK = null;
+
         // Bone references for pose overlay
         this.bones = new Map();
         // Store base rotations (post-animation, pre-overlay) to prevent accumulation
@@ -170,12 +176,24 @@ class AnimationController {
 
     /**
      * Update the mixer (call each frame)
+     * Update order: StateMachine -> Mixer -> AimIK -> PoseOverlay
      * @param {number} deltaTime - Time since last frame in seconds
      */
     update(deltaTime) {
+        // 1. Update state machine (handles timed transitions)
+        if (this.stateMachine) {
+            this.stateMachine.update(deltaTime);
+        }
+
+        // 2. Update animation mixer (plays clips)
         this.mixer.update(deltaTime);
 
-        // Apply pose overlay after animation update
+        // 3. Apply aim IK (rotates spine toward aim target)
+        if (this.aimIK && this.aimIK.enabled) {
+            this.aimIK.apply(this.bones, deltaTime);
+        }
+
+        // 4. Apply pose overlay (stance: crouch, lean, strafe)
         if (this.poseOverlay && this.poseWeight > 0) {
             // Capture base rotations first (post-animation, pre-overlay)
             this._captureBaseRotations();
@@ -202,6 +220,64 @@ class AnimationController {
         this.poseOverlay = null;
         this.poseWeight = 0;
         this._boneBaseRotations.clear();
+    }
+
+    /**
+     * Attach a state machine to this controller
+     * @param {AnimationStateMachine} stateMachine
+     */
+    attachStateMachine(stateMachine) {
+        this.stateMachine = stateMachine;
+        console.log('[AnimationController] State machine attached');
+    }
+
+    /**
+     * Detach the state machine
+     */
+    detachStateMachine() {
+        this.stateMachine = null;
+    }
+
+    /**
+     * Enable aim IK with optional configuration
+     * @param {object} config - Optional configuration for AimIK
+     * @returns {object} The created AimIK instance
+     */
+    enableAimIK(config = {}) {
+        if (typeof AimIK !== 'undefined') {
+            this.aimIK = AimIK.createInstance(config);
+            console.log('[AnimationController] Aim IK enabled');
+            return this.aimIK;
+        } else {
+            console.warn('[AnimationController] AimIK not available');
+            return null;
+        }
+    }
+
+    /**
+     * Disable aim IK
+     */
+    disableAimIK() {
+        if (this.aimIK) {
+            this.aimIK.setEnabled(false);
+            this.aimIK = null;
+        }
+    }
+
+    /**
+     * Get the aim IK instance
+     * @returns {object|null}
+     */
+    getAimIK() {
+        return this.aimIK;
+    }
+
+    /**
+     * Get the state machine instance
+     * @returns {AnimationStateMachine|null}
+     */
+    getStateMachine() {
+        return this.stateMachine;
     }
 
     /**
@@ -347,6 +423,8 @@ class AnimationController {
         this.clips.clear();
         this.bones.clear();
         this.poseOverlay = null;
+        this.stateMachine = null;
+        this.aimIK = null;
     }
 }
 
