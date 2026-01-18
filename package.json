@@ -7,7 +7,8 @@
     "dev": "npx serve .",
     "screenshot": "node screenshot.js",
     "test": "node test-multiplayer.js",
-    "bump": "node bump-version.js"
+    "bump": "node bump-version.js",
+    "convert-assets": "\"C:/Program Files/Blender Foundation/Blender 5.0/blender.exe\" --background --python scripts/convert-fbx-to-glb.py"
   },
   "dependencies": {
     "express": "^4.18.2",
