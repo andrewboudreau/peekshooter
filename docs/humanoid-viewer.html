@@ -1233,38 +1233,34 @@ Camera Position:
                     debugLogOnce = false;
                 }
 
+                // Use standard Mixamo bone names (see MixamoBoneMap.standard)
+                const B = MixamoBoneMap.standard;
                 const pose = {};
 
-                // Crouch - use Mixamo bone names if our names don't work
+                // Crouch pose - bend at hips and knees, lean spine forward
                 if (stanceState.crouch > 0.05) {
-                    // Try both our names and original Mixamo names
-                    pose.hipL = { x: stanceState.crouch * 0.8 };
-                    pose.hipR = { x: stanceState.crouch * 0.8 };
-                    pose.kneeL = { x: -stanceState.crouch * 1.2 };
-                    pose.kneeR = { x: -stanceState.crouch * 1.2 };
-                    pose.stomach = { x: stanceState.crouch * 0.3 };
-                    // Mixamo names as fallback
-                    pose['mixamorig:LeftUpLeg'] = { x: stanceState.crouch * 0.8 };
-                    pose['mixamorig:RightUpLeg'] = { x: stanceState.crouch * 0.8 };
-                    pose['mixamorig:LeftLeg'] = { x: -stanceState.crouch * 1.2 };
-                    pose['mixamorig:RightLeg'] = { x: -stanceState.crouch * 1.2 };
-                    pose['mixamorig:Spine'] = { x: stanceState.crouch * 0.3 };
+                    const c = stanceState.crouch;
+                    pose[B.LEFT_UP_LEG] = { x: c * 0.8 };
+                    pose[B.RIGHT_UP_LEG] = { x: c * 0.8 };
+                    pose[B.LEFT_LEG] = { x: -c * 1.2 };
+                    pose[B.RIGHT_LEG] = { x: -c * 1.2 };
+                    pose[B.SPINE] = { x: c * 0.3 };
+                    pose[B.SPINE1] = { x: c * 0.1 };
                 }
 
-                // Lean
+                // Lean pose - rotate spine laterally
                 if (Math.abs(stanceState.lean) > 0.05) {
-                    pose.stomach = pose.stomach || {};
-                    pose.stomach.z = (pose.stomach.z || 0) + stanceState.lean * 0.2;
-                    pose.chest = { z: stanceState.lean * 0.15 };
-                    // Mixamo names
-                    pose['mixamorig:Spine'] = pose['mixamorig:Spine'] || {};
-                    pose['mixamorig:Spine'].z = (pose['mixamorig:Spine'].z || 0) + stanceState.lean * 0.2;
-                    pose['mixamorig:Spine1'] = { z: stanceState.lean * 0.15 };
+                    const l = stanceState.lean;
+                    pose[B.SPINE] = pose[B.SPINE] || {};
+                    pose[B.SPINE].z = (pose[B.SPINE].z || 0) + l * 0.2;
+                    pose[B.SPINE1] = pose[B.SPINE1] || {};
+                    pose[B.SPINE1].z = (pose[B.SPINE1].z || 0) + l * 0.15;
+                    pose[B.SPINE2] = { z: l * 0.1 };
                 }
 
                 animController.applyPoseOverlay(pose, 1.0);
 
-                // Also move the model position
+                // Also move the model root position/rotation
                 if (gltfModel.root) {
                     gltfModel.root.position.x = stanceState.strafe * 1.5 + stanceState.lean * 0.5;
                     gltfModel.root.position.y = -stanceState.crouch * 0.6;

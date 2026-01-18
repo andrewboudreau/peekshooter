@@ -1,12 +1,49 @@
 // ============================================
 // MIXAMO BONE MAP
-// Maps Mixamo skeleton bone names to our internal names
+// Standard bone naming reference for animation systems
+//
+// CONVENTION: Mixamo names are the STANDARD (industry-wide recognition)
+// Internal aliases exist for backwards compatibility with procedural model
 // ============================================
 
 const MixamoBoneMap = {
     /**
-     * Mapping from Mixamo bone names to our internal bone names
-     * Mixamo uses "mixamorig:" prefix on all bones
+     * Standard Mixamo bone names (PREFERRED)
+     * Use these when writing new code
+     */
+    standard: {
+        // Spine
+        HIPS: 'mixamorig:Hips',
+        SPINE: 'mixamorig:Spine',
+        SPINE1: 'mixamorig:Spine1',
+        SPINE2: 'mixamorig:Spine2',
+        NECK: 'mixamorig:Neck',
+        HEAD: 'mixamorig:Head',
+        // Left arm
+        LEFT_SHOULDER: 'mixamorig:LeftShoulder',
+        LEFT_ARM: 'mixamorig:LeftArm',
+        LEFT_FOREARM: 'mixamorig:LeftForeArm',
+        LEFT_HAND: 'mixamorig:LeftHand',
+        // Right arm
+        RIGHT_SHOULDER: 'mixamorig:RightShoulder',
+        RIGHT_ARM: 'mixamorig:RightArm',
+        RIGHT_FOREARM: 'mixamorig:RightForeArm',
+        RIGHT_HAND: 'mixamorig:RightHand',
+        // Left leg
+        LEFT_UP_LEG: 'mixamorig:LeftUpLeg',
+        LEFT_LEG: 'mixamorig:LeftLeg',
+        LEFT_FOOT: 'mixamorig:LeftFoot',
+        LEFT_TOE: 'mixamorig:LeftToeBase',
+        // Right leg
+        RIGHT_UP_LEG: 'mixamorig:RightUpLeg',
+        RIGHT_LEG: 'mixamorig:RightLeg',
+        RIGHT_FOOT: 'mixamorig:RightFoot',
+        RIGHT_TOE: 'mixamorig:RightToeBase',
+    },
+
+    /**
+     * Mapping from Mixamo bone names to internal aliases
+     * Used for backwards compatibility with procedural HumanoidFactory
      */
     map: {
         // Spine
