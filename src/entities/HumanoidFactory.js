@@ -12,24 +12,24 @@ const HumanoidFactory = {
         head: { radius: 0.11, height: 0.22 },
         neck: { radius: 0.055, height: 0.08 },  // Neck connects head to chest
 
-        // Torso - cylinder-like, tapered
-        chest: { width: 0.32, height: 0.26, depth: 0.18 },
-        stomach: { width: 0.28, height: 0.14, depth: 0.16 },
-        pelvis: { width: 0.30, height: 0.12, depth: 0.16 },
+        // Torso - narrower for less stocky appearance
+        chest: { width: 0.26, height: 0.26, depth: 0.16 },
+        stomach: { width: 0.22, height: 0.14, depth: 0.14 },
+        pelvis: { width: 0.24, height: 0.12, depth: 0.14 },
 
-        // Arms - thicker to match torso proportions
-        shoulder: { radius: 0.06 },
-        upperArm: { radius: 0.065, length: 0.26 },
-        forearm: { radius: 0.055, length: 0.24 },
+        // Arms - proportional to narrower torso
+        shoulder: { radius: 0.05 },
+        upperArm: { radius: 0.055, length: 0.28 },
+        forearm: { radius: 0.045, length: 0.26 },
         wrist: { radius: 0.04 },
         hand: { width: 0.08, height: 0.10, depth: 0.03 },
         finger: { radius: 0.012, length: 0.05 },
         thumb: { radius: 0.014, length: 0.04 },
 
-        // Legs - thicker to match torso proportions
-        thigh: { radius: 0.085, length: 0.40 },
-        knee: { radius: 0.065 },
-        shin: { radius: 0.065, length: 0.36 },
+        // Legs - longer for proper proportions
+        thigh: { radius: 0.07, length: 0.46 },
+        knee: { radius: 0.055 },
+        shin: { radius: 0.055, length: 0.42 },
         ankle: { radius: 0.045 },
         foot: { width: 0.11, height: 0.07, length: 0.22 },
 
@@ -41,31 +41,31 @@ const HumanoidFactory = {
     // Joint positions relative to parent bone (Y-up)
     joints: {
         // Spine chain (bottom-up) - tighter spacing
-        pelvis: { y: 0.90 },  // Hip height from ground
-        stomach: { y: 0.08 }, // Relative to pelvis (tighter)
-        chest: { y: 0.10 },   // Relative to stomach (tighter)
-        neck: { y: 0.10 },    // Relative to chest (lowered from 0.13)
-        head: { y: 0.04 },    // Relative to neck (lowered from 0.06)
+        pelvis: { y: 0.96 },  // Hip height from ground (raised for longer legs)
+        stomach: { y: 0.08 }, // Relative to pelvis
+        chest: { y: 0.10 },   // Relative to stomach
+        neck: { y: 0.10 },    // Relative to chest
+        head: { y: 0.04 },    // Relative to neck
 
-        // Arms (relative to chest) - at shoulder height
-        shoulderL: { x: -0.16, y: 0.12 },
-        shoulderR: { x: 0.16, y: 0.12 },
+        // Arms (relative to chest) - narrower shoulders
+        shoulderL: { x: -0.13, y: 0.12 },
+        shoulderR: { x: 0.13, y: 0.12 },
         upperArmL: { x: -0.04, y: 0 },
         upperArmR: { x: 0.04, y: 0 },
-        elbowL: { y: -0.26 },
-        elbowR: { y: -0.26 },
-        wristL: { y: -0.24 },
-        wristR: { y: -0.24 },
+        elbowL: { y: -0.28 },
+        elbowR: { y: -0.28 },
+        wristL: { y: -0.26 },
+        wristR: { y: -0.26 },
         handL: { y: -0.03 },
         handR: { y: -0.03 },
 
-        // Legs (relative to pelvis) - adjusted for new lengths
-        hipL: { x: -0.12, y: -0.05 },
-        hipR: { x: 0.12, y: -0.05 },
-        kneeL: { y: -0.40 },
-        kneeR: { y: -0.40 },
-        ankleL: { y: -0.36 },
-        ankleR: { y: -0.36 },
+        // Legs (relative to pelvis) - longer legs
+        hipL: { x: -0.10, y: -0.05 },
+        hipR: { x: 0.10, y: -0.05 },
+        kneeL: { y: -0.46 },
+        kneeR: { y: -0.46 },
+        ankleL: { y: -0.42 },
+        ankleR: { y: -0.42 },
         footL: { y: -0.04, z: 0.06 },
         footR: { y: -0.04, z: 0.06 },
     },
