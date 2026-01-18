@@ -170,7 +170,7 @@ class Opponent extends Entity {
             // Create and attach weapon to hand bone
             if (typeof WeaponFactory !== 'undefined') {
                 this.weaponMesh = WeaponFactory.createOpponentWeapon(this.currentWeapon);
-                const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
+                const handBone = this.weaponHand === 'right' ? MixamoBoneMap.RIGHT_HAND : MixamoBoneMap.LEFT_HAND;
                 MixamoCharacterLoader.attachToBone(model, handBone, this.weaponMesh);
                 this.weaponMesh.position.set(0, -0.08, 0.05);
                 this.weaponMesh.rotation.set(Math.PI / 2, 0, Math.PI);
@@ -224,7 +224,7 @@ class Opponent extends Entity {
             // Create and attach weapon to hand
             if (typeof WeaponFactory !== 'undefined') {
                 this.weaponMesh = WeaponFactory.createOpponentWeapon(this.currentWeapon);
-                const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
+                const handBone = this.weaponHand === 'right' ? MixamoBoneMap.RIGHT_HAND : MixamoBoneMap.LEFT_HAND;
                 this.humanoid.attachToBone(handBone, this.weaponMesh);
                 // Position: slightly forward and down from hand center
                 // Rotation: weapon model points -Z, rotate to align with arm direction
@@ -362,19 +362,20 @@ class Opponent extends Entity {
 
     /**
      * Mirror a pose from right to left hand
+     * Uses Mixamo naming convention (Left/Right in bone names)
      */
     mirrorPose(pose) {
         const mirrored = {};
         Object.entries(pose).forEach(([bone, rotation]) => {
-            // Swap L and R in bone names
+            // Swap Left and Right in bone names (Mixamo convention)
             let newBone = bone;
-            if (bone.endsWith('L')) {
-                newBone = bone.slice(0, -1) + 'R';
-            } else if (bone.endsWith('R')) {
-                newBone = bone.slice(0, -1) + 'L';
+            if (bone.includes('Left')) {
+                newBone = bone.replace('Left', 'Right');
+            } else if (bone.includes('Right')) {
+                newBone = bone.replace('Right', 'Left');
             }
 
-            // Mirror X and Z rotations for lateral bones
+            // Mirror Y and Z rotations for lateral bones
             mirrored[newBone] = {
                 x: rotation.x,
                 y: rotation.y !== undefined ? -rotation.y : undefined,
@@ -431,26 +432,37 @@ class Opponent extends Entity {
 
     /**
      * Build a pose object for stance overlay on animations
+     * Uses Mixamo bone names
      * @param {object} state - Stance state
      * @returns {object} Pose definition
      */
     _buildStancePose(state) {
         const pose = {};
+        const B = typeof MixamoBoneMap !== 'undefined' ? MixamoBoneMap : null;
 
         // Crouch adjustments
         if (state.crouch > 0.1) {
-            pose.hipL = { x: state.crouch * 0.5 };
-            pose.hipR = { x: state.crouch * 0.5 };
-            pose.kneeL = { x: -state.crouch * 0.8 };
-            pose.kneeR = { x: -state.crouch * 0.8 };
-            pose.stomach = { x: state.crouch * 0.2 };
+            const LEFT_UP_LEG = B ? B.LEFT_UP_LEG : 'mixamorig:LeftUpLeg';
+            const RIGHT_UP_LEG = B ? B.RIGHT_UP_LEG : 'mixamorig:RightUpLeg';
+            const LEFT_LEG = B ? B.LEFT_LEG : 'mixamorig:LeftLeg';
+            const RIGHT_LEG = B ? B.RIGHT_LEG : 'mixamorig:RightLeg';
+            const SPINE = B ? B.SPINE : 'mixamorig:Spine';
+
+            pose[LEFT_UP_LEG] = { x: state.crouch * 0.5 };
+            pose[RIGHT_UP_LEG] = { x: state.crouch * 0.5 };
+            pose[LEFT_LEG] = { x: -state.crouch * 0.8 };
+            pose[RIGHT_LEG] = { x: -state.crouch * 0.8 };
+            pose[SPINE] = { x: state.crouch * 0.2 };
         }
 
         // Lean adjustments
         if (Math.abs(state.lean) > 0.1) {
-            pose.stomach = pose.stomach || {};
-            pose.stomach.z = (pose.stomach.z || 0) + state.lean * 0.15;
-            pose.chest = { z: state.lean * 0.1 };
+            const SPINE = B ? B.SPINE : 'mixamorig:Spine';
+            const SPINE1 = B ? B.SPINE1 : 'mixamorig:Spine1';
+
+            pose[SPINE] = pose[SPINE] || {};
+            pose[SPINE].z = (pose[SPINE].z || 0) + state.lean * 0.15;
+            pose[SPINE1] = { z: state.lean * 0.1 };
         }
 
         return pose;
@@ -545,7 +557,7 @@ class Opponent extends Entity {
             // Create new weapon using WeaponFactory if available
             if (typeof WeaponFactory !== 'undefined') {
                 this.weaponMesh = WeaponFactory.createOpponentWeapon(weaponId);
-                const handBoneName = this.weaponHand === 'right' ? 'handR' : 'handL';
+                const handBoneName = this.weaponHand === 'right' ? MixamoBoneMap.RIGHT_HAND : MixamoBoneMap.LEFT_HAND;
 
                 // Attach to animated model bones if available
                 if (this.useAnimatedModel && this.animatedBones && this.animatedBones[handBoneName]) {

@@ -1,150 +1,90 @@
 // ============================================
 // MIXAMO BONE MAP
-// Standard bone naming reference for animation systems
+// Standard Mixamo bone naming constants
 //
-// CONVENTION: Mixamo names are the STANDARD (industry-wide recognition)
-// Internal aliases exist for backwards compatibility with procedural model
+// All code should use these constants for bone references.
+// This ensures compatibility with Mixamo animations and models.
 // ============================================
 
 const MixamoBoneMap = {
-    /**
-     * Standard Mixamo bone names (PREFERRED)
-     * Use these when writing new code
-     */
-    standard: {
-        // Spine
-        HIPS: 'mixamorig:Hips',
-        SPINE: 'mixamorig:Spine',
-        SPINE1: 'mixamorig:Spine1',
-        SPINE2: 'mixamorig:Spine2',
-        NECK: 'mixamorig:Neck',
-        HEAD: 'mixamorig:Head',
-        // Left arm
-        LEFT_SHOULDER: 'mixamorig:LeftShoulder',
-        LEFT_ARM: 'mixamorig:LeftArm',
-        LEFT_FOREARM: 'mixamorig:LeftForeArm',
-        LEFT_HAND: 'mixamorig:LeftHand',
-        // Right arm
-        RIGHT_SHOULDER: 'mixamorig:RightShoulder',
-        RIGHT_ARM: 'mixamorig:RightArm',
-        RIGHT_FOREARM: 'mixamorig:RightForeArm',
-        RIGHT_HAND: 'mixamorig:RightHand',
-        // Left leg
-        LEFT_UP_LEG: 'mixamorig:LeftUpLeg',
-        LEFT_LEG: 'mixamorig:LeftLeg',
-        LEFT_FOOT: 'mixamorig:LeftFoot',
-        LEFT_TOE: 'mixamorig:LeftToeBase',
-        // Right leg
-        RIGHT_UP_LEG: 'mixamorig:RightUpLeg',
-        RIGHT_LEG: 'mixamorig:RightLeg',
-        RIGHT_FOOT: 'mixamorig:RightFoot',
-        RIGHT_TOE: 'mixamorig:RightToeBase',
-    },
+    // ========================================
+    // BONE NAME CONSTANTS
+    // Use these everywhere for bone references
+    // ========================================
 
-    /**
-     * Mapping from Mixamo bone names to internal aliases
-     * Used for backwards compatibility with procedural HumanoidFactory
-     */
-    map: {
-        // Spine
-        'mixamorig:Hips': 'pelvis',
-        'mixamorig:Spine': 'stomach',
-        'mixamorig:Spine1': 'chest',
-        'mixamorig:Spine2': 'chest',  // Upper chest also maps to chest
-        'mixamorig:Neck': 'neck',
-        'mixamorig:Head': 'head',
+    // Spine chain
+    HIPS: 'mixamorig:Hips',
+    SPINE: 'mixamorig:Spine',
+    SPINE1: 'mixamorig:Spine1',
+    SPINE2: 'mixamorig:Spine2',
+    NECK: 'mixamorig:Neck',
+    HEAD: 'mixamorig:Head',
 
-        // Left arm
-        'mixamorig:LeftShoulder': 'shoulderL',
-        'mixamorig:LeftArm': 'upperArmL',
-        'mixamorig:LeftForeArm': 'elbowL',
-        'mixamorig:LeftHand': 'handL',
+    // Left arm
+    LEFT_SHOULDER: 'mixamorig:LeftShoulder',
+    LEFT_ARM: 'mixamorig:LeftArm',
+    LEFT_FOREARM: 'mixamorig:LeftForeArm',
+    LEFT_HAND: 'mixamorig:LeftHand',
 
-        // Right arm
-        'mixamorig:RightShoulder': 'shoulderR',
-        'mixamorig:RightArm': 'upperArmR',
-        'mixamorig:RightForeArm': 'elbowR',
-        'mixamorig:RightHand': 'handR',
+    // Right arm
+    RIGHT_SHOULDER: 'mixamorig:RightShoulder',
+    RIGHT_ARM: 'mixamorig:RightArm',
+    RIGHT_FOREARM: 'mixamorig:RightForeArm',
+    RIGHT_HAND: 'mixamorig:RightHand',
 
-        // Left leg
-        'mixamorig:LeftUpLeg': 'hipL',
-        'mixamorig:LeftLeg': 'kneeL',
-        'mixamorig:LeftFoot': 'ankleL',
-        'mixamorig:LeftToeBase': 'toeL',
+    // Left leg
+    LEFT_UP_LEG: 'mixamorig:LeftUpLeg',
+    LEFT_LEG: 'mixamorig:LeftLeg',
+    LEFT_FOOT: 'mixamorig:LeftFoot',
+    LEFT_TOE: 'mixamorig:LeftToeBase',
 
-        // Right leg
-        'mixamorig:RightUpLeg': 'hipR',
-        'mixamorig:RightLeg': 'kneeR',
-        'mixamorig:RightFoot': 'ankleR',
-        'mixamorig:RightToeBase': 'toeR',
+    // Right leg
+    RIGHT_UP_LEG: 'mixamorig:RightUpLeg',
+    RIGHT_LEG: 'mixamorig:RightLeg',
+    RIGHT_FOOT: 'mixamorig:RightFoot',
+    RIGHT_TOE: 'mixamorig:RightToeBase',
 
-        // Fingers (left hand)
-        'mixamorig:LeftHandThumb1': 'thumbL1',
-        'mixamorig:LeftHandThumb2': 'thumbL2',
-        'mixamorig:LeftHandThumb3': 'thumbL3',
-        'mixamorig:LeftHandIndex1': 'indexL1',
-        'mixamorig:LeftHandIndex2': 'indexL2',
-        'mixamorig:LeftHandIndex3': 'indexL3',
-        'mixamorig:LeftHandMiddle1': 'middleL1',
-        'mixamorig:LeftHandMiddle2': 'middleL2',
-        'mixamorig:LeftHandMiddle3': 'middleL3',
-        'mixamorig:LeftHandRing1': 'ringL1',
-        'mixamorig:LeftHandRing2': 'ringL2',
-        'mixamorig:LeftHandRing3': 'ringL3',
-        'mixamorig:LeftHandPinky1': 'pinkyL1',
-        'mixamorig:LeftHandPinky2': 'pinkyL2',
-        'mixamorig:LeftHandPinky3': 'pinkyL3',
+    // Left hand fingers
+    LEFT_THUMB1: 'mixamorig:LeftHandThumb1',
+    LEFT_THUMB2: 'mixamorig:LeftHandThumb2',
+    LEFT_THUMB3: 'mixamorig:LeftHandThumb3',
+    LEFT_INDEX1: 'mixamorig:LeftHandIndex1',
+    LEFT_INDEX2: 'mixamorig:LeftHandIndex2',
+    LEFT_INDEX3: 'mixamorig:LeftHandIndex3',
+    LEFT_MIDDLE1: 'mixamorig:LeftHandMiddle1',
+    LEFT_MIDDLE2: 'mixamorig:LeftHandMiddle2',
+    LEFT_MIDDLE3: 'mixamorig:LeftHandMiddle3',
+    LEFT_RING1: 'mixamorig:LeftHandRing1',
+    LEFT_RING2: 'mixamorig:LeftHandRing2',
+    LEFT_RING3: 'mixamorig:LeftHandRing3',
+    LEFT_PINKY1: 'mixamorig:LeftHandPinky1',
+    LEFT_PINKY2: 'mixamorig:LeftHandPinky2',
+    LEFT_PINKY3: 'mixamorig:LeftHandPinky3',
 
-        // Fingers (right hand)
-        'mixamorig:RightHandThumb1': 'thumbR1',
-        'mixamorig:RightHandThumb2': 'thumbR2',
-        'mixamorig:RightHandThumb3': 'thumbR3',
-        'mixamorig:RightHandIndex1': 'indexR1',
-        'mixamorig:RightHandIndex2': 'indexR2',
-        'mixamorig:RightHandIndex3': 'indexR3',
-        'mixamorig:RightHandMiddle1': 'middleR1',
-        'mixamorig:RightHandMiddle2': 'middleR2',
-        'mixamorig:RightHandMiddle3': 'middleR3',
-        'mixamorig:RightHandRing1': 'ringR1',
-        'mixamorig:RightHandRing2': 'ringR2',
-        'mixamorig:RightHandRing3': 'ringR3',
-        'mixamorig:RightHandPinky1': 'pinkyR1',
-        'mixamorig:RightHandPinky2': 'pinkyR2',
-        'mixamorig:RightHandPinky3': 'pinkyR3',
-    },
+    // Right hand fingers
+    RIGHT_THUMB1: 'mixamorig:RightHandThumb1',
+    RIGHT_THUMB2: 'mixamorig:RightHandThumb2',
+    RIGHT_THUMB3: 'mixamorig:RightHandThumb3',
+    RIGHT_INDEX1: 'mixamorig:RightHandIndex1',
+    RIGHT_INDEX2: 'mixamorig:RightHandIndex2',
+    RIGHT_INDEX3: 'mixamorig:RightHandIndex3',
+    RIGHT_MIDDLE1: 'mixamorig:RightHandMiddle1',
+    RIGHT_MIDDLE2: 'mixamorig:RightHandMiddle2',
+    RIGHT_MIDDLE3: 'mixamorig:RightHandMiddle3',
+    RIGHT_RING1: 'mixamorig:RightHandRing1',
+    RIGHT_RING2: 'mixamorig:RightHandRing2',
+    RIGHT_RING3: 'mixamorig:RightHandRing3',
+    RIGHT_PINKY1: 'mixamorig:RightHandPinky1',
+    RIGHT_PINKY2: 'mixamorig:RightHandPinky2',
+    RIGHT_PINKY3: 'mixamorig:RightHandPinky3',
 
-    /**
-     * Reverse mapping from our bone names to Mixamo names
-     */
-    _reverseMap: null,
+    // Eyes (custom - not in standard Mixamo but useful for procedural)
+    LEFT_EYE: 'mixamorig:LeftEye',
+    RIGHT_EYE: 'mixamorig:RightEye',
 
-    /**
-     * Get our internal bone name from a Mixamo bone name
-     * @param {string} mixamoBone - Mixamo bone name (e.g. "mixamorig:Hips")
-     * @returns {string|null} Our internal bone name or null if not mapped
-     */
-    getMapped(mixamoBone) {
-        return this.map[mixamoBone] || null;
-    },
-
-    /**
-     * Get the Mixamo bone name from our internal bone name
-     * @param {string} ourBone - Our internal bone name (e.g. "pelvis")
-     * @returns {string|null} Mixamo bone name or null if not mapped
-     */
-    getOriginal(ourBone) {
-        // Build reverse map lazily
-        if (!this._reverseMap) {
-            this._reverseMap = {};
-            for (const [mixamo, ours] of Object.entries(this.map)) {
-                // Only keep first mapping (e.g., Spine1 not Spine2 for chest)
-                if (!this._reverseMap[ours]) {
-                    this._reverseMap[ours] = mixamo;
-                }
-            }
-        }
-        return this._reverseMap[ourBone] || null;
-    },
+    // ========================================
+    // UTILITY METHODS
+    // ========================================
 
     /**
      * Check if a bone name is a Mixamo bone
@@ -152,18 +92,19 @@ const MixamoBoneMap = {
      * @returns {boolean}
      */
     isMixamoBone(boneName) {
-        return boneName.startsWith('mixamorig:');
+        return boneName && boneName.startsWith('mixamorig:');
     },
 
     /**
      * Get all unmapped bones from a skeleton
      * @param {THREE.Skeleton} skeleton - Three.js skeleton
-     * @returns {string[]} Array of bone names that are not mapped
+     * @returns {string[]} Array of bone names that don't match known Mixamo bones
      */
     getUnmappedBones(skeleton) {
+        const knownBones = new Set(Object.values(this).filter(v => typeof v === 'string'));
         const unmapped = [];
         skeleton.bones.forEach(bone => {
-            if (this.isMixamoBone(bone.name) && !this.getMapped(bone.name)) {
+            if (this.isMixamoBone(bone.name) && !knownBones.has(bone.name)) {
                 unmapped.push(bone.name);
             }
         });
@@ -171,54 +112,93 @@ const MixamoBoneMap = {
     },
 
     /**
-     * Rename animation clip tracks from Mixamo to our bone names
-     * @param {THREE.AnimationClip} clip - Animation clip to remap
-     * @returns {THREE.AnimationClip} New clip with remapped track names
-     */
-    remapClip(clip) {
-        const tracks = clip.tracks.map(track => {
-            // Track names are like "mixamorig:Hips.position" or "mixamorig:Hips.quaternion"
-            const parts = track.name.split('.');
-            const boneName = parts[0];
-            const property = parts.slice(1).join('.');
-
-            const mappedBone = this.getMapped(boneName);
-            if (mappedBone) {
-                // Clone track with new name
-                const newTrack = track.clone();
-                newTrack.name = `${mappedBone}.${property}`;
-                return newTrack;
-            }
-
-            // Keep original if not mapped
-            return track.clone();
-        });
-
-        return new THREE.AnimationClip(clip.name, clip.duration, tracks);
-    },
-
-    /**
      * Get bone hierarchy depth for sorting
-     * @param {string} boneName - Bone name (our internal name)
+     * @param {string} boneName - Mixamo bone name
      * @returns {number} Hierarchy depth (0 = root)
      */
     getBoneDepth(boneName) {
         const depths = {
-            pelvis: 0,
-            stomach: 1,
-            chest: 2,
-            neck: 3,
-            head: 4,
-            shoulderL: 3, shoulderR: 3,
-            upperArmL: 4, upperArmR: 4,
-            elbowL: 5, elbowR: 5,
-            handL: 6, handR: 6,
-            hipL: 1, hipR: 1,
-            kneeL: 2, kneeR: 2,
-            ankleL: 3, ankleR: 3,
-            toeL: 4, toeR: 4,
+            [this.HIPS]: 0,
+            [this.SPINE]: 1,
+            [this.SPINE1]: 2,
+            [this.SPINE2]: 3,
+            [this.NECK]: 4,
+            [this.HEAD]: 5,
+            [this.LEFT_SHOULDER]: 4, [this.RIGHT_SHOULDER]: 4,
+            [this.LEFT_ARM]: 5, [this.RIGHT_ARM]: 5,
+            [this.LEFT_FOREARM]: 6, [this.RIGHT_FOREARM]: 6,
+            [this.LEFT_HAND]: 7, [this.RIGHT_HAND]: 7,
+            [this.LEFT_UP_LEG]: 1, [this.RIGHT_UP_LEG]: 1,
+            [this.LEFT_LEG]: 2, [this.RIGHT_LEG]: 2,
+            [this.LEFT_FOOT]: 3, [this.RIGHT_FOOT]: 3,
+            [this.LEFT_TOE]: 4, [this.RIGHT_TOE]: 4,
         };
-        return depths[boneName] !== undefined ? depths[boneName] : 7;
+        return depths[boneName] !== undefined ? depths[boneName] : 8;
+    },
+
+    /**
+     * Get the mirrored bone name (left <-> right)
+     * @param {string} boneName - Bone name to mirror
+     * @returns {string} Mirrored bone name
+     */
+    getMirroredBone(boneName) {
+        if (boneName.includes('Left')) {
+            return boneName.replace('Left', 'Right');
+        }
+        if (boneName.includes('Right')) {
+            return boneName.replace('Right', 'Left');
+        }
+        return boneName;
+    },
+
+    /**
+     * Get all core bones (excludes fingers)
+     * @returns {string[]} Array of core bone names
+     */
+    getCoreBones() {
+        return [
+            this.HIPS, this.SPINE, this.SPINE1, this.SPINE2, this.NECK, this.HEAD,
+            this.LEFT_SHOULDER, this.LEFT_ARM, this.LEFT_FOREARM, this.LEFT_HAND,
+            this.RIGHT_SHOULDER, this.RIGHT_ARM, this.RIGHT_FOREARM, this.RIGHT_HAND,
+            this.LEFT_UP_LEG, this.LEFT_LEG, this.LEFT_FOOT, this.LEFT_TOE,
+            this.RIGHT_UP_LEG, this.RIGHT_LEG, this.RIGHT_FOOT, this.RIGHT_TOE,
+        ];
+    },
+
+    /**
+     * Hitbox part mapping - maps bone names to damage categories
+     * Used by damage system to determine hit damage
+     */
+    hitboxParts: {
+        'mixamorig:Head': { part: 'head', critical: true },
+        'mixamorig:Neck': { part: 'head', critical: false },
+        'mixamorig:Spine2': { part: 'chest', critical: false },
+        'mixamorig:Spine1': { part: 'chest', critical: false },
+        'mixamorig:Spine': { part: 'belly', critical: false },
+        'mixamorig:Hips': { part: 'pelvis', critical: false },
+        'mixamorig:LeftShoulder': { part: 'arm', critical: false },
+        'mixamorig:RightShoulder': { part: 'arm', critical: false },
+        'mixamorig:LeftArm': { part: 'arm', critical: false },
+        'mixamorig:RightArm': { part: 'arm', critical: false },
+        'mixamorig:LeftForeArm': { part: 'arm', critical: false },
+        'mixamorig:RightForeArm': { part: 'arm', critical: false },
+        'mixamorig:LeftHand': { part: 'arm', critical: false },
+        'mixamorig:RightHand': { part: 'arm', critical: false },
+        'mixamorig:LeftUpLeg': { part: 'leg', critical: false },
+        'mixamorig:RightUpLeg': { part: 'leg', critical: false },
+        'mixamorig:LeftLeg': { part: 'leg', critical: false },
+        'mixamorig:RightLeg': { part: 'leg', critical: false },
+        'mixamorig:LeftFoot': { part: 'leg', critical: false },
+        'mixamorig:RightFoot': { part: 'leg', critical: false },
+    },
+
+    /**
+     * Get hitbox info for a bone
+     * @param {string} boneName - Bone name
+     * @returns {object|null} Hitbox part info or null
+     */
+    getHitboxPart(boneName) {
+        return this.hitboxParts[boneName] || null;
     }
 };
 

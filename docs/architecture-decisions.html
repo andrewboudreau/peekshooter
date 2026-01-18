@@ -201,7 +201,7 @@
         </table>
 
         <h3>Decision</h3>
-        <p><strong>Use Mixamo naming as the standard</strong>, with mapping support for our procedural model.</p>
+        <p><strong>Use Mixamo naming exclusively</strong> - no custom naming, no mapping layer needed.</p>
 
         <div class="highlight">
             <strong>Why Mixamo?</strong>
@@ -210,6 +210,7 @@
                 <li>Consistent naming across thousands of animations</li>
                 <li>Industry recognition - many developers already know it</li>
                 <li>Adobe backing ensures long-term availability</li>
+                <li>Direct compatibility with imported GLTF models</li>
             </ul>
         </div>
 
@@ -217,41 +218,44 @@
         <table>
             <tr>
                 <th>Body Part</th>
-                <th>Mixamo Name (Standard)</th>
-                <th>Internal Alias</th>
+                <th>Mixamo Name</th>
+                <th>MixamoBoneMap Constant</th>
             </tr>
-            <tr><td>Root/Hips</td><td><code>mixamorig:Hips</code></td><td><code>pelvis</code></td></tr>
-            <tr><td>Spine Lower</td><td><code>mixamorig:Spine</code></td><td><code>stomach</code></td></tr>
-            <tr><td>Spine Mid</td><td><code>mixamorig:Spine1</code></td><td><code>chest</code></td></tr>
-            <tr><td>Spine Upper</td><td><code>mixamorig:Spine2</code></td><td><code>chest</code></td></tr>
-            <tr><td>Neck</td><td><code>mixamorig:Neck</code></td><td><code>neck</code></td></tr>
-            <tr><td>Head</td><td><code>mixamorig:Head</code></td><td><code>head</code></td></tr>
-            <tr><td>Left Shoulder</td><td><code>mixamorig:LeftShoulder</code></td><td><code>shoulderL</code></td></tr>
-            <tr><td>Left Upper Arm</td><td><code>mixamorig:LeftArm</code></td><td><code>upperArmL</code></td></tr>
-            <tr><td>Left Forearm</td><td><code>mixamorig:LeftForeArm</code></td><td><code>elbowL</code></td></tr>
-            <tr><td>Left Hand</td><td><code>mixamorig:LeftHand</code></td><td><code>handL</code></td></tr>
-            <tr><td>Right Shoulder</td><td><code>mixamorig:RightShoulder</code></td><td><code>shoulderR</code></td></tr>
-            <tr><td>Right Upper Arm</td><td><code>mixamorig:RightArm</code></td><td><code>upperArmR</code></td></tr>
-            <tr><td>Right Forearm</td><td><code>mixamorig:RightForeArm</code></td><td><code>elbowR</code></td></tr>
-            <tr><td>Right Hand</td><td><code>mixamorig:RightHand</code></td><td><code>handR</code></td></tr>
-            <tr><td>Left Thigh</td><td><code>mixamorig:LeftUpLeg</code></td><td><code>hipL</code></td></tr>
-            <tr><td>Left Shin</td><td><code>mixamorig:LeftLeg</code></td><td><code>kneeL</code></td></tr>
-            <tr><td>Left Foot</td><td><code>mixamorig:LeftFoot</code></td><td><code>ankleL</code></td></tr>
-            <tr><td>Right Thigh</td><td><code>mixamorig:RightUpLeg</code></td><td><code>hipR</code></td></tr>
-            <tr><td>Right Shin</td><td><code>mixamorig:RightLeg</code></td><td><code>kneeR</code></td></tr>
-            <tr><td>Right Foot</td><td><code>mixamorig:RightFoot</code></td><td><code>ankleR</code></td></tr>
+            <tr><td>Root/Hips</td><td><code>mixamorig:Hips</code></td><td><code>MixamoBoneMap.HIPS</code></td></tr>
+            <tr><td>Spine Lower</td><td><code>mixamorig:Spine</code></td><td><code>MixamoBoneMap.SPINE</code></td></tr>
+            <tr><td>Spine Mid</td><td><code>mixamorig:Spine1</code></td><td><code>MixamoBoneMap.SPINE1</code></td></tr>
+            <tr><td>Spine Upper</td><td><code>mixamorig:Spine2</code></td><td><code>MixamoBoneMap.SPINE2</code></td></tr>
+            <tr><td>Neck</td><td><code>mixamorig:Neck</code></td><td><code>MixamoBoneMap.NECK</code></td></tr>
+            <tr><td>Head</td><td><code>mixamorig:Head</code></td><td><code>MixamoBoneMap.HEAD</code></td></tr>
+            <tr><td>Left Shoulder</td><td><code>mixamorig:LeftShoulder</code></td><td><code>MixamoBoneMap.LEFT_SHOULDER</code></td></tr>
+            <tr><td>Left Upper Arm</td><td><code>mixamorig:LeftArm</code></td><td><code>MixamoBoneMap.LEFT_ARM</code></td></tr>
+            <tr><td>Left Forearm</td><td><code>mixamorig:LeftForeArm</code></td><td><code>MixamoBoneMap.LEFT_FOREARM</code></td></tr>
+            <tr><td>Left Hand</td><td><code>mixamorig:LeftHand</code></td><td><code>MixamoBoneMap.LEFT_HAND</code></td></tr>
+            <tr><td>Right Shoulder</td><td><code>mixamorig:RightShoulder</code></td><td><code>MixamoBoneMap.RIGHT_SHOULDER</code></td></tr>
+            <tr><td>Right Upper Arm</td><td><code>mixamorig:RightArm</code></td><td><code>MixamoBoneMap.RIGHT_ARM</code></td></tr>
+            <tr><td>Right Forearm</td><td><code>mixamorig:RightForeArm</code></td><td><code>MixamoBoneMap.RIGHT_FOREARM</code></td></tr>
+            <tr><td>Right Hand</td><td><code>mixamorig:RightHand</code></td><td><code>MixamoBoneMap.RIGHT_HAND</code></td></tr>
+            <tr><td>Left Thigh</td><td><code>mixamorig:LeftUpLeg</code></td><td><code>MixamoBoneMap.LEFT_UP_LEG</code></td></tr>
+            <tr><td>Left Shin</td><td><code>mixamorig:LeftLeg</code></td><td><code>MixamoBoneMap.LEFT_LEG</code></td></tr>
+            <tr><td>Left Foot</td><td><code>mixamorig:LeftFoot</code></td><td><code>MixamoBoneMap.LEFT_FOOT</code></td></tr>
+            <tr><td>Right Thigh</td><td><code>mixamorig:RightUpLeg</code></td><td><code>MixamoBoneMap.RIGHT_UP_LEG</code></td></tr>
+            <tr><td>Right Shin</td><td><code>mixamorig:RightLeg</code></td><td><code>MixamoBoneMap.RIGHT_LEG</code></td></tr>
+            <tr><td>Right Foot</td><td><code>mixamorig:RightFoot</code></td><td><code>MixamoBoneMap.RIGHT_FOOT</code></td></tr>
         </table>
 
         <h3>Implementation</h3>
-        <pre><code>// MixamoBoneMap.js handles bidirectional mapping
-const bone = MixamoBoneMap.getMapped('mixamorig:LeftUpLeg');  // → 'hipL'
-const orig = MixamoBoneMap.getOriginal('hipL');  // → 'mixamorig:LeftUpLeg'
+        <pre><code>// Use MixamoBoneMap constants for type-safe bone references
+const B = MixamoBoneMap;
 
-// AnimationController accepts both naming conventions
+// Apply pose with Mixamo bone names
 animController.applyPoseOverlay({
-    'mixamorig:Spine': { x: 0.3 },  // Mixamo name (preferred)
-    'stomach': { x: 0.3 }           // Internal alias (also works)
-});</code></pre>
+    [B.SPINE]: { x: 0.3 },
+    [B.LEFT_UP_LEG]: { x: 0.5 },
+    [B.RIGHT_UP_LEG]: { x: 0.5 }
+});
+
+// Both procedural (HumanoidFactory) and GLTF models use same names
+// No mapping or translation needed!</code></pre>
     </div>
 
     <!-- ADR-003 -->

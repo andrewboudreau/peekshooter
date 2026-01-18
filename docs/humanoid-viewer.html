@@ -1233,8 +1233,8 @@ Camera Position:
                     debugLogOnce = false;
                 }
 
-                // Use standard Mixamo bone names (see MixamoBoneMap.standard)
-                const B = MixamoBoneMap.standard;
+                // Use Mixamo bone constants directly from MixamoBoneMap
+                const B = MixamoBoneMap;
                 const pose = {};
 
                 // Crouch pose - bend at hips and knees, lean spine forward

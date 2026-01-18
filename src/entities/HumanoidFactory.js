@@ -1,11 +1,17 @@
 // ============================================
 // HUMANOID FACTORY
-// Creates articulated humanoid models with bone rigs
+// Creates articulated humanoid models with Mixamo-compatible bone rigs
+//
+// All bone names follow Mixamo convention for compatibility with
+// Mixamo animations and imported GLTF models.
 // ============================================
 
 console.log('[HumanoidFactory] Loading...');
 
 const HumanoidFactory = {
+    // Shorthand reference to bone names (set after MixamoBoneMap loads)
+    B: null,
+
     // =============================================
     // 8-HEAD CANON PROPORTIONS (1.76m total height)
     // 1 head unit = 0.22m
@@ -53,35 +59,34 @@ const HumanoidFactory = {
     },
 
     // Joint positions relative to parent bone (Y-up)
+    // Using Mixamo bone names as keys
     joints: {
-        // Spine chain - pelvis is root, others relative to parent
-        pelvis: { y: 0.88 },    // 4 heads from ground (midpoint)
-        stomach: { y: 0.14 },   // relative: brings world Y to ~1.02
-        chest: { y: 0.16 },     // relative: brings world Y to ~1.18
-        neck: { y: 0.14 },      // relative: brings world Y to ~1.32 (shoulder level)
-        head: { y: 0.22 },      // relative: brings world Y to ~1.54 (chin level)
+        // Spine chain - Hips is root, others relative to parent
+        'mixamorig:Hips': { y: 0.88 },         // 4 heads from ground (midpoint)
+        'mixamorig:Spine': { y: 0.14 },        // relative: brings world Y to ~1.02
+        'mixamorig:Spine1': { y: 0.16 },       // relative: brings world Y to ~1.18
+        'mixamorig:Neck': { y: 0.14 },         // relative: brings world Y to ~1.32 (shoulder level)
+        'mixamorig:Head': { y: 0.22 },         // relative: brings world Y to ~1.54 (chin level)
 
         // Arms attach at neck level (shoulder height = 6 heads)
-        shoulderL: { x: -0.14, y: 0.0 },
-        shoulderR: { x: 0.14, y: 0.0 },
-        upperArmL: { x: -0.045, y: 0 },
-        upperArmR: { x: 0.045, y: 0 },
-        elbowL: { y: -0.28 },   // upper arm length
-        elbowR: { y: -0.28 },
-        wristL: { y: -0.24 },   // forearm length
-        wristR: { y: -0.24 },
-        handL: { y: -0.025 },
-        handR: { y: -0.025 },
+        'mixamorig:LeftShoulder': { x: -0.14, y: 0.0 },
+        'mixamorig:RightShoulder': { x: 0.14, y: 0.0 },
+        'mixamorig:LeftArm': { x: -0.045, y: 0 },
+        'mixamorig:RightArm': { x: 0.045, y: 0 },
+        'mixamorig:LeftForeArm': { y: -0.28 },   // upper arm length
+        'mixamorig:RightForeArm': { y: -0.28 },
+        'mixamorig:LeftHand': { y: -0.24 },      // forearm length
+        'mixamorig:RightHand': { y: -0.24 },
 
         // Legs from pelvis (hip at 4 heads)
-        hipL: { x: -0.10, y: 0 },
-        hipR: { x: 0.10, y: 0 },
-        kneeL: { y: -0.44 },    // thigh length: hip(0.88) - 0.44 = knee(0.44) ✓
-        kneeR: { y: -0.44 },
-        ankleL: { y: -0.37 },   // shin length: knee(0.44) - 0.37 = ankle(0.07) ✓
-        ankleR: { y: -0.37 },
-        footL: { y: -0.035, z: 0.05 },
-        footR: { y: -0.035, z: 0.05 },
+        'mixamorig:LeftUpLeg': { x: -0.10, y: 0 },
+        'mixamorig:RightUpLeg': { x: 0.10, y: 0 },
+        'mixamorig:LeftLeg': { y: -0.44 },      // thigh length: hip(0.88) - 0.44 = knee(0.44)
+        'mixamorig:RightLeg': { y: -0.44 },
+        'mixamorig:LeftFoot': { y: -0.37 },     // shin length: knee(0.44) - 0.37 = ankle(0.07)
+        'mixamorig:RightFoot': { y: -0.37 },
+        'mixamorig:LeftToeBase': { y: -0.035, z: 0.05 },
+        'mixamorig:RightToeBase': { y: -0.035, z: 0.05 },
     },
 
     /**
@@ -130,7 +135,7 @@ const HumanoidFactory = {
 
     /**
      * Create a bone with optional mesh attached
-     * @param {string} name - Bone identifier
+     * @param {string} name - Bone identifier (Mixamo format)
      * @param {THREE.Geometry} geometry - Optional geometry to attach
      * @param {THREE.Material} material - Optional material
      * @returns {THREE.Group} Bone group with mesh
@@ -153,7 +158,7 @@ const HumanoidFactory = {
     },
 
     /**
-     * Create a full humanoid model
+     * Create a full humanoid model with Mixamo-compatible bone names
      * @param {object} options - Configuration options
      * @returns {object} { root, bones, hitboxes }
      */
@@ -169,6 +174,7 @@ const HumanoidFactory = {
 
         const p = this.proportions;
         const j = this.joints;
+        const B = typeof MixamoBoneMap !== 'undefined' ? MixamoBoneMap : null;
 
         // Materials
         const skinMat = new THREE.MeshStandardMaterial({
@@ -203,71 +209,78 @@ const HumanoidFactory = {
 
         // ========== SPINE CHAIN ==========
 
-        // Pelvis (root of skeleton) - rounded cylinder
-        const pelvisGeo = new THREE.CylinderGeometry(
+        // Hips (root of skeleton) - rounded cylinder
+        const hipsGeo = new THREE.CylinderGeometry(
             p.pelvis.width / 2,      // top radius
             p.pelvis.width / 2 * 0.9, // bottom radius (slightly tapered)
             p.pelvis.height, 12
         );
-        bones.pelvis = this.createBone('pelvis', pelvisGeo, clothMat.clone());
-        bones.pelvis.position.y = j.pelvis.y;
-        root.add(bones.pelvis);
-        hitboxes.push({ bone: 'pelvis', part: 'pelvis', mesh: bones.pelvis.userData.mesh });
+        const HIPS = B ? B.HIPS : 'mixamorig:Hips';
+        bones[HIPS] = this.createBone(HIPS, hipsGeo, clothMat.clone());
+        bones[HIPS].position.y = j[HIPS].y;
+        root.add(bones[HIPS]);
+        hitboxes.push({ bone: HIPS, part: 'pelvis', mesh: bones[HIPS].userData.mesh });
 
-        // Stomach - rounded cylinder (tapers from pelvis to chest)
-        const stomachGeo = new THREE.CylinderGeometry(
+        // Spine - rounded cylinder (tapers from pelvis to chest)
+        const spineGeo = new THREE.CylinderGeometry(
             p.stomach.width / 2 * 0.95, // top (towards chest)
             p.stomach.width / 2,         // bottom (towards pelvis)
             p.stomach.height, 12
         );
-        bones.stomach = this.createBone('stomach', stomachGeo, clothMat.clone());
-        bones.stomach.position.y = j.stomach.y;
-        bones.pelvis.add(bones.stomach);
-        hitboxes.push({ bone: 'stomach', part: 'belly', mesh: bones.stomach.userData.mesh });
+        const SPINE = B ? B.SPINE : 'mixamorig:Spine';
+        bones[SPINE] = this.createBone(SPINE, spineGeo, clothMat.clone());
+        bones[SPINE].position.y = j[SPINE].y;
+        bones[HIPS].add(bones[SPINE]);
+        hitboxes.push({ bone: SPINE, part: 'belly', mesh: bones[SPINE].userData.mesh });
 
-        // Chest - rounded cylinder (broader at shoulders)
-        const chestGeo = new THREE.CylinderGeometry(
+        // Spine1 (chest) - rounded cylinder (broader at shoulders)
+        const spine1Geo = new THREE.CylinderGeometry(
             p.chest.width / 2,           // top (shoulder width)
             p.chest.width / 2 * 0.85,    // bottom (tapers to stomach)
             p.chest.height, 12
         );
-        bones.chest = this.createBone('chest', chestGeo, clothMat.clone());
-        bones.chest.position.y = j.chest.y;
-        bones.stomach.add(bones.chest);
-        hitboxes.push({ bone: 'chest', part: 'chest', mesh: bones.chest.userData.mesh });
+        const SPINE1 = B ? B.SPINE1 : 'mixamorig:Spine1';
+        bones[SPINE1] = this.createBone(SPINE1, spine1Geo, clothMat.clone());
+        bones[SPINE1].position.y = j[SPINE1].y;
+        bones[SPINE].add(bones[SPINE1]);
+        hitboxes.push({ bone: SPINE1, part: 'chest', mesh: bones[SPINE1].userData.mesh });
 
         // Neck
         const neckGeo = this.createCapsuleGeometry(p.neck.radius, p.neck.height);
-        bones.neck = this.createBone('neck', neckGeo, skinMat.clone());
-        bones.neck.position.y = j.neck.y;
-        bones.chest.add(bones.neck);
+        const NECK = B ? B.NECK : 'mixamorig:Neck';
+        bones[NECK] = this.createBone(NECK, neckGeo, skinMat.clone());
+        bones[NECK].position.y = j[NECK].y;
+        bones[SPINE1].add(bones[NECK]);
 
         // Head
         const headGeo = new THREE.SphereGeometry(p.head.radius, 16, 12);
-        bones.head = this.createBone('head', headGeo, skinMat.clone());
-        bones.head.position.y = j.head.y + p.head.radius;
-        bones.neck.add(bones.head);
-        hitboxes.push({ bone: 'head', part: 'head', mesh: bones.head.userData.mesh, critical: true });
+        const HEAD = B ? B.HEAD : 'mixamorig:Head';
+        bones[HEAD] = this.createBone(HEAD, headGeo, skinMat.clone());
+        bones[HEAD].position.y = j[HEAD].y + p.head.radius;
+        bones[NECK].add(bones[HEAD]);
+        hitboxes.push({ bone: HEAD, part: 'head', mesh: bones[HEAD].userData.mesh, critical: true });
 
         // Eyes
         const eyeWhiteGeo = new THREE.SphereGeometry(p.eye.radius * 1.5, 8, 6);
         const eyeGeo = new THREE.SphereGeometry(p.eye.radius, 8, 6);
 
-        bones.eyeL = this.createBone('eyeL', eyeWhiteGeo, eyeWhiteMat.clone());
-        bones.eyeL.position.set(-p.eyeOffset.x, p.eyeOffset.y, p.eyeOffset.z);
-        bones.head.add(bones.eyeL);
+        const LEFT_EYE = B ? B.LEFT_EYE : 'mixamorig:LeftEye';
+        bones[LEFT_EYE] = this.createBone(LEFT_EYE, eyeWhiteGeo, eyeWhiteMat.clone());
+        bones[LEFT_EYE].position.set(-p.eyeOffset.x, p.eyeOffset.y, p.eyeOffset.z);
+        bones[HEAD].add(bones[LEFT_EYE]);
 
         const pupilL = new THREE.Mesh(eyeGeo, eyeMat.clone());
         pupilL.position.z = p.eye.radius * 0.8;
-        bones.eyeL.add(pupilL);
+        bones[LEFT_EYE].add(pupilL);
 
-        bones.eyeR = this.createBone('eyeR', eyeWhiteGeo.clone(), eyeWhiteMat.clone());
-        bones.eyeR.position.set(p.eyeOffset.x, p.eyeOffset.y, p.eyeOffset.z);
-        bones.head.add(bones.eyeR);
+        const RIGHT_EYE = B ? B.RIGHT_EYE : 'mixamorig:RightEye';
+        bones[RIGHT_EYE] = this.createBone(RIGHT_EYE, eyeWhiteGeo.clone(), eyeWhiteMat.clone());
+        bones[RIGHT_EYE].position.set(p.eyeOffset.x, p.eyeOffset.y, p.eyeOffset.z);
+        bones[HEAD].add(bones[RIGHT_EYE]);
 
         const pupilR = new THREE.Mesh(eyeGeo.clone(), eyeMat.clone());
         pupilR.position.z = p.eye.radius * 0.8;
-        bones.eyeR.add(pupilR);
+        bones[RIGHT_EYE].add(pupilR);
 
         // Face mask (optional)
         if (hasMask) {
@@ -275,57 +288,60 @@ const HumanoidFactory = {
             const maskGeo = new THREE.BoxGeometry(p.head.radius * 1.6, p.head.radius * 0.8, p.head.radius * 0.5);
             const mask = new THREE.Mesh(maskGeo, maskMat);
             mask.position.set(0, -p.head.radius * 0.2, p.head.radius * 0.7);
-            bones.head.add(mask);
+            bones[HEAD].add(mask);
         }
 
         // ========== ARMS ==========
 
-        ['L', 'R'].forEach(side => {
-            const sign = side === 'L' ? -1 : 1;
-            const prefix = side.toLowerCase();
+        const armSides = [
+            { side: 'Left', sign: -1 },
+            { side: 'Right', sign: 1 }
+        ];
+
+        armSides.forEach(({ side, sign }) => {
+            const SHOULDER = B ? B[`${side.toUpperCase()}_SHOULDER`] : `mixamorig:${side}Shoulder`;
+            const ARM = B ? B[`${side.toUpperCase()}_ARM`] : `mixamorig:${side}Arm`;
+            const FOREARM = B ? B[`${side.toUpperCase()}_FOREARM`] : `mixamorig:${side}ForeArm`;
+            const HAND = B ? B[`${side.toUpperCase()}_HAND`] : `mixamorig:${side}Hand`;
 
             // Shoulder joint
-            bones[`shoulder${side}`] = this.createBone(`shoulder${side}`,
+            bones[SHOULDER] = this.createBone(SHOULDER,
                 new THREE.SphereGeometry(p.shoulder.radius, 8, 6), skinMat.clone());
-            bones[`shoulder${side}`].position.set(
-                j[`shoulder${side}`].x,
-                j[`shoulder${side}`].y,
+            bones[SHOULDER].position.set(
+                j[SHOULDER].x,
+                j[SHOULDER].y,
                 0
             );
-            bones.chest.add(bones[`shoulder${side}`]);
+            bones[SPINE1].add(bones[SHOULDER]);
 
-            // Upper arm
+            // Upper arm (Arm in Mixamo terms)
             const upperArmGeo = this.createCapsuleGeometry(p.upperArm.radius, p.upperArm.length);
-            bones[`upperArm${side}`] = this.createBone(`upperArm${side}`, upperArmGeo, skinMat.clone());
-            bones[`upperArm${side}`].position.set(sign * p.shoulder.radius, 0, 0);
-            bones[`upperArm${side}`].userData.mesh.position.y = -p.upperArm.length / 2;
-            bones[`shoulder${side}`].add(bones[`upperArm${side}`]);
-            hitboxes.push({ bone: `upperArm${side}`, part: 'arm', mesh: bones[`upperArm${side}`].userData.mesh });
+            bones[ARM] = this.createBone(ARM, upperArmGeo, skinMat.clone());
+            bones[ARM].position.set(sign * p.shoulder.radius, 0, 0);
+            bones[ARM].userData.mesh.position.y = -p.upperArm.length / 2;
+            bones[SHOULDER].add(bones[ARM]);
+            hitboxes.push({ bone: ARM, part: 'arm', mesh: bones[ARM].userData.mesh });
 
-            // Elbow
-            bones[`elbow${side}`] = this.createBone(`elbow${side}`,
-                new THREE.SphereGeometry(p.upperArm.radius * 1.1, 8, 6), skinMat.clone());
-            bones[`elbow${side}`].position.y = j[`elbow${side}`].y;
-            bones[`upperArm${side}`].add(bones[`elbow${side}`]);
-
-            // Forearm
+            // Forearm (elbow area)
+            const forearmJointGeo = new THREE.SphereGeometry(p.upperArm.radius * 1.1, 8, 6);
             const forearmGeo = this.createCapsuleGeometry(p.forearm.radius, p.forearm.length);
-            bones[`forearm${side}`] = this.createBone(`forearm${side}`, forearmGeo, skinMat.clone());
-            bones[`forearm${side}`].userData.mesh.position.y = -p.forearm.length / 2;
-            bones[`elbow${side}`].add(bones[`forearm${side}`]);
-            hitboxes.push({ bone: `forearm${side}`, part: 'arm', mesh: bones[`forearm${side}`].userData.mesh });
 
-            // Wrist
-            bones[`wrist${side}`] = this.createBone(`wrist${side}`,
-                new THREE.SphereGeometry(p.wrist.radius, 8, 6), skinMat.clone());
-            bones[`wrist${side}`].position.y = j[`wrist${side}`].y;
-            bones[`forearm${side}`].add(bones[`wrist${side}`]);
+            bones[FOREARM] = this.createBone(FOREARM, forearmJointGeo, skinMat.clone());
+            bones[FOREARM].position.y = j[FOREARM].y;
+            bones[ARM].add(bones[FOREARM]);
+
+            // Forearm mesh (separate from joint)
+            const forearmMesh = new THREE.Mesh(forearmGeo, skinMat.clone());
+            forearmMesh.position.y = -p.forearm.length / 2;
+            forearmMesh.userData.boneName = FOREARM;
+            bones[FOREARM].add(forearmMesh);
+            hitboxes.push({ bone: FOREARM, part: 'arm', mesh: forearmMesh });
 
             // Hand - simplified mitten shape (no individual fingers)
             const handGroup = new THREE.Group();
-            handGroup.name = `hand${side}`;
+            handGroup.name = HAND;
             handGroup.userData.isBone = true;
-            handGroup.userData.boneName = `hand${side}`;
+            handGroup.userData.boneName = HAND;
 
             // Palm
             const palmGeo = new THREE.BoxGeometry(p.hand.width, p.hand.height * 0.6, p.hand.depth);
@@ -349,55 +365,65 @@ const HumanoidFactory = {
             handGroup.add(thumb);
 
             handGroup.userData.mesh = palm; // For hitbox reference
-            bones[`hand${side}`] = handGroup;
-            bones[`hand${side}`].position.y = j[`hand${side}`].y;
-            bones[`wrist${side}`].add(bones[`hand${side}`]);
+            bones[HAND] = handGroup;
+            bones[HAND].position.y = j[HAND].y;
+            bones[FOREARM].add(bones[HAND]);
         });
 
         // ========== LEGS ==========
 
-        ['L', 'R'].forEach(side => {
-            const sign = side === 'L' ? -1 : 1;
+        const legSides = [
+            { side: 'Left', sign: -1 },
+            { side: 'Right', sign: 1 }
+        ];
 
-            // Hip joint
-            bones[`hip${side}`] = this.createBone(`hip${side}`,
+        legSides.forEach(({ side, sign }) => {
+            const UP_LEG = B ? B[`${side.toUpperCase()}_UP_LEG`] : `mixamorig:${side}UpLeg`;
+            const LEG = B ? B[`${side.toUpperCase()}_LEG`] : `mixamorig:${side}Leg`;
+            const FOOT = B ? B[`${side.toUpperCase()}_FOOT`] : `mixamorig:${side}Foot`;
+            const TOE = B ? B[`${side.toUpperCase()}_TOE`] : `mixamorig:${side}ToeBase`;
+
+            // Hip joint (UpLeg in Mixamo terms)
+            bones[UP_LEG] = this.createBone(UP_LEG,
                 new THREE.SphereGeometry(p.thigh.radius * 0.9, 8, 6), clothMat.clone());
-            bones[`hip${side}`].position.set(j[`hip${side}`].x, j[`hip${side}`].y, 0);
-            bones.pelvis.add(bones[`hip${side}`]);
+            bones[UP_LEG].position.set(j[UP_LEG].x, j[UP_LEG].y, 0);
+            bones[HIPS].add(bones[UP_LEG]);
 
-            // Thigh
+            // Thigh mesh (attached to UpLeg)
             const thighGeo = this.createCapsuleGeometry(p.thigh.radius, p.thigh.length);
-            bones[`thigh${side}`] = this.createBone(`thigh${side}`, thighGeo, clothMat.clone());
-            bones[`thigh${side}`].userData.mesh.position.y = -p.thigh.length / 2;
-            bones[`hip${side}`].add(bones[`thigh${side}`]);
-            hitboxes.push({ bone: `thigh${side}`, part: 'leg', mesh: bones[`thigh${side}`].userData.mesh });
+            const thighMesh = new THREE.Mesh(thighGeo, clothMat.clone());
+            thighMesh.position.y = -p.thigh.length / 2;
+            thighMesh.userData.boneName = UP_LEG;
+            bones[UP_LEG].add(thighMesh);
+            hitboxes.push({ bone: UP_LEG, part: 'leg', mesh: thighMesh });
 
-            // Knee
-            bones[`knee${side}`] = this.createBone(`knee${side}`,
+            // Knee/Leg joint
+            bones[LEG] = this.createBone(LEG,
                 new THREE.SphereGeometry(p.knee.radius, 8, 6), clothMat.clone());
-            bones[`knee${side}`].position.y = j[`knee${side}`].y;
-            bones[`thigh${side}`].add(bones[`knee${side}`]);
+            bones[LEG].position.y = j[LEG].y;
+            bones[UP_LEG].add(bones[LEG]);
 
-            // Shin
+            // Shin mesh (attached to Leg)
             const shinGeo = this.createCapsuleGeometry(p.shin.radius, p.shin.length);
-            bones[`shin${side}`] = this.createBone(`shin${side}`, shinGeo, clothMat.clone());
-            bones[`shin${side}`].userData.mesh.position.y = -p.shin.length / 2;
-            bones[`knee${side}`].add(bones[`shin${side}`]);
-            hitboxes.push({ bone: `shin${side}`, part: 'leg', mesh: bones[`shin${side}`].userData.mesh });
+            const shinMesh = new THREE.Mesh(shinGeo, clothMat.clone());
+            shinMesh.position.y = -p.shin.length / 2;
+            shinMesh.userData.boneName = LEG;
+            bones[LEG].add(shinMesh);
+            hitboxes.push({ bone: LEG, part: 'leg', mesh: shinMesh });
 
-            // Ankle
-            bones[`ankle${side}`] = this.createBone(`ankle${side}`,
+            // Ankle/Foot
+            bones[FOOT] = this.createBone(FOOT,
                 new THREE.SphereGeometry(p.ankle.radius, 8, 6), darkClothMat.clone());
-            bones[`ankle${side}`].position.y = j[`ankle${side}`].y;
-            bones[`shin${side}`].add(bones[`ankle${side}`]);
+            bones[FOOT].position.y = j[FOOT].y;
+            bones[LEG].add(bones[FOOT]);
 
-            // Foot
+            // Foot/ToeBase
             const footGeo = new THREE.BoxGeometry(p.foot.width, p.foot.height, p.foot.length);
-            bones[`foot${side}`] = this.createBone(`foot${side}`, footGeo, darkClothMat.clone());
-            bones[`foot${side}`].position.set(0, j[`foot${side}`].y, j[`foot${side}`].z);
-            bones[`foot${side}`].userData.mesh.position.z = p.foot.length * 0.2;
-            bones[`ankle${side}`].add(bones[`foot${side}`]);
-            hitboxes.push({ bone: `foot${side}`, part: 'leg', mesh: bones[`foot${side}`].userData.mesh });
+            bones[TOE] = this.createBone(TOE, footGeo, darkClothMat.clone());
+            bones[TOE].position.set(0, j[TOE].y, j[TOE].z);
+            bones[TOE].userData.mesh.position.z = p.foot.length * 0.2;
+            bones[FOOT].add(bones[TOE]);
+            hitboxes.push({ bone: TOE, part: 'leg', mesh: bones[TOE].userData.mesh });
         });
 
         // Tag all meshes for raycasting
@@ -447,67 +473,65 @@ const HumanoidFactory = {
     },
 
     /**
-     * Default poses for common stances
+     * Default poses for common stances (using Mixamo bone names)
      */
     poses: {
         idle: {
             // Slight arm bend at sides
-            upperArmL: { z: 0.15 },
-            upperArmR: { z: -0.15 },
-            elbowL: { x: -0.2 },
-            elbowR: { x: -0.2 },
+            'mixamorig:LeftArm': { z: 0.15 },
+            'mixamorig:RightArm': { z: -0.15 },
+            'mixamorig:LeftForeArm': { x: -0.2 },
+            'mixamorig:RightForeArm': { x: -0.2 },
         },
 
         rifleHold: {
             // Two-handed rifle grip
-            shoulderR: { x: -0.3, z: -0.4 },
-            upperArmR: { x: -1.2, z: -0.3 },
-            elbowR: { x: 0.8 },
-            forearmR: { y: 0.3 },
-            wristR: { x: -0.2 },
+            'mixamorig:RightShoulder': { x: -0.3, z: -0.4 },
+            'mixamorig:RightArm': { x: -1.2, z: -0.3 },
+            'mixamorig:RightForeArm': { x: 0.8, y: 0.3 },
+            'mixamorig:RightHand': { x: -0.2 },
 
-            shoulderL: { x: -0.2, z: 0.5 },
-            upperArmL: { x: -0.8, z: 0.4 },
-            elbowL: { x: 1.2 },
-            forearmL: { y: -0.2 },
-            wristL: { x: 0.3 },
+            'mixamorig:LeftShoulder': { x: -0.2, z: 0.5 },
+            'mixamorig:LeftArm': { x: -0.8, z: 0.4 },
+            'mixamorig:LeftForeArm': { x: 1.2, y: -0.2 },
+            'mixamorig:LeftHand': { x: 0.3 },
         },
 
         pistolHold: {
             // One-handed pistol
-            shoulderR: { x: -0.4, z: -0.3 },
-            upperArmR: { x: -1.4, z: -0.2 },
-            elbowR: { x: 0.3 },
-            wristR: { x: -0.1 },
+            'mixamorig:RightShoulder': { x: -0.4, z: -0.3 },
+            'mixamorig:RightArm': { x: -1.4, z: -0.2 },
+            'mixamorig:RightForeArm': { x: 0.3 },
+            'mixamorig:RightHand': { x: -0.1 },
 
             // Left arm at side
-            upperArmL: { z: 0.1 },
-            elbowL: { x: -0.3 },
+            'mixamorig:LeftArm': { z: 0.1 },
+            'mixamorig:LeftForeArm': { x: -0.3 },
         },
 
         crouch: {
             // Bent knees, lowered hips
-            hipL: { x: 0.8 },
-            hipR: { x: 0.8 },
-            kneeL: { x: -1.4 },
-            kneeR: { x: -1.4 },
-            ankleL: { x: 0.6 },
-            ankleR: { x: 0.6 },
+            'mixamorig:LeftUpLeg': { x: 0.8 },
+            'mixamorig:RightUpLeg': { x: 0.8 },
+            'mixamorig:LeftLeg': { x: -1.4 },
+            'mixamorig:RightLeg': { x: -1.4 },
+            'mixamorig:LeftFoot': { x: 0.6 },
+            'mixamorig:RightFoot': { x: 0.6 },
 
             // Lean forward slightly
-            pelvis: { x: 0.15 },
+            'mixamorig:Hips': { x: 0.15 },
         },
 
         leanLeft: {
-            pelvis: { z: 0.15 },
-            stomach: { z: 0.1 },
-            chest: { z: 0.05 },
+            'mixamorig:Hips': { z: 0.15 },
+            'mixamorig:Spine': { z: 0.1 },
+            'mixamorig:Spine1': { z: 0.05 },
         },
 
         leanRight: {
-            pelvis: { z: -0.15 },
-            stomach: { z: -0.1 },
-            chest: { z: -0.05 },
+            'mixamorig:Hips': { z: -0.15 },
+            'mixamorig:Spine': { z: -0.1 },
+            'mixamorig:Spine1': { z: -0.05 },
         }
     },
 
@@ -555,6 +579,33 @@ const HumanoidFactory = {
         });
 
         return result;
+    },
+
+    /**
+     * Mirror a pose from right to left (or vice versa)
+     * Uses Mixamo naming convention (Left/Right in bone names)
+     * @param {object} pose - Pose to mirror
+     * @returns {object} Mirrored pose
+     */
+    mirrorPose(pose) {
+        const mirrored = {};
+        Object.entries(pose).forEach(([bone, rotation]) => {
+            // Swap Left and Right in bone names
+            let newBone = bone;
+            if (bone.includes('Left')) {
+                newBone = bone.replace('Left', 'Right');
+            } else if (bone.includes('Right')) {
+                newBone = bone.replace('Right', 'Left');
+            }
+
+            // Mirror Y and Z rotations for lateral bones
+            mirrored[newBone] = {
+                x: rotation.x,
+                y: rotation.y !== undefined ? -rotation.y : undefined,
+                z: rotation.z !== undefined ? -rotation.z : undefined
+            };
+        });
+        return mirrored;
     }
 };
 
