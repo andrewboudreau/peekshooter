@@ -100,7 +100,9 @@ class Opponent extends Entity {
         const teamColor = this.slot === 0 ? 0x4444aa : 0xaa4444;
 
         // Use HumanoidFactory if available, otherwise fall back to simple mesh
+        console.log('[Opponent] HumanoidFactory available:', typeof HumanoidFactory !== 'undefined');
         if (typeof HumanoidFactory !== 'undefined') {
+            console.log('[Opponent] Creating humanoid model...');
             this.humanoid = HumanoidFactory.create({
                 teamColor: teamColor,
                 skinColor: 0xddccbb,

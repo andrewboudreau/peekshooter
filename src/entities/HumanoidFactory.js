@@ -3,6 +3,8 @@
 // Creates articulated humanoid models with bone rigs
 // ============================================
 
+console.log('[HumanoidFactory] Loading...');
+
 const HumanoidFactory = {
     // Body proportions (in meters, based on average adult)
     proportions: {
