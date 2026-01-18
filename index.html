@@ -58,6 +58,24 @@
             top: 50%;
             transform: translate(-50%, -50%);
         }
+        #spread-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 99;
+            transition: all 0.1s ease-out;
+            box-sizing: border-box;
+        }
+        #spread-circle.ads-hidden {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.5);
+        }
         #hud {
             position: absolute;
             bottom: 20px;
@@ -803,6 +821,7 @@
             </div>
         </div>
         <div id="crosshair"><div class="dot"></div></div>
+        <div id="spread-circle"></div>
         <div id="hud">
             <div class="stance-indicator">
                 <span>Health: <span id="health-value">100</span></span>

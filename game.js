@@ -3841,11 +3841,12 @@ function createTarget(config) {
     bullseye.position.z = 0.02; // In front of rings (toward player)
     geometry.add(bullseye);
 
-    // Target stand
+    // Target stand (positioned behind target face)
     const standGeometry = new THREE.BoxGeometry(0.05, config.pos[1], 0.05);
     const standMaterial = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
     const stand = new THREE.Mesh(standGeometry, standMaterial);
     stand.position.y = -config.pos[1] / 2;
+    stand.position.z = -0.05; // Behind the target face
     geometry.add(stand);
 
     geometry.position.set(...config.pos);
@@ -4649,6 +4650,27 @@ function updateWeapon(deltaTime) {
     const crosshair = document.getElementById('crosshair');
     if (crosshair) {
         crosshair.style.opacity = 1 - gameState.adsProgress;
+    }
+
+    // Update spread circle (hip-fire accuracy indicator)
+    const spreadCircle = document.getElementById('spread-circle');
+    if (spreadCircle) {
+        // Base spread size (pixels)
+        const baseSize = 50;
+        // Movement penalty - spread increases with strafing and leaning
+        const movementPenalty = Math.abs(gameState.strafe) * 20 + Math.abs(gameState.lean) * 15;
+        // Calculate final spread size
+        const spreadSize = baseSize + movementPenalty;
+
+        spreadCircle.style.width = `${spreadSize}px`;
+        spreadCircle.style.height = `${spreadSize}px`;
+
+        // Hide during ADS
+        if (gameState.adsProgress > 0.3) {
+            spreadCircle.classList.add('ads-hidden');
+        } else {
+            spreadCircle.classList.remove('ads-hidden');
+        }
     }
 
     // Show sniper scope when ADS with sniper
