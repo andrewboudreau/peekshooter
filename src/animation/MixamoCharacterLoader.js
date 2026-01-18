@@ -129,7 +129,7 @@ const MixamoCharacterLoader = {
         });
 
         // Animations keep their original track names (Mixamo format)
-        const animations = gltf.animations.slice();
+        const animations = gltf.animations ? gltf.animations.slice() : [];
 
         // Generate hitboxes using MixamoBoneMap
         const hitboxes = this._generateHitboxes(meshes, bones);
@@ -170,10 +170,10 @@ const MixamoCharacterLoader = {
         });
 
         // Clone animations
-        const animations = model.animations.map(clip => clip.clone());
+        const animations = (model.animations || []).map(clip => clip.clone());
 
         // Clone hitboxes with new mesh references
-        const hitboxes = model.hitboxes.map(hb => ({
+        const hitboxes = (model.hitboxes || []).map(hb => ({
             ...hb,
             mesh: null,  // Will need to be regenerated
             bone: hb.bone
