@@ -3,7 +3,7 @@ screenshots/
 .DS_Store
 Thumbs.db
 *.log
-settings.local.json
+**/settings.local.json
 *.png
 tmpclaude-*
 debugdumps/**
