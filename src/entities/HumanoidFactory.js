@@ -9,33 +9,33 @@ const HumanoidFactory = {
     // Body proportions (in meters, based on average adult)
     proportions: {
         // Total height ~1.75m
-        head: { radius: 0.11, height: 0.24 },
-        neck: { radius: 0.07, height: 0.10 },
+        head: { radius: 0.12, height: 0.24 },
+        neck: { radius: 0.045, height: 0.06 },  // Thin neck
 
-        // Torso
-        chest: { width: 0.38, height: 0.30, depth: 0.24 },
-        stomach: { width: 0.32, height: 0.18, depth: 0.20 },
-        pelvis: { width: 0.34, height: 0.16, depth: 0.22 },
+        // Torso - cylinder-like, tapered
+        chest: { width: 0.32, height: 0.26, depth: 0.18 },
+        stomach: { width: 0.28, height: 0.14, depth: 0.16 },
+        pelvis: { width: 0.30, height: 0.12, depth: 0.16 },
 
-        // Arms (increased for visibility)
-        shoulder: { radius: 0.08 },
-        upperArm: { radius: 0.055, length: 0.30 },
-        forearm: { radius: 0.048, length: 0.28 },
-        wrist: { radius: 0.035 },
-        hand: { width: 0.09, height: 0.11, depth: 0.03 },
-        finger: { radius: 0.014, length: 0.07 },
-        thumb: { radius: 0.016, length: 0.05 },
+        // Arms - closer to body
+        shoulder: { radius: 0.05 },
+        upperArm: { radius: 0.05, length: 0.28 },
+        forearm: { radius: 0.042, length: 0.25 },
+        wrist: { radius: 0.032 },
+        hand: { width: 0.07, height: 0.09, depth: 0.025 },
+        finger: { radius: 0.01, length: 0.05 },
+        thumb: { radius: 0.012, length: 0.04 },
 
         // Legs
-        thigh: { radius: 0.08, length: 0.44 },
-        knee: { radius: 0.06 },
-        shin: { radius: 0.055, length: 0.40 },
-        ankle: { radius: 0.04 },
-        foot: { width: 0.11, height: 0.09, length: 0.26 },
+        thigh: { radius: 0.07, length: 0.42 },
+        knee: { radius: 0.055 },
+        shin: { radius: 0.05, length: 0.38 },
+        ankle: { radius: 0.035 },
+        foot: { width: 0.10, height: 0.08, length: 0.24 },
 
         // Eyes
-        eye: { radius: 0.018 },
-        eyeOffset: { x: 0.04, y: 0.04, z: 0.09 },
+        eye: { radius: 0.015 },
+        eyeOffset: { x: 0.035, y: 0.04, z: 0.10 },
     },
 
     // Joint positions relative to parent bone (Y-up)
@@ -47,11 +47,11 @@ const HumanoidFactory = {
         neck: { y: 0.28 },    // Relative to chest
         head: { y: 0.08 },    // Relative to neck
 
-        // Arms (relative to chest)
-        shoulderL: { x: -0.20, y: 0.22 },
-        shoulderR: { x: 0.20, y: 0.22 },
-        upperArmL: { x: -0.06, y: 0 },
-        upperArmR: { x: 0.06, y: 0 },
+        // Arms (relative to chest) - shoulders closer to body
+        shoulderL: { x: -0.16, y: 0.10 },
+        shoulderR: { x: 0.16, y: 0.10 },
+        upperArmL: { x: -0.05, y: 0 },
+        upperArmR: { x: 0.05, y: 0 },
         elbowL: { y: -0.28 },
         elbowR: { y: -0.28 },
         wristL: { y: -0.26 },
@@ -295,36 +295,37 @@ const HumanoidFactory = {
             bones[`wrist${side}`].position.y = j[`wrist${side}`].y;
             bones[`forearm${side}`].add(bones[`wrist${side}`]);
 
-            // Hand
-            const handGeo = new THREE.BoxGeometry(p.hand.width, p.hand.height, p.hand.depth);
-            bones[`hand${side}`] = this.createBone(`hand${side}`, handGeo, skinMat.clone());
-            bones[`hand${side}`].position.y = j[`hand${side}`].y;
-            bones[`hand${side}`].userData.mesh.position.y = -p.hand.height / 2;
-            bones[`wrist${side}`].add(bones[`hand${side}`]);
+            // Hand - simplified mitten shape (no individual fingers)
+            const handGroup = new THREE.Group();
+            handGroup.name = `hand${side}`;
+            handGroup.userData.isBone = true;
+            handGroup.userData.boneName = `hand${side}`;
 
-            // Fingers (simplified: 4 fingers + thumb)
-            const fingerOffsets = [
-                { x: -0.024, name: 'index' },
-                { x: -0.008, name: 'middle' },
-                { x: 0.008, name: 'ring' },
-                { x: 0.024, name: 'pinky' }
-            ];
+            // Palm
+            const palmGeo = new THREE.BoxGeometry(p.hand.width, p.hand.height * 0.6, p.hand.depth);
+            const palm = new THREE.Mesh(palmGeo, skinMat.clone());
+            palm.position.y = -p.hand.height * 0.3;
+            handGroup.add(palm);
 
-            fingerOffsets.forEach(finger => {
-                const fingerGeo = this.createCapsuleGeometry(p.finger.radius, p.finger.length);
-                bones[`${finger.name}${side}`] = this.createBone(`${finger.name}${side}`, fingerGeo, skinMat.clone());
-                bones[`${finger.name}${side}`].position.set(finger.x, -p.hand.height, 0);
-                bones[`${finger.name}${side}`].userData.mesh.position.y = -p.finger.length / 2;
-                bones[`hand${side}`].add(bones[`${finger.name}${side}`]);
-            });
+            // Fingers block (simplified as one rounded shape)
+            const fingersGeo = new THREE.BoxGeometry(p.hand.width * 0.9, p.hand.height * 0.5, p.hand.depth);
+            const fingers = new THREE.Mesh(fingersGeo, skinMat.clone());
+            fingers.position.y = -p.hand.height * 0.85;
+            fingers.position.z = p.hand.depth * 0.1;
+            handGroup.add(fingers);
 
             // Thumb
-            const thumbGeo = this.createCapsuleGeometry(p.thumb.radius, p.thumb.length);
-            bones[`thumb${side}`] = this.createBone(`thumb${side}`, thumbGeo, skinMat.clone());
-            bones[`thumb${side}`].position.set(sign * (p.hand.width / 2 + 0.01), -p.hand.height * 0.3, 0);
-            bones[`thumb${side}`].rotation.z = sign * 0.8;
-            bones[`thumb${side}`].userData.mesh.position.y = -p.thumb.length / 2;
-            bones[`hand${side}`].add(bones[`thumb${side}`]);
+            const thumbGeo = new THREE.CylinderGeometry(p.thumb.radius, p.thumb.radius, p.thumb.length, 6);
+            const thumb = new THREE.Mesh(thumbGeo, skinMat.clone());
+            thumb.position.set(sign * (p.hand.width * 0.5), -p.hand.height * 0.2, p.hand.depth * 0.3);
+            thumb.rotation.z = sign * 0.6;
+            thumb.rotation.x = 0.3;
+            handGroup.add(thumb);
+
+            handGroup.userData.mesh = palm; // For hitbox reference
+            bones[`hand${side}`] = handGroup;
+            bones[`hand${side}`].position.y = j[`hand${side}`].y;
+            bones[`wrist${side}`].add(bones[`hand${side}`]);
         });
 
         // ========== LEGS ==========
@@ -444,11 +445,6 @@ const HumanoidFactory = {
             elbowL: { x: 1.2 },
             forearmL: { y: -0.2 },
             wristL: { x: 0.3 },
-
-            // Curl fingers around grips
-            indexL: { x: 0.8 }, middleL: { x: 0.9 }, ringL: { x: 0.9 }, pinkyL: { x: 0.8 },
-            indexR: { x: 0.8 }, middleR: { x: 0.9 }, ringR: { x: 0.9 }, pinkyR: { x: 0.8 },
-            thumbL: { x: 0.3 }, thumbR: { x: 0.3 },
         },
 
         pistolHold: {
@@ -461,9 +457,6 @@ const HumanoidFactory = {
             // Left arm at side
             upperArmL: { z: 0.1 },
             elbowL: { x: -0.3 },
-
-            indexR: { x: 0.2 }, middleR: { x: 0.9 }, ringR: { x: 0.9 }, pinkyR: { x: 0.9 },
-            thumbR: { x: 0.4 },
         },
 
         crouch: {
