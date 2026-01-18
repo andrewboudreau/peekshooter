@@ -24,8 +24,13 @@ class Opponent extends Entity {
         this.mesh = null;
         this.weaponMesh = null;
 
-        // Humanoid model reference
+        // Humanoid model reference (procedural fallback)
         this.humanoid = null;
+
+        // Animated model support
+        this.animController = null;
+        this.useAnimatedModel = false;
+        this.animatedBones = null;
 
         // Network interpolation
         this.lastUpdate = Date.now();
@@ -88,8 +93,10 @@ class Opponent extends Entity {
     // ============================================
 
     /**
-     * Create the opponent's 3D mesh using HumanoidFactory
+     * Create the opponent's 3D mesh
+     * Tries to load animated GLTF model first, falls back to procedural
      * @param {THREE.Scene} scene - Scene to add mesh to
+     * @returns {THREE.Group} The created mesh group
      */
     createMesh(scene) {
         if (this.mesh) {
@@ -99,10 +106,104 @@ class Opponent extends Entity {
         const config = typeof PhysicsConfig !== 'undefined' ? PhysicsConfig.opponent : null;
         const teamColor = this.slot === 0 ? 0x4444aa : 0xaa4444;
 
+        // Try to load animated model asynchronously
+        this._tryLoadAnimatedModel(scene, config, teamColor);
+
+        // For now, create procedural mesh immediately (will be replaced if GLTF loads)
+        return this.createProceduralMesh(scene, config, teamColor);
+    }
+
+    /**
+     * Attempt to load an animated GLTF model
+     * @param {THREE.Scene} scene - Scene to add mesh to
+     * @param {object} config - Physics config
+     * @param {number} teamColor - Team color
+     */
+    async _tryLoadAnimatedModel(scene, config, teamColor) {
+        if (typeof MixamoCharacterLoader === 'undefined' || !MixamoCharacterLoader.isAvailable()) {
+            console.log('[Opponent] MixamoCharacterLoader not available, using procedural');
+            return;
+        }
+
+        try {
+            const model = await MixamoCharacterLoader.load('assets/characters/opponent.glb');
+            if (!model) return;
+
+            console.log('[Opponent] Loaded animated model');
+
+            // Remove procedural mesh
+            if (this.mesh) {
+                scene.remove(this.mesh);
+            }
+
+            // Setup animated model
+            this.useAnimatedModel = true;
+            this.animatedBones = model.bones;
+
+            // Create animation controller
+            if (typeof AnimationController !== 'undefined') {
+                this.animController = new AnimationController(model.root);
+
+                // Add embedded animations
+                model.animations.forEach((clip, i) => {
+                    const name = clip.name || `clip_${i}`;
+                    this.animController.addClip(name, clip);
+                });
+
+                // Try to play idle animation
+                if (this.animController.hasClip('idle')) {
+                    this.animController.play('idle');
+                }
+            }
+
+            // Register hitboxes from model
+            const damage = typeof DamageConfig !== 'undefined' ? DamageConfig.bodyParts : null;
+            model.hitboxes.forEach(hb => {
+                const partDamage = damage?.[hb.part]?.damage || 10;
+                // Find the bone mesh for hitbox
+                const bone = model.bones[hb.bone];
+                if (bone) {
+                    this.hitbox.addPart(hb.bone, bone, partDamage, { isCritical: hb.critical || false });
+                }
+            });
+
+            // Create and attach weapon to hand bone
+            if (typeof WeaponFactory !== 'undefined') {
+                this.weaponMesh = WeaponFactory.createOpponentWeapon(this.currentWeapon);
+                const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
+                MixamoCharacterLoader.attachToBone(model, handBone, this.weaponMesh);
+                this.weaponMesh.position.set(0, -0.08, 0.05);
+                this.weaponMesh.rotation.set(Math.PI / 2, 0, Math.PI);
+            }
+
+            // Position in arena
+            model.root.position.z = config?.spawnZ || -15;
+
+            this.mesh = model.root;
+            this.transform.attachMesh(model.root);
+            this.hitbox.setMeshGroup(model.root);
+
+            scene.add(model.root);
+            console.log('[Opponent] Animated model setup complete');
+
+        } catch (err) {
+            console.warn('[Opponent] Failed to load animated model, using procedural:', err.message);
+            // Procedural mesh already created, nothing to do
+        }
+    }
+
+    /**
+     * Create procedural humanoid mesh using HumanoidFactory
+     * @param {THREE.Scene} scene - Scene to add mesh to
+     * @param {object} config - Physics config
+     * @param {number} teamColor - Team color
+     * @returns {THREE.Group}
+     */
+    createProceduralMesh(scene, config, teamColor) {
         // Use HumanoidFactory if available, otherwise fall back to simple mesh
         console.log('[Opponent] HumanoidFactory available:', typeof HumanoidFactory !== 'undefined');
         if (typeof HumanoidFactory !== 'undefined') {
-            console.log('[Opponent] Creating humanoid model...');
+            console.log('[Opponent] Creating procedural humanoid model...');
             this.humanoid = HumanoidFactory.create({
                 teamColor: teamColor,
                 skinColor: 0xddccbb,
@@ -312,10 +413,47 @@ class Opponent extends Entity {
         // Lean tilt (mirrored)
         this.mesh.rotation.z = -state.lean * (config?.leanTilt || 0.15);
 
-        // Apply stance poses to humanoid if available
-        if (this.humanoid && typeof HumanoidFactory !== 'undefined') {
+        // Update based on model type
+        if (this.useAnimatedModel && this.animController) {
+            // Update animation mixer
+            this.animController.update(deltaTime);
+
+            // Apply stance pose overlay on top of animation
+            const stancePose = this._buildStancePose(state);
+            if (Object.keys(stancePose).length > 0) {
+                this.animController.applyPoseOverlay(stancePose, 1.0);
+            }
+        } else if (this.humanoid && typeof HumanoidFactory !== 'undefined') {
+            // Apply stance poses to procedural humanoid
             this.applyStancePose(state);
         }
+    }
+
+    /**
+     * Build a pose object for stance overlay on animations
+     * @param {object} state - Stance state
+     * @returns {object} Pose definition
+     */
+    _buildStancePose(state) {
+        const pose = {};
+
+        // Crouch adjustments
+        if (state.crouch > 0.1) {
+            pose.hipL = { x: state.crouch * 0.5 };
+            pose.hipR = { x: state.crouch * 0.5 };
+            pose.kneeL = { x: -state.crouch * 0.8 };
+            pose.kneeR = { x: -state.crouch * 0.8 };
+            pose.stomach = { x: state.crouch * 0.2 };
+        }
+
+        // Lean adjustments
+        if (Math.abs(state.lean) > 0.1) {
+            pose.stomach = pose.stomach || {};
+            pose.stomach.z = (pose.stomach.z || 0) + state.lean * 0.15;
+            pose.chest = { z: state.lean * 0.1 };
+        }
+
+        return pose;
     }
 
     /**
@@ -407,11 +545,17 @@ class Opponent extends Entity {
             // Create new weapon using WeaponFactory if available
             if (typeof WeaponFactory !== 'undefined') {
                 this.weaponMesh = WeaponFactory.createOpponentWeapon(weaponId);
+                const handBoneName = this.weaponHand === 'right' ? 'handR' : 'handL';
 
-                // Attach to humanoid hand bone if available
-                if (this.humanoid) {
-                    const handBone = this.weaponHand === 'right' ? 'handR' : 'handL';
-                    this.humanoid.attachToBone(handBone, this.weaponMesh);
+                // Attach to animated model bones if available
+                if (this.useAnimatedModel && this.animatedBones && this.animatedBones[handBoneName]) {
+                    this.animatedBones[handBoneName].add(this.weaponMesh);
+                    this.weaponMesh.position.set(0, -0.08, 0.05);
+                    this.weaponMesh.rotation.set(Math.PI / 2, 0, Math.PI);
+                }
+                // Attach to procedural humanoid hand bone if available
+                else if (this.humanoid) {
+                    this.humanoid.attachToBone(handBoneName, this.weaponMesh);
                     this.weaponMesh.position.set(0, -0.08, 0.05);
                     this.weaponMesh.rotation.set(Math.PI / 2, 0, Math.PI);
                 } else if (this.mesh) {
@@ -421,8 +565,10 @@ class Opponent extends Entity {
                     this.mesh.add(this.weaponMesh);
                 }
 
-                // Re-apply weapon pose
-                this.applyWeaponPose();
+                // Re-apply weapon pose (only for procedural model)
+                if (!this.useAnimatedModel) {
+                    this.applyWeaponPose();
+                }
             }
         }
     }
@@ -432,12 +578,20 @@ class Opponent extends Entity {
     // ============================================
 
     destroy() {
+        // Clean up animation controller
+        if (this.animController) {
+            this.animController.dispose();
+            this.animController = null;
+        }
+
         if (this.mesh && this.mesh.parent) {
             this.mesh.parent.remove(this.mesh);
         }
         this.mesh = null;
         this.weaponMesh = null;
         this.humanoid = null;
+        this.animatedBones = null;
+        this.useAnimatedModel = false;
         super.destroy();
     }
 
