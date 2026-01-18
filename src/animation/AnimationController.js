@@ -31,11 +31,36 @@ class AnimationController {
      * Cache bone references from the root hierarchy
      */
     _cacheBones() {
+        // Method 1: Find bones by isBone flag
         this.root.traverse(obj => {
-            if (obj.isBone) {
+            if (obj.isBone || obj.type === 'Bone') {
                 this.bones.set(obj.name, obj);
             }
         });
+
+        // Method 2: Also check SkinnedMesh skeletons (GLTF models)
+        this.root.traverse(obj => {
+            if (obj.isSkinnedMesh && obj.skeleton) {
+                obj.skeleton.bones.forEach(bone => {
+                    if (!this.bones.has(bone.name)) {
+                        this.bones.set(bone.name, bone);
+                    }
+                });
+            }
+        });
+
+        console.log(`[AnimationController] Cached ${this.bones.size} bones:`, Array.from(this.bones.keys()).slice(0, 10), '...');
+    }
+
+    /**
+     * Manually add bones from an external source
+     * @param {object} bonesMap - Map of bone names to bone objects
+     */
+    addBones(bonesMap) {
+        for (const [name, bone] of Object.entries(bonesMap)) {
+            this.bones.set(name, bone);
+        }
+        console.log(`[AnimationController] Added ${Object.keys(bonesMap).length} external bones`);
     }
 
     /**

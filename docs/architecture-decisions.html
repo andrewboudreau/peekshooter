@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Decision Records - PeekShooter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 { color: #58a6ff; margin-bottom: 8px; }
+        h2 { color: #58a6ff; margin: 32px 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid #30363d; }
+        h3 { color: #8b949e; margin: 24px 0 12px 0; }
+        h4 { color: #c9d1d9; margin: 16px 0 8px 0; }
+        p { margin-bottom: 12px; }
+        a { color: #58a6ff; }
+        code {
+            background: #161b22;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #161b22;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+            border: 1px solid #30363d;
+        }
+        pre code { background: none; padding: 0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        th, td {
+            border: 1px solid #30363d;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        th { background: #161b22; color: #58a6ff; }
+        tr:nth-child(even) { background: #161b2209; }
+        .adr { margin-bottom: 48px; }
+        .adr-meta {
+            background: #161b22;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9em;
+        }
+        .adr-meta span { margin-right: 24px; }
+        .status-accepted { color: #3fb950; }
+        .status-proposed { color: #d29922; }
+        .status-deprecated { color: #f85149; }
+        .diagram {
+            background: #161b22;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .nav { margin-bottom: 32px; }
+        .nav a {
+            margin-right: 16px;
+            color: #8b949e;
+        }
+        ul, ol { margin: 12px 0 12px 24px; }
+        li { margin-bottom: 6px; }
+        .highlight { background: #388bfd22; padding: 12px 16px; border-left: 3px solid #58a6ff; margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="index.html">← Back to Docs</a>
+    </div>
+
+    <h1>Architecture Decision Records</h1>
+    <p>Technical decisions and their rationale for the PeekShooter animation system.</p>
+
+    <!-- ADR-001 -->
+    <div class="adr" id="adr-001">
+        <h2>ADR-001: Dual Character System (Procedural + GLTF)</h2>
+        <div class="adr-meta">
+            <span><strong>Status:</strong> <span class="status-accepted">Accepted</span></span>
+            <span><strong>Date:</strong> 2025-01</span>
+            <span><strong>Authors:</strong> Core Team</span>
+        </div>
+
+        <h3>Context</h3>
+        <p>PeekShooter needs character models for opponents. We had two options:</p>
+        <ol>
+            <li><strong>Procedural only:</strong> Generate characters from code using primitive shapes</li>
+            <li><strong>GLTF only:</strong> Require external 3D models from Mixamo or similar</li>
+        </ol>
+
+        <h3>Decision</h3>
+        <p>Implement <strong>both systems</strong> with automatic fallback:</p>
+        <ul>
+            <li>Primary: Load GLTF/GLB models with Mixamo animations</li>
+            <li>Fallback: Procedural humanoid when assets unavailable</li>
+        </ul>
+
+        <h3>Rationale</h3>
+        <ul>
+            <li><strong>Zero-config start:</strong> Game works immediately without downloading assets</li>
+            <li><strong>Progressive enhancement:</strong> Add quality assets when ready</li>
+            <li><strong>Development flexibility:</strong> Test gameplay without asset dependencies</li>
+            <li><strong>Reduced barrier:</strong> New contributors can run the game instantly</li>
+        </ul>
+
+        <h3>Architecture</h3>
+        <div class="diagram">
+┌─────────────────────────────────────────────────────────────┐
+│                      Opponent.createMesh()                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │ Try GLTF Load    │
+                    │ (async)          │
+                    └──────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+    ┌──────────────────┐            ┌──────────────────┐
+    │ GLTF Success     │            │ GLTF Failed      │
+    │ → Replace mesh   │            │ → Keep procedural│
+    │ → Setup anims    │            │                  │
+    └──────────────────┘            └──────────────────┘
+              │                               │
+              └───────────────┬───────────────┘
+                              ▼
+                    ┌──────────────────┐
+                    │ Same pose/stance │
+                    │ interface works  │
+                    └──────────────────┘
+        </div>
+
+        <h3>Consequences</h3>
+        <ul>
+            <li><strong>Positive:</strong> Game always works, quality scales with available assets</li>
+            <li><strong>Negative:</strong> Two code paths to maintain, potential visual inconsistency</li>
+            <li><strong>Mitigation:</strong> Both systems use same stance/pose interface</li>
+        </ul>
+    </div>
+
+    <!-- ADR-002 -->
+    <div class="adr" id="adr-002">
+        <h2>ADR-002: Bone Naming Convention</h2>
+        <div class="adr-meta">
+            <span><strong>Status:</strong> <span class="status-accepted">Accepted</span></span>
+            <span><strong>Date:</strong> 2025-01</span>
+        </div>
+
+        <h3>Context</h3>
+        <p>Different 3D tools use different bone naming conventions:</p>
+
+        <table>
+            <tr>
+                <th>System</th>
+                <th>Hip Bone</th>
+                <th>Left Thigh</th>
+                <th>Spine</th>
+            </tr>
+            <tr>
+                <td>Mixamo</td>
+                <td><code>mixamorig:Hips</code></td>
+                <td><code>mixamorig:LeftUpLeg</code></td>
+                <td><code>mixamorig:Spine</code></td>
+            </tr>
+            <tr>
+                <td>Unity Humanoid</td>
+                <td><code>Hips</code></td>
+                <td><code>LeftUpperLeg</code></td>
+                <td><code>Spine</code></td>
+            </tr>
+            <tr>
+                <td>Blender Rigify</td>
+                <td><code>spine</code></td>
+                <td><code>thigh.L</code></td>
+                <td><code>spine.001</code></td>
+            </tr>
+            <tr>
+                <td>Our Procedural</td>
+                <td><code>pelvis</code></td>
+                <td><code>hipL</code></td>
+                <td><code>stomach</code></td>
+            </tr>
+        </table>
+
+        <h3>Decision</h3>
+        <p><strong>Use Mixamo naming exclusively</strong> - no custom naming, no mapping layer needed.</p>
+
+        <div class="highlight">
+            <strong>Why Mixamo?</strong>
+            <ul>
+                <li>Most widely used free rigging/animation source</li>
+                <li>Consistent naming across thousands of animations</li>
+                <li>Industry recognition - many developers already know it</li>
+                <li>Adobe backing ensures long-term availability</li>
+                <li>Direct compatibility with imported GLTF models</li>
+            </ul>
+        </div>
+
+        <h3>Bone Name Reference</h3>
+        <table>
+            <tr>
+                <th>Body Part</th>
+                <th>Mixamo Name</th>
+                <th>MixamoBoneMap Constant</th>
+            </tr>
+            <tr><td>Root/Hips</td><td><code>mixamorig:Hips</code></td><td><code>MixamoBoneMap.HIPS</code></td></tr>
+            <tr><td>Spine Lower</td><td><code>mixamorig:Spine</code></td><td><code>MixamoBoneMap.SPINE</code></td></tr>
+            <tr><td>Spine Mid</td><td><code>mixamorig:Spine1</code></td><td><code>MixamoBoneMap.SPINE1</code></td></tr>
+            <tr><td>Spine Upper</td><td><code>mixamorig:Spine2</code></td><td><code>MixamoBoneMap.SPINE2</code></td></tr>
+            <tr><td>Neck</td><td><code>mixamorig:Neck</code></td><td><code>MixamoBoneMap.NECK</code></td></tr>
+            <tr><td>Head</td><td><code>mixamorig:Head</code></td><td><code>MixamoBoneMap.HEAD</code></td></tr>
+            <tr><td>Left Shoulder</td><td><code>mixamorig:LeftShoulder</code></td><td><code>MixamoBoneMap.LEFT_SHOULDER</code></td></tr>
+            <tr><td>Left Upper Arm</td><td><code>mixamorig:LeftArm</code></td><td><code>MixamoBoneMap.LEFT_ARM</code></td></tr>
+            <tr><td>Left Forearm</td><td><code>mixamorig:LeftForeArm</code></td><td><code>MixamoBoneMap.LEFT_FOREARM</code></td></tr>
+            <tr><td>Left Hand</td><td><code>mixamorig:LeftHand</code></td><td><code>MixamoBoneMap.LEFT_HAND</code></td></tr>
+            <tr><td>Right Shoulder</td><td><code>mixamorig:RightShoulder</code></td><td><code>MixamoBoneMap.RIGHT_SHOULDER</code></td></tr>
+            <tr><td>Right Upper Arm</td><td><code>mixamorig:RightArm</code></td><td><code>MixamoBoneMap.RIGHT_ARM</code></td></tr>
+            <tr><td>Right Forearm</td><td><code>mixamorig:RightForeArm</code></td><td><code>MixamoBoneMap.RIGHT_FOREARM</code></td></tr>
+            <tr><td>Right Hand</td><td><code>mixamorig:RightHand</code></td><td><code>MixamoBoneMap.RIGHT_HAND</code></td></tr>
+            <tr><td>Left Thigh</td><td><code>mixamorig:LeftUpLeg</code></td><td><code>MixamoBoneMap.LEFT_UP_LEG</code></td></tr>
+            <tr><td>Left Shin</td><td><code>mixamorig:LeftLeg</code></td><td><code>MixamoBoneMap.LEFT_LEG</code></td></tr>
+            <tr><td>Left Foot</td><td><code>mixamorig:LeftFoot</code></td><td><code>MixamoBoneMap.LEFT_FOOT</code></td></tr>
+            <tr><td>Right Thigh</td><td><code>mixamorig:RightUpLeg</code></td><td><code>MixamoBoneMap.RIGHT_UP_LEG</code></td></tr>
+            <tr><td>Right Shin</td><td><code>mixamorig:RightLeg</code></td><td><code>MixamoBoneMap.RIGHT_LEG</code></td></tr>
+            <tr><td>Right Foot</td><td><code>mixamorig:RightFoot</code></td><td><code>MixamoBoneMap.RIGHT_FOOT</code></td></tr>
+        </table>
+
+        <h3>Implementation</h3>
+        <pre><code>// Use MixamoBoneMap constants for type-safe bone references
+const B = MixamoBoneMap;
+
+// Apply pose with Mixamo bone names
+animController.applyPoseOverlay({
+    [B.SPINE]: { x: 0.3 },
+    [B.LEFT_UP_LEG]: { x: 0.5 },
+    [B.RIGHT_UP_LEG]: { x: 0.5 }
+});
+
+// Both procedural (HumanoidFactory) and GLTF models use same names
+// No mapping or translation needed!</code></pre>
+    </div>
+
+    <!-- ADR-003 -->
+    <div class="adr" id="adr-003">
+        <h2>ADR-003: Animation System Architecture</h2>
+        <div class="adr-meta">
+            <span><strong>Status:</strong> <span class="status-accepted">Accepted</span></span>
+            <span><strong>Date:</strong> 2025-01</span>
+        </div>
+
+        <h3>Context</h3>
+        <p>Three.js provides <code>AnimationMixer</code> for skeletal animation, but we need additional features:</p>
+        <ul>
+            <li>Crossfade between animations</li>
+            <li>Procedural pose overlay (crouch/lean on top of idle animation)</li>
+            <li>Support for both GLTF and procedural models</li>
+        </ul>
+
+        <h3>Decision</h3>
+        <p>Create a layered animation system:</p>
+
+        <div class="diagram">
+┌─────────────────────────────────────────────────────────────┐
+│                     Final Bone Transforms                    │
+└─────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ additive blend
+                    ┌─────────┴─────────┐
+                    │                   │
+         ┌──────────▼──────────┐ ┌──────▼──────────┐
+         │  Base Animation     │ │  Pose Overlay   │
+         │  (idle, walk, etc)  │ │  (crouch, lean) │
+         │                     │ │                 │
+         │  AnimationMixer     │ │  Procedural     │
+         └─────────────────────┘ └─────────────────┘
+        </div>
+
+        <h3>Components</h3>
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Responsibility</th>
+            </tr>
+            <tr>
+                <td><code>MixamoCharacterLoader</code></td>
+                <td>Load GLTF models, extract skeleton, remap bone names</td>
+            </tr>
+            <tr>
+                <td><code>AnimationController</code></td>
+                <td>Wrap AnimationMixer, handle crossfade, apply pose overlays</td>
+            </tr>
+            <tr>
+                <td><code>MixamoBoneMap</code></td>
+                <td>Bidirectional bone name mapping (Mixamo ↔ internal)</td>
+            </tr>
+            <tr>
+                <td><code>HumanoidFactory</code></td>
+                <td>Generate procedural fallback model with compatible rig</td>
+            </tr>
+        </table>
+
+        <h3>Pose Overlay System</h3>
+        <p>Stance adjustments (crouch, lean) are applied <em>after</em> the base animation:</p>
+        <pre><code>// In animation loop
+animController.update(deltaTime);  // Updates base animation
+
+// Apply stance modifications additively
+animController.applyPoseOverlay({
+    'mixamorig:Spine': { x: crouchAmount * 0.3 },
+    'mixamorig:LeftUpLeg': { x: crouchAmount * 0.8 },
+    'mixamorig:RightUpLeg': { x: crouchAmount * 0.8 },
+}, 1.0);</code></pre>
+
+        <p>This allows the idle breathing animation to continue while the character crouches.</p>
+    </div>
+
+    <!-- ADR-004 -->
+    <div class="adr" id="adr-004">
+        <h2>ADR-004: Asset Pipeline (FBX → GLB)</h2>
+        <div class="adr-meta">
+            <span><strong>Status:</strong> <span class="status-accepted">Accepted</span></span>
+            <span><strong>Date:</strong> 2025-01</span>
+        </div>
+
+        <h3>Context</h3>
+        <p>Mixamo exports FBX format, but Three.js GLTFLoader only supports GLTF/GLB.</p>
+
+        <h3>Decision</h3>
+        <p>Use Blender as a conversion tool via Python script:</p>
+        <pre><code>npm run convert-assets  # Batch converts all FBX → GLB</code></pre>
+
+        <h3>Why GLB over FBX?</h3>
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>FBX</th>
+                <th>GLB</th>
+            </tr>
+            <tr>
+                <td>Format</td>
+                <td>Proprietary (Autodesk)</td>
+                <td>Open standard (Khronos)</td>
+            </tr>
+            <tr>
+                <td>Three.js Support</td>
+                <td>Requires FBXLoader (larger)</td>
+                <td>Native GLTFLoader</td>
+            </tr>
+            <tr>
+                <td>File Size</td>
+                <td>Larger</td>
+                <td>Smaller (binary + Draco compression)</td>
+            </tr>
+            <tr>
+                <td>Web Optimized</td>
+                <td>No</td>
+                <td>Yes (designed for web)</td>
+            </tr>
+        </table>
+
+        <h3>Workflow</h3>
+        <div class="diagram">
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│   Mixamo     │    │   Blender    │    │   Game       │
+│   Website    │───▶│   Convert    │───▶│   Runtime    │
+│              │    │              │    │              │
+│  .fbx files  │    │  .glb files  │    │  GLTFLoader  │
+└──────────────┘    └──────────────┘    └──────────────┘
+
+        npm run convert-assets
+        └── scripts/convert-fbx-to-glb.py
+            └── Blender Python API
+        </div>
+
+        <h3>File Organization</h3>
+        <pre><code>assets/
+├── characters/
+│   ├── opponent.glb      # Main character model
+│   └── README.md         # Export instructions
+└── animations/
+    ├── Pro Rifle Pack/   # Animation collections
+    │   ├── idle.glb
+    │   ├── idle crouching.glb
+    │   └── ...
+    └── Rifle Idle.glb</code></pre>
+    </div>
+
+    <!-- EDR Section -->
+    <h2 id="edr">Engineering Design Review: Animation System</h2>
+
+    <h3>System Overview</h3>
+    <p>The animation system enables Mixamo-rigged characters to be used in PeekShooter with full support for the game's analog stance mechanics (crouch, lean, strafe).</p>
+
+    <h3>Design Goals</h3>
+    <ol>
+        <li><strong>Drop-in Mixamo support:</strong> Load any Mixamo character/animation without modification</li>
+        <li><strong>Graceful degradation:</strong> Work without external assets</li>
+        <li><strong>Familiar conventions:</strong> Use industry-standard bone names</li>
+        <li><strong>Pose blending:</strong> Layer procedural stance on animated base</li>
+    </ol>
+
+    <h3>Data Flow</h3>
+    <div class="diagram">
+User Input (WASD/QE)
+        │
+        ▼
+┌───────────────────┐
+│  Stance State     │  crouch: 0-1
+│  (TransformComp)  │  lean: -1 to 1
+└───────────────────┘  strafe: -1 to 1
+        │
+        ├─────────────────────────────────┐
+        ▼                                 ▼
+┌───────────────────┐           ┌───────────────────┐
+│  GLTF Model Path  │           │  Procedural Path  │
+├───────────────────┤           ├───────────────────┤
+│ AnimationMixer    │           │ HumanoidFactory   │
+│ plays base clip   │           │ setPose()         │
+│       +           │           │                   │
+│ applyPoseOverlay  │           │                   │
+│ adds crouch/lean  │           │                   │
+└───────────────────┘           └───────────────────┘
+        │                                 │
+        └─────────────┬───────────────────┘
+                      ▼
+              Final Render
+    </div>
+
+    <h3>Key Interfaces</h3>
+    <pre><code>// Loading a character
+const model = await MixamoCharacterLoader.load('character.glb');
+// Returns: { root, bones, meshes, skeleton, animations, hitboxes }
+
+// Setting up animation
+const anim = new AnimationController(model.root);
+anim.addBones(model.bones);  // Register bones for pose overlay
+anim.addClip('idle', model.animations[0]);
+anim.play('idle');
+
+// In game loop
+anim.update(deltaTime);
+anim.applyPoseOverlay({
+    'mixamorig:Spine': { x: crouchAmount * 0.3 },
+    'mixamorig:Spine1': { z: leanAmount * 0.15 },
+}, 1.0);</code></pre>
+
+    <h3>Future Considerations</h3>
+    <ul>
+        <li><strong>Animation state machine:</strong> Transition rules between clips (idle→walk→run)</li>
+        <li><strong>IK system:</strong> Feet placement, weapon aiming</li>
+        <li><strong>Retargeting:</strong> Apply animations to different skeleton proportions</li>
+        <li><strong>LOD:</strong> Simplified rigs for distant characters</li>
+    </ul>
+
+    <h3>References</h3>
+    <ul>
+        <li><a href="https://www.mixamo.com/">Mixamo</a> - Adobe's free character/animation library</li>
+        <li><a href="https://www.khronos.org/gltf/">glTF Specification</a> - Khronos Group</li>
+        <li><a href="https://threejs.org/docs/#manual/en/introduction/Animation-system">Three.js Animation System</a></li>
+    </ul>
+
+</body>
+</html>

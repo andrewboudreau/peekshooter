@@ -1,6 +1,9 @@
 // ============================================
 // MIXAMO CHARACTER LOADER
 // Loads GLTF/GLB characters with Mixamo rig support
+//
+// Since all code now uses Mixamo bone names directly,
+// no remapping is needed - bones keep their original names.
 // ============================================
 
 const MixamoCharacterLoader = {
@@ -42,12 +45,10 @@ const MixamoCharacterLoader = {
      * @param {string} path - Path to GLB/GLTF file
      * @param {object} options - Load options
      * @param {boolean} [options.cache=true] - Whether to cache the model
-     * @param {boolean} [options.remapBones=true] - Whether to remap Mixamo bone names
      * @returns {Promise<object>} Loaded model data
      */
     async load(path, options = {}) {
         const cache = options.cache !== false;
-        const remapBones = options.remapBones !== false;
 
         // Check cache first
         if (cache && this.loadedModels.has(path)) {
@@ -67,7 +68,7 @@ const MixamoCharacterLoader = {
                 path,
                 (gltf) => {
                     try {
-                        const result = this._processGLTF(gltf, remapBones);
+                        const result = this._processGLTF(gltf);
 
                         // Cache if enabled
                         if (cache) {
@@ -103,32 +104,20 @@ const MixamoCharacterLoader = {
 
     /**
      * Process loaded GLTF data
+     * Bones keep their original Mixamo names (no remapping)
      * @param {object} gltf - Loaded GLTF data
-     * @param {boolean} remapBones - Whether to remap bone names
      * @returns {object} Processed model data
      */
-    _processGLTF(gltf, remapBones) {
+    _processGLTF(gltf) {
         const root = gltf.scene;
         const bones = {};
         const meshes = [];
         let skeleton = null;
 
-        // Find all bones and meshes
+        // Find all bones and meshes - keep original Mixamo names
         root.traverse((obj) => {
             if (obj.isBone) {
-                let name = obj.name;
-
-                // Remap Mixamo bone names
-                if (remapBones && typeof MixamoBoneMap !== 'undefined') {
-                    const mapped = MixamoBoneMap.getMapped(obj.name);
-                    if (mapped) {
-                        obj.userData.originalName = obj.name;
-                        obj.name = mapped;
-                        name = mapped;
-                    }
-                }
-
-                bones[name] = obj;
+                bones[obj.name] = obj;
             }
 
             if (obj.isSkinnedMesh) {
@@ -139,15 +128,10 @@ const MixamoCharacterLoader = {
             }
         });
 
-        // Process animations
-        const animations = gltf.animations.map(clip => {
-            if (remapBones && typeof MixamoBoneMap !== 'undefined') {
-                return MixamoBoneMap.remapClip(clip);
-            }
-            return clip;
-        });
+        // Animations keep their original track names (Mixamo format)
+        const animations = gltf.animations.slice();
 
-        // Generate hitboxes if HumanoidFactory patterns available
+        // Generate hitboxes using MixamoBoneMap
         const hitboxes = this._generateHitboxes(meshes, bones);
 
         return {
@@ -207,6 +191,7 @@ const MixamoCharacterLoader = {
 
     /**
      * Generate hitbox definitions from mesh and bones
+     * Uses MixamoBoneMap.hitboxParts for damage category mapping
      * @param {THREE.SkinnedMesh[]} meshes
      * @param {object} bones
      * @returns {Array} Hitbox definitions
@@ -214,25 +199,26 @@ const MixamoCharacterLoader = {
     _generateHitboxes(meshes, bones) {
         const hitboxes = [];
 
-        // Define hitbox parts based on bone names
-        const hitboxParts = {
-            head: { part: 'head', critical: true },
-            neck: { part: 'neck', critical: false },
-            chest: { part: 'chest', critical: false },
-            stomach: { part: 'belly', critical: false },
-            pelvis: { part: 'belly', critical: false },
-            upperArmL: { part: 'arm', critical: false },
-            upperArmR: { part: 'arm', critical: false },
-            elbowL: { part: 'arm', critical: false },
-            elbowR: { part: 'arm', critical: false },
-            handL: { part: 'arm', critical: false },
-            handR: { part: 'arm', critical: false },
-            hipL: { part: 'leg', critical: false },
-            hipR: { part: 'leg', critical: false },
-            kneeL: { part: 'leg', critical: false },
-            kneeR: { part: 'leg', critical: false },
-            ankleL: { part: 'leg', critical: false },
-            ankleR: { part: 'leg', critical: false },
+        // Use MixamoBoneMap.hitboxParts if available
+        const hitboxParts = typeof MixamoBoneMap !== 'undefined' ? MixamoBoneMap.hitboxParts : {
+            'mixamorig:Head': { part: 'head', critical: true },
+            'mixamorig:Neck': { part: 'head', critical: false },
+            'mixamorig:Spine2': { part: 'chest', critical: false },
+            'mixamorig:Spine1': { part: 'chest', critical: false },
+            'mixamorig:Spine': { part: 'belly', critical: false },
+            'mixamorig:Hips': { part: 'pelvis', critical: false },
+            'mixamorig:LeftArm': { part: 'arm', critical: false },
+            'mixamorig:RightArm': { part: 'arm', critical: false },
+            'mixamorig:LeftForeArm': { part: 'arm', critical: false },
+            'mixamorig:RightForeArm': { part: 'arm', critical: false },
+            'mixamorig:LeftHand': { part: 'arm', critical: false },
+            'mixamorig:RightHand': { part: 'arm', critical: false },
+            'mixamorig:LeftUpLeg': { part: 'leg', critical: false },
+            'mixamorig:RightUpLeg': { part: 'leg', critical: false },
+            'mixamorig:LeftLeg': { part: 'leg', critical: false },
+            'mixamorig:RightLeg': { part: 'leg', critical: false },
+            'mixamorig:LeftFoot': { part: 'leg', critical: false },
+            'mixamorig:RightFoot': { part: 'leg', critical: false },
         };
 
         for (const [boneName, config] of Object.entries(hitboxParts)) {
@@ -256,8 +242,6 @@ const MixamoCharacterLoader = {
      * @returns {Promise<THREE.AnimationClip[]>}
      */
     async loadAnimation(path, options = {}) {
-        const remapBones = options.remapBones !== false;
-
         const loader = this._getLoader();
         if (!loader) {
             throw new Error('GLTFLoader not available');
@@ -267,12 +251,8 @@ const MixamoCharacterLoader = {
             loader.load(
                 path,
                 (gltf) => {
-                    let animations = gltf.animations;
-
-                    if (remapBones && typeof MixamoBoneMap !== 'undefined') {
-                        animations = animations.map(clip => MixamoBoneMap.remapClip(clip));
-                    }
-
+                    // Animations keep original Mixamo track names
+                    const animations = gltf.animations;
                     console.log(`[MixamoCharacterLoader] Loaded ${animations.length} animation(s) from: ${path}`);
                     resolve(animations);
                 },
@@ -317,24 +297,16 @@ const MixamoCharacterLoader = {
      */
     getBoneMappingInfo(model) {
         const info = {
-            mapped: [],
-            unmapped: [],
+            mixamoBones: [],
+            otherBones: [],
             total: Object.keys(model.bones).length
         };
 
-        if (typeof MixamoBoneMap === 'undefined') {
-            return info;
-        }
-
-        for (const bone of Object.values(model.bones)) {
-            const originalName = bone.userData.originalName || bone.name;
-            if (MixamoBoneMap.isMixamoBone(originalName)) {
-                const mapped = MixamoBoneMap.getMapped(originalName);
-                if (mapped) {
-                    info.mapped.push({ original: originalName, mapped: bone.name });
-                } else {
-                    info.unmapped.push(originalName);
-                }
+        for (const boneName of Object.keys(model.bones)) {
+            if (boneName.startsWith('mixamorig:')) {
+                info.mixamoBones.push(boneName);
+            } else {
+                info.otherBones.push(boneName);
             }
         }
 
@@ -344,7 +316,7 @@ const MixamoCharacterLoader = {
     /**
      * Attach an object to a bone
      * @param {object} model - Loaded model data
-     * @param {string} boneName - Bone name to attach to
+     * @param {string} boneName - Bone name to attach to (Mixamo format)
      * @param {THREE.Object3D} object - Object to attach
      */
     attachToBone(model, boneName, object) {

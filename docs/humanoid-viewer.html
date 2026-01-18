@@ -157,6 +157,64 @@
             padding: 8px;
             margin-top: 8px;
         }
+        /* Movement Controls */
+        #stance-display {
+            background: #0f3460;
+            padding: 12px;
+            margin-top: 8px;
+            font-family: monospace;
+        }
+        .stance-bar {
+            height: 12px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            margin: 4px 0 8px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .stance-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: all 0.1s;
+        }
+        .stance-fill.crouch { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+        .stance-fill.lean {
+            background: linear-gradient(90deg, #2196F3, #03A9F4);
+            position: absolute;
+            top: 0;
+        }
+        .stance-fill.strafe {
+            background: linear-gradient(90deg, #ff9800, #ffc107);
+            position: absolute;
+            top: 0;
+        }
+        #movement-keys {
+            display: grid;
+            grid-template-columns: repeat(3, 40px);
+            gap: 4px;
+            justify-content: center;
+            margin: 12px 0;
+        }
+        .key {
+            width: 40px;
+            height: 32px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #888;
+        }
+        .key.active { background: #e94560; color: white; border-color: #e94560; }
+        .key.empty { visibility: hidden; }
+        #movement-hint {
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            margin-top: 8px;
+        }
         .prop-row {
             display: flex;
             align-items: center;
@@ -281,6 +339,34 @@
 
         <h2>Bone Mapping</h2>
         <div id="bone-mapping-list">Load a GLTF model to see bone mapping</div>
+
+        <h2>Movement Test</h2>
+        <div class="control-group">
+            <button id="load-opponent">Load Opponent + Animations</button>
+        </div>
+        <div id="stance-display">
+            <div id="movement-keys">
+                <div class="key" data-key="q">Q</div>
+                <div class="key" data-key="w">W</div>
+                <div class="key" data-key="e">E</div>
+                <div class="key" data-key="a">A</div>
+                <div class="key" data-key="s">S</div>
+                <div class="key" data-key="d">D</div>
+            </div>
+            <label>Crouch <span id="crouch-val">0.00</span></label>
+            <div class="stance-bar">
+                <div class="stance-fill crouch" id="crouch-bar" style="width:0%"></div>
+            </div>
+            <label>Lean <span id="lean-val">0.00</span></label>
+            <div class="stance-bar">
+                <div class="stance-fill lean" id="lean-bar" style="width:0%; left:50%"></div>
+            </div>
+            <label>Strafe <span id="strafe-val">0.00</span></label>
+            <div class="stance-bar">
+                <div class="stance-fill strafe" id="strafe-bar" style="width:0%; left:50%"></div>
+            </div>
+            <div id="movement-hint">Click viewport, then use WASD/QE to control stance</div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -1036,6 +1122,266 @@ Camera Position:
             }
         }
 
+        // ============================================
+        // MOVEMENT CONTROLS
+        // ============================================
+
+        const stanceState = {
+            crouch: 0,
+            lean: 0,
+            strafe: 0,
+            targetCrouch: 0,
+            targetLean: 0,
+            targetStrafe: 0
+        };
+
+        const keys = {
+            w: false, s: false,
+            a: false, d: false,
+            q: false, e: false
+        };
+
+        let viewportFocused = false;
+
+        // Click to focus viewport
+        canvas.addEventListener('click', () => {
+            viewportFocused = true;
+            document.getElementById('movement-hint').textContent = 'Focused! Use WASD/QE to control';
+            document.getElementById('movement-hint').style.color = '#4f4';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!canvas.contains(e.target)) {
+                viewportFocused = false;
+                document.getElementById('movement-hint').textContent = 'Click viewport to focus';
+                document.getElementById('movement-hint').style.color = '#666';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!viewportFocused) return;
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) {
+                keys[key] = true;
+                updateKeyDisplay();
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) {
+                keys[key] = false;
+                updateKeyDisplay();
+            }
+        });
+
+        function updateKeyDisplay() {
+            document.querySelectorAll('.key').forEach(el => {
+                const key = el.dataset.key;
+                el.classList.toggle('active', keys[key]);
+            });
+        }
+
+        function updateStanceTargets() {
+            // W/S = stand/crouch
+            if (keys.w) stanceState.targetCrouch = Math.max(0, stanceState.targetCrouch - 0.05);
+            if (keys.s) stanceState.targetCrouch = Math.min(1, stanceState.targetCrouch + 0.05);
+
+            // Q/E = lean
+            stanceState.targetLean = 0;
+            if (keys.q) stanceState.targetLean = -1;
+            if (keys.e) stanceState.targetLean = 1;
+
+            // A/D = strafe
+            stanceState.targetStrafe = 0;
+            if (keys.a) stanceState.targetStrafe = -1;
+            if (keys.d) stanceState.targetStrafe = 1;
+        }
+
+        function updateStanceSmooth(deltaTime) {
+            const lerpSpeed = 8;
+            stanceState.crouch += (stanceState.targetCrouch - stanceState.crouch) * lerpSpeed * deltaTime;
+            stanceState.lean += (stanceState.targetLean - stanceState.lean) * lerpSpeed * deltaTime;
+            stanceState.strafe += (stanceState.targetStrafe - stanceState.strafe) * lerpSpeed * deltaTime;
+
+            // Update display
+            document.getElementById('crouch-val').textContent = stanceState.crouch.toFixed(2);
+            document.getElementById('lean-val').textContent = stanceState.lean.toFixed(2);
+            document.getElementById('strafe-val').textContent = stanceState.strafe.toFixed(2);
+
+            document.getElementById('crouch-bar').style.width = (stanceState.crouch * 100) + '%';
+
+            const leanPct = Math.abs(stanceState.lean) * 50;
+            const leanBar = document.getElementById('lean-bar');
+            leanBar.style.width = leanPct + '%';
+            leanBar.style.left = stanceState.lean < 0 ? (50 - leanPct) + '%' : '50%';
+
+            const strafePct = Math.abs(stanceState.strafe) * 50;
+            const strafeBar = document.getElementById('strafe-bar');
+            strafeBar.style.width = strafePct + '%';
+            strafeBar.style.left = stanceState.strafe < 0 ? (50 - strafePct) + '%' : '50%';
+        }
+
+        let debugLogOnce = true;
+        function applyStanceToModel() {
+            // Apply to GLTF model if loaded
+            if (gltfModel && animController) {
+                // Debug: log available bones once
+                if (debugLogOnce && animController.bones.size > 0) {
+                    console.log('[Viewer] AnimController bones:', Array.from(animController.bones.keys()));
+                    debugLogOnce = false;
+                }
+
+                // Use Mixamo bone constants directly from MixamoBoneMap
+                const B = MixamoBoneMap;
+                const pose = {};
+
+                // Crouch pose - bend at hips and knees, lean spine forward
+                if (stanceState.crouch > 0.05) {
+                    const c = stanceState.crouch;
+                    pose[B.LEFT_UP_LEG] = { x: c * 0.8 };
+                    pose[B.RIGHT_UP_LEG] = { x: c * 0.8 };
+                    pose[B.LEFT_LEG] = { x: -c * 1.2 };
+                    pose[B.RIGHT_LEG] = { x: -c * 1.2 };
+                    pose[B.SPINE] = { x: c * 0.3 };
+                    pose[B.SPINE1] = { x: c * 0.1 };
+                }
+
+                // Lean pose - rotate spine laterally
+                if (Math.abs(stanceState.lean) > 0.05) {
+                    const l = stanceState.lean;
+                    pose[B.SPINE] = pose[B.SPINE] || {};
+                    pose[B.SPINE].z = (pose[B.SPINE].z || 0) + l * 0.2;
+                    pose[B.SPINE1] = pose[B.SPINE1] || {};
+                    pose[B.SPINE1].z = (pose[B.SPINE1].z || 0) + l * 0.15;
+                    pose[B.SPINE2] = { z: l * 0.1 };
+                }
+
+                animController.applyPoseOverlay(pose, 1.0);
+
+                // Also move the model root position/rotation
+                if (gltfModel.root) {
+                    gltfModel.root.position.x = stanceState.strafe * 1.5 + stanceState.lean * 0.5;
+                    gltfModel.root.position.y = -stanceState.crouch * 0.6;
+                    gltfModel.root.rotation.z = -stanceState.lean * 0.15;
+                }
+            }
+
+            // Apply to procedural humanoid if visible
+            if (humanoid && showProcedural) {
+                const state = {
+                    crouch: stanceState.crouch,
+                    lean: stanceState.lean,
+                    strafe: stanceState.strafe
+                };
+
+                // Use HumanoidFactory poses
+                let finalPose = {};
+
+                // Weapon pose base
+                finalPose = { ...HumanoidFactory.poses.rifleHold };
+
+                // Blend crouch
+                if (state.crouch > 0.1) {
+                    const crouchPose = HumanoidFactory.blendPoses({}, HumanoidFactory.poses.crouch, state.crouch);
+                    finalPose = HumanoidFactory.combinePoses(finalPose, crouchPose);
+                }
+
+                // Blend lean
+                if (Math.abs(state.lean) > 0.1) {
+                    const leanPose = state.lean > 0 ?
+                        HumanoidFactory.poses.leanRight :
+                        HumanoidFactory.poses.leanLeft;
+                    const blended = HumanoidFactory.blendPoses({}, leanPose, Math.abs(state.lean));
+                    finalPose = HumanoidFactory.combinePoses(finalPose, blended);
+                }
+
+                humanoid.setPose(finalPose);
+
+                // Position
+                humanoid.root.position.x = state.strafe * 1.5 + state.lean * 0.5;
+                humanoid.root.position.y = -state.crouch * 0.6;
+                humanoid.root.rotation.z = -state.lean * 0.15;
+            }
+        }
+
+        // Load opponent with animations button
+        document.getElementById('load-opponent').addEventListener('click', async () => {
+            const status = document.getElementById('gltf-status');
+            status.textContent = 'Loading opponent...';
+            status.className = 'gltf-status';
+
+            try {
+                // Load character
+                const characterPath = '../assets/characters/opponent.glb';
+                gltfModel = await MixamoCharacterLoader.load(characterPath, { cache: false });
+
+                // Hide procedural
+                if (humanoid) {
+                    humanoid.root.visible = false;
+                    showProcedural = false;
+                }
+
+                scene.add(gltfModel.root);
+
+                // Setup animation controller
+                if (animController) animController.dispose();
+                animController = new AnimationController(gltfModel.root);
+
+                // Also add bones from the model (in case they weren't found by traverse)
+                if (gltfModel.bones) {
+                    animController.addBones(gltfModel.bones);
+                }
+
+                console.log('[Viewer] Model bones:', Object.keys(gltfModel.bones || {}));
+
+                // Add embedded animations
+                gltfModel.animations.forEach((clip, i) => {
+                    const name = clip.name || `embedded_${i}`;
+                    animController.addClip(name, clip);
+                });
+
+                // Load core animations from Pro Rifle Pack
+                const animsToLoad = [
+                    { path: '../assets/animations/Pro Rifle Pack/idle.glb', name: 'idle' },
+                    { path: '../assets/animations/Pro Rifle Pack/idle crouching.glb', name: 'idle_crouch' },
+                    { path: '../assets/animations/Pro Rifle Pack/idle aiming.glb', name: 'idle_aim' },
+                    { path: '../assets/animations/Rifle Idle.glb', name: 'rifle_idle' },
+                ];
+
+                for (const anim of animsToLoad) {
+                    try {
+                        const clips = await MixamoCharacterLoader.loadAnimation(anim.path);
+                        if (clips.length > 0) {
+                            animController.addClip(anim.name, clips[0]);
+                        }
+                    } catch (e) {
+                        console.warn(`Could not load ${anim.name}:`, e.message);
+                    }
+                }
+
+                updateClipList();
+                updateBoneMappingList();
+
+                // Play idle animation
+                if (animController.hasClip('idle')) {
+                    animController.play('idle');
+                } else if (animController.hasClip('rifle_idle')) {
+                    animController.play('rifle_idle');
+                }
+
+                status.textContent = 'Loaded opponent with animations';
+                status.className = 'gltf-status success';
+
+                console.log('[Viewer] Opponent loaded with animations');
+            } catch (err) {
+                console.error('[Viewer] Failed to load opponent:', err);
+                status.textContent = 'Failed: ' + err.message;
+                status.className = 'gltf-status error';
+            }
+        });
+
         // Resize handler
         function resize() {
             const rect = canvas.parentElement.getBoundingClientRect();
@@ -1057,6 +1403,11 @@ Camera Position:
                 cameraAngle += autoRotateSpeed * 0.01;
                 updateCamera();
             }
+
+            // Update stance from keyboard
+            updateStanceTargets();
+            updateStanceSmooth(deltaTime);
+            applyStanceToModel();
 
             // Update animation controller
             if (animController) {
