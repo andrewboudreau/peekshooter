@@ -9,8 +9,8 @@ const HumanoidFactory = {
     // Body proportions (in meters, based on average adult)
     proportions: {
         // Total height ~1.75m
-        head: { radius: 0.12, height: 0.24 },
-        neck: { radius: 0.045, height: 0.06 },  // Thin neck
+        head: { radius: 0.11, height: 0.22 },
+        neck: { radius: 0.055, height: 0.08 },  // Neck connects head to chest
 
         // Torso - cylinder-like, tapered
         chest: { width: 0.32, height: 0.26, depth: 0.18 },
@@ -40,18 +40,18 @@ const HumanoidFactory = {
 
     // Joint positions relative to parent bone (Y-up)
     joints: {
-        // Spine chain (bottom-up)
-        pelvis: { y: 0.85 },  // Hip height from ground
-        stomach: { y: 0.14 }, // Relative to pelvis
-        chest: { y: 0.16 },   // Relative to stomach
-        neck: { y: 0.28 },    // Relative to chest
-        head: { y: 0.08 },    // Relative to neck
+        // Spine chain (bottom-up) - tighter spacing
+        pelvis: { y: 0.90 },  // Hip height from ground
+        stomach: { y: 0.10 }, // Relative to pelvis (tighter)
+        chest: { y: 0.12 },   // Relative to stomach (tighter)
+        neck: { y: 0.13 },    // Relative to chest (much closer - was 0.28!)
+        head: { y: 0.06 },    // Relative to neck (sits on top)
 
-        // Arms (relative to chest) - shoulders closer to body
-        shoulderL: { x: -0.16, y: 0.10 },
-        shoulderR: { x: 0.16, y: 0.10 },
-        upperArmL: { x: -0.05, y: 0 },
-        upperArmR: { x: 0.05, y: 0 },
+        // Arms (relative to chest) - at shoulder height
+        shoulderL: { x: -0.16, y: 0.12 },
+        shoulderR: { x: 0.16, y: 0.12 },
+        upperArmL: { x: -0.04, y: 0 },
+        upperArmR: { x: 0.04, y: 0 },
         elbowL: { y: -0.28 },
         elbowR: { y: -0.28 },
         wristL: { y: -0.26 },
@@ -189,22 +189,34 @@ const HumanoidFactory = {
 
         // ========== SPINE CHAIN ==========
 
-        // Pelvis (root of skeleton)
-        const pelvisGeo = new THREE.BoxGeometry(p.pelvis.width, p.pelvis.height, p.pelvis.depth);
+        // Pelvis (root of skeleton) - rounded cylinder
+        const pelvisGeo = new THREE.CylinderGeometry(
+            p.pelvis.width / 2,      // top radius
+            p.pelvis.width / 2 * 0.9, // bottom radius (slightly tapered)
+            p.pelvis.height, 12
+        );
         bones.pelvis = this.createBone('pelvis', pelvisGeo, clothMat.clone());
         bones.pelvis.position.y = j.pelvis.y;
         root.add(bones.pelvis);
         hitboxes.push({ bone: 'pelvis', part: 'pelvis', mesh: bones.pelvis.userData.mesh });
 
-        // Stomach
-        const stomachGeo = new THREE.BoxGeometry(p.stomach.width, p.stomach.height, p.stomach.depth);
+        // Stomach - rounded cylinder (tapers from pelvis to chest)
+        const stomachGeo = new THREE.CylinderGeometry(
+            p.stomach.width / 2 * 0.95, // top (towards chest)
+            p.stomach.width / 2,         // bottom (towards pelvis)
+            p.stomach.height, 12
+        );
         bones.stomach = this.createBone('stomach', stomachGeo, clothMat.clone());
         bones.stomach.position.y = j.stomach.y;
         bones.pelvis.add(bones.stomach);
         hitboxes.push({ bone: 'stomach', part: 'belly', mesh: bones.stomach.userData.mesh });
 
-        // Chest
-        const chestGeo = new THREE.BoxGeometry(p.chest.width, p.chest.height, p.chest.depth);
+        // Chest - rounded cylinder (broader at shoulders)
+        const chestGeo = new THREE.CylinderGeometry(
+            p.chest.width / 2,           // top (shoulder width)
+            p.chest.width / 2 * 0.85,    // bottom (tapers to stomach)
+            p.chest.height, 12
+        );
         bones.chest = this.createBone('chest', chestGeo, clothMat.clone());
         bones.chest.position.y = j.chest.y;
         bones.stomach.add(bones.chest);
