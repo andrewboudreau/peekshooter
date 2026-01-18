@@ -177,6 +177,9 @@
         <div class="control-group">
             <label><input type="checkbox" id="show-grid" checked> Show Grid</label>
         </div>
+        <div class="control-group">
+            <label><input type="checkbox" id="show-hitboxes"> Show Hitboxes</label>
+        </div>
 
         <h2>Poses</h2>
         <div class="control-group">
@@ -260,10 +263,22 @@
         // State
         let humanoid = null;
         let boneAxes = [];
+        let hitboxMeshes = [];
         let selectedBone = null;
         let cameraAngle = 0;
         let cameraPitch = 0.3;
         let autoRotateSpeed = 0;
+
+        // Hitbox colors by body part
+        const hitboxColors = {
+            head: 0xff4444,    // Red - critical
+            chest: 0xff8800,   // Orange
+            belly: 0xffff00,   // Yellow
+            pelvis: 0xffff00,  // Yellow
+            arm: 0x44ff44,     // Green
+            leg: 0x44ff44,     // Green
+            default: 0x4444ff  // Blue
+        };
 
         // Mouse controls
         let isDragging = false;
@@ -325,8 +340,9 @@
 
             scene.add(humanoid.root);
 
-            // Create bone axes
+            // Create bone axes and hitboxes
             updateBoneAxes();
+            updateHitboxes();
 
             // Populate bone select
             const select = document.getElementById('bone-select');
@@ -356,6 +372,65 @@
                 bone.add(axis);
                 boneAxes.push(axis);
             });
+        }
+
+        function updateHitboxes() {
+            // Remove existing hitbox visualizations
+            hitboxMeshes.forEach(m => {
+                if (m.parent) m.parent.remove(m);
+            });
+            hitboxMeshes = [];
+
+            if (!document.getElementById('show-hitboxes').checked) return;
+            if (!humanoid || !humanoid.hitboxes) return;
+
+            humanoid.hitboxes.forEach(hb => {
+                if (!hb.mesh) return;
+
+                const color = hitboxColors[hb.part] || hitboxColors.default;
+                const mat = new THREE.MeshBasicMaterial({
+                    color: color,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                // Get the bounding box of the mesh
+                const bbox = new THREE.Box3().setFromObject(hb.mesh);
+                const size = new THREE.Vector3();
+                bbox.getSize(size);
+
+                // Create wireframe box matching the hitbox
+                const boxGeo = new THREE.BoxGeometry(
+                    Math.max(size.x, 0.02),
+                    Math.max(size.y, 0.02),
+                    Math.max(size.z, 0.02)
+                );
+                const hitboxViz = new THREE.Mesh(boxGeo, mat);
+
+                // Position at mesh center
+                const center = new THREE.Vector3();
+                bbox.getCenter(center);
+
+                // Convert to local space of mesh's parent
+                if (hb.mesh.parent) {
+                    const parentWorldInverse = new THREE.Matrix4();
+                    hb.mesh.parent.updateWorldMatrix(true, false);
+                    parentWorldInverse.copy(hb.mesh.parent.matrixWorld).invert();
+                    center.applyMatrix4(parentWorldInverse);
+                    hb.mesh.parent.add(hitboxViz);
+                } else {
+                    scene.add(hitboxViz);
+                }
+
+                hitboxViz.position.copy(center);
+                hitboxViz.userData.hitboxPart = hb.part;
+                hitboxViz.userData.hitboxBone = hb.bone;
+
+                hitboxMeshes.push(hitboxViz);
+            });
+
+            console.log(`[Hitboxes] Created ${hitboxMeshes.length} hitbox visualizations`);
         }
 
         function updateBoneList() {
@@ -503,6 +578,8 @@
         document.getElementById('show-grid').addEventListener('change', (e) => {
             grid.visible = e.target.checked;
         });
+
+        document.getElementById('show-hitboxes').addEventListener('change', updateHitboxes);
 
         document.getElementById('show-wireframe').addEventListener('change', (e) => {
             if (!humanoid) return;
