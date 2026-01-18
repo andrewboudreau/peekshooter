@@ -434,7 +434,7 @@ class Opponent extends Entity {
         // Lean tilt (mirrored)
         this.mesh.rotation.z = -state.lean * (config?.leanTilt || 0.15);
 
-        // Update aim IK target (set before animation controller update)
+        // Update aim IK target
         if (this.animController?.aimIK) {
             this.animController.aimIK.setAimDirect(
                 this.transform.look.yaw,
@@ -453,12 +453,49 @@ class Opponent extends Entity {
                 this.animController.applyPoseOverlay(stancePose, 1.0);
             }
         } else if (this.humanoid && typeof HumanoidFactory !== 'undefined') {
-            // Update animation controller for procedural humanoid (includes aim IK)
-            if (this.animController) {
-                this.animController.update(deltaTime);
+            // Update state machine for tracking (even without animation clips)
+            if (this.animController?.stateMachine) {
+                this.animController.stateMachine.update(deltaTime);
             }
-            // Apply stance poses to procedural humanoid
+
+            // Apply stance poses to procedural humanoid FIRST
             this.applyStancePose(state);
+
+            // Apply aim IK AFTER stance pose (so it's not overwritten)
+            if (this.animController?.aimIK && this.animController.aimIK.enabled) {
+                this._applyAimIKToProcedural(deltaTime);
+            }
+        }
+    }
+
+    /**
+     * Apply aim IK to procedural humanoid bones
+     * This is called after applyStancePose to layer aim on top
+     * @param {number} deltaTime - Time since last frame
+     */
+    _applyAimIKToProcedural(deltaTime) {
+        if (!this.humanoid?.bones || !this.animController?.aimIK) return;
+
+        const aimIK = this.animController.aimIK;
+        const bones = this.humanoid.bones;
+
+        // Smoothly interpolate current aim toward target
+        const lerpFactor = 1 - Math.exp(-aimIK.config.lerpSpeed * deltaTime);
+        aimIK.currentYaw += (aimIK.targetYaw - aimIK.currentYaw) * lerpFactor;
+        aimIK.currentPitch += (aimIK.targetPitch - aimIK.currentPitch) * lerpFactor;
+
+        // Apply rotation to each spine bone
+        for (const boneConfig of aimIK.config.spineBones) {
+            const bone = bones[boneConfig.name];
+            if (!bone) continue;
+
+            // Calculate weighted rotation for this bone
+            const yawAmount = aimIK.config.enableYaw ? aimIK.currentYaw * boneConfig.weight : 0;
+            const pitchAmount = aimIK.config.enablePitch ? aimIK.currentPitch * boneConfig.weight : 0;
+
+            // Apply rotation additively to existing bone rotation
+            bone.rotation.y += yawAmount;
+            bone.rotation.x += pitchAmount;
         }
     }
 

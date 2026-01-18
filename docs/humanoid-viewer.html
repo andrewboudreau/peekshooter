@@ -1092,34 +1092,40 @@ Camera Position:
 
             const info = MixamoCharacterLoader.getBoneMappingInfo(gltfModel);
 
-            // Show mapped bones
-            if (info.mapped.length > 0) {
+            // Show Mixamo bones (mapped)
+            if (info.mixamoBones && info.mixamoBones.length > 0) {
                 const header = document.createElement('div');
-                header.innerHTML = `<strong class="bone-mapped">Mapped (${info.mapped.length})</strong>`;
+                header.innerHTML = `<strong class="bone-mapped">Mixamo Bones (${info.mixamoBones.length})</strong>`;
                 list.appendChild(header);
 
-                info.mapped.forEach(({ original, mapped }) => {
+                info.mixamoBones.forEach(name => {
                     const div = document.createElement('div');
                     div.className = 'bone-mapped';
-                    div.textContent = `${original} → ${mapped}`;
+                    div.textContent = name;
                     list.appendChild(div);
                 });
             }
 
-            // Show unmapped bones
-            if (info.unmapped.length > 0) {
+            // Show other bones (unmapped)
+            if (info.otherBones && info.otherBones.length > 0) {
                 const header = document.createElement('div');
                 header.style.marginTop = '8px';
-                header.innerHTML = `<strong class="bone-unmapped">Unmapped (${info.unmapped.length})</strong>`;
+                header.innerHTML = `<strong class="bone-unmapped">Other Bones (${info.otherBones.length})</strong>`;
                 list.appendChild(header);
 
-                info.unmapped.forEach(name => {
+                info.otherBones.forEach(name => {
                     const div = document.createElement('div');
                     div.className = 'bone-unmapped';
                     div.textContent = name;
                     list.appendChild(div);
                 });
             }
+
+            // Show total
+            const totalDiv = document.createElement('div');
+            totalDiv.style.marginTop = '8px';
+            totalDiv.innerHTML = `<em>Total bones: ${info.total || 0}</em>`;
+            list.appendChild(totalDiv);
         }
 
         // ============================================

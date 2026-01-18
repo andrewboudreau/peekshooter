@@ -169,6 +169,17 @@ const BotController = {
             opponent.targetState.strafe = strafe;
             opponent.targetState.lean = lean;
         }
+
+        // Set look direction for aim IK
+        // Bot aims toward center (player position) with slight variation
+        if (opponent.transform) {
+            // Add some variation based on lean direction
+            const lookYaw = lean * 0.3;  // Look in direction of lean
+            const lookPitch = -0.1;      // Slightly down toward player
+
+            opponent.transform.look.yaw = lookYaw;
+            opponent.transform.look.pitch = lookPitch;
+        }
     },
 
     // ============================================
