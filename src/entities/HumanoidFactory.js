@@ -6,68 +6,82 @@
 console.log('[HumanoidFactory] Loading...');
 
 const HumanoidFactory = {
-    // Body proportions (in meters, based on average adult)
+    // =============================================
+    // 8-HEAD CANON PROPORTIONS (1.76m total height)
+    // 1 head unit = 0.22m
+    // =============================================
+    // Landmarks from ground:
+    //   0.00m = Ground
+    //   0.07m = Ankle (1/3 head)
+    //   0.44m = Knee (2 heads)
+    //   0.88m = Hip/Crotch (4 heads - MIDPOINT)
+    //   1.10m = Navel/Elbow (5 heads)
+    //   1.32m = Armpit/Shoulder (6 heads)
+    //   1.54m = Chin (7 heads)
+    //   1.76m = Top of head (8 heads)
+    // =============================================
+
     proportions: {
-        // Total height ~1.75m
+        // Head: 1 head unit tall
         head: { radius: 0.11, height: 0.22 },
-        neck: { radius: 0.055, height: 0.08 },  // Neck connects head to chest
+        neck: { radius: 0.04, height: 0.06 },
 
-        // Torso - narrower for less stocky appearance
-        chest: { width: 0.26, height: 0.26, depth: 0.16 },
-        stomach: { width: 0.22, height: 0.14, depth: 0.14 },
-        pelvis: { width: 0.24, height: 0.12, depth: 0.14 },
+        // Torso segments
+        chest: { width: 0.28, height: 0.22, depth: 0.16 },    // 1 head tall
+        stomach: { width: 0.24, height: 0.16, depth: 0.14 },  // ~3/4 head
+        pelvis: { width: 0.26, height: 0.12, depth: 0.15 },   // ~1/2 head
 
-        // Arms - proportional to narrower torso
-        shoulder: { radius: 0.05 },
-        upperArm: { radius: 0.055, length: 0.28 },
-        forearm: { radius: 0.045, length: 0.26 },
-        wrist: { radius: 0.04 },
-        hand: { width: 0.08, height: 0.10, depth: 0.03 },
-        finger: { radius: 0.012, length: 0.05 },
-        thumb: { radius: 0.014, length: 0.04 },
+        // Arms (total ~3 heads long)
+        shoulder: { radius: 0.045 },
+        upperArm: { radius: 0.04, length: 0.28 },   // ~1.25 heads
+        forearm: { radius: 0.035, length: 0.24 },   // ~1 head
+        wrist: { radius: 0.025 },
+        hand: { width: 0.08, height: 0.10, depth: 0.025 },  // ~0.75 heads
+        finger: { radius: 0.01, length: 0.04 },
+        thumb: { radius: 0.012, length: 0.035 },
 
-        // Legs - longer for proper proportions
-        thigh: { radius: 0.07, length: 0.46 },
-        knee: { radius: 0.055 },
-        shin: { radius: 0.055, length: 0.42 },
-        ankle: { radius: 0.045 },
-        foot: { width: 0.11, height: 0.07, length: 0.22 },
+        // Legs (total ~4 heads from hip to ground)
+        thigh: { radius: 0.065, length: 0.44 },    // 2 heads (hip to knee)
+        knee: { radius: 0.05 },
+        shin: { radius: 0.045, length: 0.37 },     // knee to ankle
+        ankle: { radius: 0.035 },
+        foot: { width: 0.10, height: 0.07, length: 0.22 },
 
         // Eyes
-        eye: { radius: 0.015 },
-        eyeOffset: { x: 0.035, y: 0.04, z: 0.10 },
+        eye: { radius: 0.012 },
+        eyeOffset: { x: 0.032, y: 0.03, z: 0.09 },
     },
 
     // Joint positions relative to parent bone (Y-up)
     joints: {
-        // Spine chain (bottom-up) - tighter spacing
-        pelvis: { y: 0.96 },  // Hip height from ground (raised for longer legs)
-        stomach: { y: 0.08 }, // Relative to pelvis
-        chest: { y: 0.10 },   // Relative to stomach
-        neck: { y: 0.10 },    // Relative to chest
-        head: { y: 0.04 },    // Relative to neck
+        // Spine chain - pelvis is root, others relative to parent
+        pelvis: { y: 0.88 },    // 4 heads from ground (midpoint)
+        stomach: { y: 0.14 },   // relative: brings world Y to ~1.02
+        chest: { y: 0.16 },     // relative: brings world Y to ~1.18
+        neck: { y: 0.14 },      // relative: brings world Y to ~1.32 (shoulder level)
+        head: { y: 0.22 },      // relative: brings world Y to ~1.54 (chin level)
 
-        // Arms (relative to chest) - narrower shoulders
-        shoulderL: { x: -0.13, y: 0.12 },
-        shoulderR: { x: 0.13, y: 0.12 },
-        upperArmL: { x: -0.04, y: 0 },
-        upperArmR: { x: 0.04, y: 0 },
-        elbowL: { y: -0.28 },
+        // Arms attach at neck level (shoulder height = 6 heads)
+        shoulderL: { x: -0.14, y: 0.0 },
+        shoulderR: { x: 0.14, y: 0.0 },
+        upperArmL: { x: -0.045, y: 0 },
+        upperArmR: { x: 0.045, y: 0 },
+        elbowL: { y: -0.28 },   // upper arm length
         elbowR: { y: -0.28 },
-        wristL: { y: -0.26 },
-        wristR: { y: -0.26 },
-        handL: { y: -0.03 },
-        handR: { y: -0.03 },
+        wristL: { y: -0.24 },   // forearm length
+        wristR: { y: -0.24 },
+        handL: { y: -0.025 },
+        handR: { y: -0.025 },
 
-        // Legs (relative to pelvis) - longer legs
-        hipL: { x: -0.10, y: -0.05 },
-        hipR: { x: 0.10, y: -0.05 },
-        kneeL: { y: -0.46 },
-        kneeR: { y: -0.46 },
-        ankleL: { y: -0.42 },
-        ankleR: { y: -0.42 },
-        footL: { y: -0.04, z: 0.06 },
-        footR: { y: -0.04, z: 0.06 },
+        // Legs from pelvis (hip at 4 heads)
+        hipL: { x: -0.10, y: 0 },
+        hipR: { x: 0.10, y: 0 },
+        kneeL: { y: -0.44 },    // thigh length: hip(0.88) - 0.44 = knee(0.44) ✓
+        kneeR: { y: -0.44 },
+        ankleL: { y: -0.37 },   // shin length: knee(0.44) - 0.37 = ankle(0.07) ✓
+        ankleR: { y: -0.37 },
+        footL: { y: -0.035, z: 0.05 },
+        footR: { y: -0.035, z: 0.05 },
     },
 
     /**

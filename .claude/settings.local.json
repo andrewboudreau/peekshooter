@@ -28,7 +28,8 @@
       "Bash(git -C \"C:\\\\Users\\\\andre\\\\source\\\\repos\\\\peekshooter\" stash)",
       "Bash(git -C \"C:\\\\Users\\\\andre\\\\source\\\\repos\\\\peekshooter\" stash pop:*)",
       "Bash(git -C \"C:\\\\Users\\\\andre\\\\source\\\\repos\\\\peekshooter\" commit -m \"$\\(cat <<''EOF''\nAdd aimbot debug command\n\n- Add aimbot toggle to debug console \\(off by default\\)\n- Auto-aims at opponent''s upper chest/neck for reliable hits\n- Smooth interpolation for natural-looking aim\n- Type ''aimbot'' in console \\(~\\) to toggle\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "WebFetch(domain:www.cs22.space)"
     ]
   },
   "enableAllProjectMcpServers": true,
