@@ -6,6 +6,20 @@
 
 **Play at:** https://andrewboudreau.github.io/peekshooter/
 
+## Documentation Principles
+
+Target audience: software engineers who want to understand the system internals.
+
+**Guidelines:**
+- No fluff, pitch, or sales language - pure information and education
+- Informational/debug presentation that pulls back the curtain, not demonstrational
+- Prefer static diagrams or auto-playing animations over forced interaction
+- State machines should show all states and transitions visibly, not hidden behind clicks
+- Everything must either explain the system or build a sound mental model
+- Don't force engagement - convey understanding with minimal jazz
+- Code examples should be real, functional snippets from the codebase
+- Avoid decorative animations that don't convey information (e.g., boxes sliding on lines)
+
 ## Tech Stack
 
 - **Three.js** (r128) - 3D rendering (bundled in `lib/three.min.js`)
