@@ -7,3 +7,9 @@ settings.local.json
 *.png
 tmpclaude-*
 debugdumps/**
+
+# Asset files (downloaded from Mixamo, not committed to repo)
+assets/characters/*.glb
+assets/characters/*.gltf
+assets/animations/*.glb
+assets/animations/*.gltf

@@ -126,6 +126,37 @@
         #proportion-editor input[type="number"] {
             width: 50px;
         }
+        .gltf-status { font-size: 11px; color: #4af; margin-top: 4px; }
+        .gltf-status.error { color: #f44; }
+        .gltf-status.success { color: #4f4; }
+        .bone-mapped { color: #4f4; }
+        .bone-unmapped { color: #f44; }
+        #animation-controls { margin-top: 8px; }
+        #animation-controls button { margin-right: 4px; }
+        #clip-list {
+            font-size: 11px;
+            max-height: 120px;
+            overflow-y: auto;
+            background: #0f3460;
+            padding: 8px;
+            margin-top: 8px;
+        }
+        .clip-item {
+            padding: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        .clip-item:hover { background: #1a4a7a; }
+        .clip-item.playing { color: #4f4; font-weight: bold; }
+        #bone-mapping-list {
+            font-size: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #0f3460;
+            padding: 8px;
+            margin-top: 8px;
+        }
         .prop-row {
             display: flex;
             align-items: center;
@@ -225,10 +256,39 @@
             <button id="export-zip">Download Snapshot (.zip)</button>
         </div>
         <div id="export-status" style="font-size:11px; color:#4af; margin-top:4px;"></div>
+
+        <h2>GLTF Model</h2>
+        <div class="control-group">
+            <input type="file" id="gltf-file" accept=".glb,.gltf" style="width:100%; font-size:11px;">
+            <div class="gltf-status" id="gltf-status">No model loaded</div>
+        </div>
+        <div class="control-group">
+            <button id="clear-gltf" class="secondary">Clear GLTF Model</button>
+            <button id="toggle-procedural" class="secondary">Show Procedural</button>
+        </div>
+
+        <h2>Animation Clips</h2>
+        <div class="control-group">
+            <input type="file" id="anim-file" accept=".glb,.gltf" style="width:100%; font-size:11px;" multiple>
+            <div id="clip-list"></div>
+            <div id="animation-controls">
+                <button id="play-clip">Play</button>
+                <button id="stop-clip">Stop</button>
+                <label style="margin-left:8px">Speed: <span id="speed-val">1.0</span></label>
+                <input type="range" id="anim-speed" min="0" max="2" step="0.1" value="1" style="width:80px; vertical-align:middle;">
+            </div>
+        </div>
+
+        <h2>Bone Mapping</h2>
+        <div id="bone-mapping-list">Load a GLTF model to see bone mapping</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="../lib/three.min.js"></script>
+    <script src="../lib/GLTFLoader.js"></script>
+    <script src="../src/animation/MixamoBoneMap.js"></script>
+    <script src="../src/animation/AnimationController.js"></script>
+    <script src="../src/animation/MixamoCharacterLoader.js"></script>
     <script src="../src/entities/HumanoidFactory.js"></script>
     <script>
         // Scene setup
@@ -760,6 +820,222 @@ Camera Position:
             }
         });
 
+        // ============================================
+        // GLTF MODEL LOADING
+        // ============================================
+
+        let gltfModel = null;
+        let animController = null;
+        let selectedClip = null;
+        let showProcedural = true;
+        let lastTime = performance.now();
+
+        // GLTF file loading
+        document.getElementById('gltf-file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const status = document.getElementById('gltf-status');
+            status.textContent = 'Loading...';
+            status.className = 'gltf-status';
+
+            try {
+                const url = URL.createObjectURL(file);
+                gltfModel = await MixamoCharacterLoader.load(url, { cache: false });
+                URL.revokeObjectURL(url);
+
+                // Hide procedural model
+                if (humanoid) {
+                    humanoid.root.visible = false;
+                    showProcedural = false;
+                    document.getElementById('toggle-procedural').textContent = 'Show Procedural';
+                }
+
+                // Position GLTF model
+                scene.add(gltfModel.root);
+
+                // Create animation controller
+                if (animController) {
+                    animController.dispose();
+                }
+                animController = new AnimationController(gltfModel.root);
+
+                // Add any embedded animations
+                gltfModel.animations.forEach((clip, i) => {
+                    const name = clip.name || `clip_${i}`;
+                    animController.addClip(name, clip);
+                });
+
+                updateClipList();
+                updateBoneMappingList();
+
+                status.textContent = `Loaded: ${file.name} (${Object.keys(gltfModel.bones).length} bones)`;
+                status.className = 'gltf-status success';
+
+                console.log('[Viewer] GLTF loaded:', gltfModel);
+            } catch (err) {
+                console.error('[Viewer] GLTF load failed:', err);
+                status.textContent = 'Load failed: ' + err.message;
+                status.className = 'gltf-status error';
+            }
+        });
+
+        // Animation file loading
+        document.getElementById('anim-file').addEventListener('change', async (e) => {
+            if (!animController) {
+                alert('Load a character model first');
+                return;
+            }
+
+            for (const file of e.target.files) {
+                try {
+                    const url = URL.createObjectURL(file);
+                    const clips = await MixamoCharacterLoader.loadAnimation(url);
+                    URL.revokeObjectURL(url);
+
+                    clips.forEach((clip, i) => {
+                        const name = clip.name || `${file.name}_${i}`;
+                        animController.addClip(name, clip);
+                    });
+
+                    updateClipList();
+                    console.log(`[Viewer] Loaded animations from ${file.name}:`, clips.length);
+                } catch (err) {
+                    console.error(`[Viewer] Failed to load animation ${file.name}:`, err);
+                }
+            }
+        });
+
+        // Clear GLTF model
+        document.getElementById('clear-gltf').addEventListener('click', () => {
+            if (gltfModel) {
+                scene.remove(gltfModel.root);
+                gltfModel = null;
+            }
+            if (animController) {
+                animController.dispose();
+                animController = null;
+            }
+            selectedClip = null;
+            updateClipList();
+            document.getElementById('bone-mapping-list').innerHTML = 'Load a GLTF model to see bone mapping';
+            document.getElementById('gltf-status').textContent = 'No model loaded';
+            document.getElementById('gltf-status').className = 'gltf-status';
+
+            // Show procedural model
+            if (humanoid) {
+                humanoid.root.visible = true;
+                showProcedural = true;
+                document.getElementById('toggle-procedural').textContent = 'Hide Procedural';
+            }
+        });
+
+        // Toggle procedural model visibility
+        document.getElementById('toggle-procedural').addEventListener('click', () => {
+            if (humanoid) {
+                showProcedural = !showProcedural;
+                humanoid.root.visible = showProcedural;
+                document.getElementById('toggle-procedural').textContent = showProcedural ? 'Hide Procedural' : 'Show Procedural';
+            }
+        });
+
+        // Play selected clip
+        document.getElementById('play-clip').addEventListener('click', () => {
+            if (!animController || !selectedClip) return;
+            const speed = parseFloat(document.getElementById('anim-speed').value);
+            animController.play(selectedClip, { timeScale: speed });
+            updateClipList();
+        });
+
+        // Stop animation
+        document.getElementById('stop-clip').addEventListener('click', () => {
+            if (!animController) return;
+            animController.stop();
+            updateClipList();
+        });
+
+        // Animation speed
+        document.getElementById('anim-speed').addEventListener('input', (e) => {
+            const speed = parseFloat(e.target.value);
+            document.getElementById('speed-val').textContent = speed.toFixed(1);
+            if (animController) {
+                animController.setTimeScale(speed);
+            }
+        });
+
+        function updateClipList() {
+            const list = document.getElementById('clip-list');
+            list.innerHTML = '';
+
+            if (!animController) {
+                list.innerHTML = '<div style="color:#888">No model loaded</div>';
+                return;
+            }
+
+            const clips = animController.getClipNames();
+            if (clips.length === 0) {
+                list.innerHTML = '<div style="color:#888">No clips loaded</div>';
+                return;
+            }
+
+            clips.forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'clip-item' + (animController.getCurrentClipName() === name ? ' playing' : '');
+                const duration = animController.clips.get(name).duration.toFixed(2);
+                div.innerHTML = `<span>${name}</span><span>${duration}s</span>`;
+                div.onclick = () => {
+                    selectedClip = name;
+                    document.querySelectorAll('.clip-item').forEach(el => el.style.background = '');
+                    div.style.background = '#1a4a7a';
+                };
+                if (selectedClip === name) {
+                    div.style.background = '#1a4a7a';
+                }
+                list.appendChild(div);
+            });
+        }
+
+        function updateBoneMappingList() {
+            const list = document.getElementById('bone-mapping-list');
+            list.innerHTML = '';
+
+            if (!gltfModel) {
+                list.innerHTML = 'Load a GLTF model to see bone mapping';
+                return;
+            }
+
+            const info = MixamoCharacterLoader.getBoneMappingInfo(gltfModel);
+
+            // Show mapped bones
+            if (info.mapped.length > 0) {
+                const header = document.createElement('div');
+                header.innerHTML = `<strong class="bone-mapped">Mapped (${info.mapped.length})</strong>`;
+                list.appendChild(header);
+
+                info.mapped.forEach(({ original, mapped }) => {
+                    const div = document.createElement('div');
+                    div.className = 'bone-mapped';
+                    div.textContent = `${original} → ${mapped}`;
+                    list.appendChild(div);
+                });
+            }
+
+            // Show unmapped bones
+            if (info.unmapped.length > 0) {
+                const header = document.createElement('div');
+                header.style.marginTop = '8px';
+                header.innerHTML = `<strong class="bone-unmapped">Unmapped (${info.unmapped.length})</strong>`;
+                list.appendChild(header);
+
+                info.unmapped.forEach(name => {
+                    const div = document.createElement('div');
+                    div.className = 'bone-unmapped';
+                    div.textContent = name;
+                    list.appendChild(div);
+                });
+            }
+        }
+
         // Resize handler
         function resize() {
             const rect = canvas.parentElement.getBoundingClientRect();
@@ -773,9 +1049,18 @@ Camera Position:
         function animate() {
             requestAnimationFrame(animate);
 
+            const now = performance.now();
+            const deltaTime = (now - lastTime) / 1000;
+            lastTime = now;
+
             if (autoRotateSpeed > 0) {
                 cameraAngle += autoRotateSpeed * 0.01;
                 updateCamera();
+            }
+
+            // Update animation controller
+            if (animController) {
+                animController.update(deltaTime);
             }
 
             renderer.render(scene, camera);
@@ -787,6 +1072,8 @@ Camera Position:
         animate();
 
         console.log('Humanoid Viewer loaded. HumanoidFactory:', HumanoidFactory);
+        console.log('GLTFLoader available:', typeof THREE.GLTFLoader === 'function');
+        console.log('MixamoCharacterLoader available:', typeof MixamoCharacterLoader !== 'undefined');
     </script>
 </body>
 </html>
