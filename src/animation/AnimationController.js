@@ -24,6 +24,8 @@ class AnimationController {
 
         // Bone references for pose overlay
         this.bones = new Map();
+        // Store base rotations (post-animation, pre-overlay) to prevent accumulation
+        this._boneBaseRotations = new Map();
         this._cacheBones();
     }
 
@@ -175,6 +177,9 @@ class AnimationController {
 
         // Apply pose overlay after animation update
         if (this.poseOverlay && this.poseWeight > 0) {
+            // Capture base rotations first (post-animation, pre-overlay)
+            this._captureBaseRotations();
+            // Then apply overlay on top of base
             this._applyPoseOverlay();
         }
     }
@@ -196,10 +201,32 @@ class AnimationController {
     clearPoseOverlay() {
         this.poseOverlay = null;
         this.poseWeight = 0;
+        this._boneBaseRotations.clear();
+    }
+
+    /**
+     * Internal: Capture base rotations after animation update, before overlay
+     * This prevents pose overlay from accumulating frame over frame
+     */
+    _captureBaseRotations() {
+        if (!this.poseOverlay) return;
+
+        for (const boneName of Object.keys(this.poseOverlay)) {
+            const bone = this.bones.get(boneName);
+            if (!bone) continue;
+
+            // Store current rotation (set by animation) as base
+            this._boneBaseRotations.set(boneName, {
+                x: bone.rotation.x,
+                y: bone.rotation.y,
+                z: bone.rotation.z
+            });
+        }
     }
 
     /**
      * Internal: Apply pose overlay to bones
+     * Uses captured base rotations to prevent accumulation
      */
     _applyPoseOverlay() {
         if (!this.poseOverlay) return;
@@ -208,15 +235,22 @@ class AnimationController {
             const bone = this.bones.get(boneName);
             if (!bone) continue;
 
-            // Additively blend rotation
+            // Get base rotation (from animation) or current if not captured
+            const base = this._boneBaseRotations.get(boneName) || {
+                x: bone.rotation.x,
+                y: bone.rotation.y,
+                z: bone.rotation.z
+            };
+
+            // Apply overlay on top of base (not accumulated)
             if (rotation.x !== undefined) {
-                bone.rotation.x += rotation.x * this.poseWeight;
+                bone.rotation.x = base.x + rotation.x * this.poseWeight;
             }
             if (rotation.y !== undefined) {
-                bone.rotation.y += rotation.y * this.poseWeight;
+                bone.rotation.y = base.y + rotation.y * this.poseWeight;
             }
             if (rotation.z !== undefined) {
-                bone.rotation.z += rotation.z * this.poseWeight;
+                bone.rotation.z = base.z + rotation.z * this.poseWeight;
             }
         }
     }

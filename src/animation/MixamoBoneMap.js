@@ -152,6 +152,25 @@ const MixamoBoneMap = {
     },
 
     /**
+     * Mirror a pose from right to left (or vice versa)
+     * Swaps Left/Right in bone names and negates Y/Z rotations for lateral symmetry
+     * @param {object} pose - Pose object { boneName: { x, y, z } }
+     * @returns {object} Mirrored pose
+     */
+    mirrorPose(pose) {
+        const mirrored = {};
+        for (const [bone, rotation] of Object.entries(pose)) {
+            const newBone = this.getMirroredBone(bone);
+            mirrored[newBone] = {
+                x: rotation.x,
+                y: rotation.y !== undefined ? -rotation.y : undefined,
+                z: rotation.z !== undefined ? -rotation.z : undefined
+            };
+        }
+        return mirrored;
+    },
+
+    /**
      * Get all core bones (excludes fingers)
      * @returns {string[]} Array of core bone names
      */

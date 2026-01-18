@@ -199,29 +199,13 @@ const MixamoCharacterLoader = {
     _generateHitboxes(meshes, bones) {
         const hitboxes = [];
 
-        // Use MixamoBoneMap.hitboxParts if available
-        const hitboxParts = typeof MixamoBoneMap !== 'undefined' ? MixamoBoneMap.hitboxParts : {
-            'mixamorig:Head': { part: 'head', critical: true },
-            'mixamorig:Neck': { part: 'head', critical: false },
-            'mixamorig:Spine2': { part: 'chest', critical: false },
-            'mixamorig:Spine1': { part: 'chest', critical: false },
-            'mixamorig:Spine': { part: 'belly', critical: false },
-            'mixamorig:Hips': { part: 'pelvis', critical: false },
-            'mixamorig:LeftArm': { part: 'arm', critical: false },
-            'mixamorig:RightArm': { part: 'arm', critical: false },
-            'mixamorig:LeftForeArm': { part: 'arm', critical: false },
-            'mixamorig:RightForeArm': { part: 'arm', critical: false },
-            'mixamorig:LeftHand': { part: 'arm', critical: false },
-            'mixamorig:RightHand': { part: 'arm', critical: false },
-            'mixamorig:LeftUpLeg': { part: 'leg', critical: false },
-            'mixamorig:RightUpLeg': { part: 'leg', critical: false },
-            'mixamorig:LeftLeg': { part: 'leg', critical: false },
-            'mixamorig:RightLeg': { part: 'leg', critical: false },
-            'mixamorig:LeftFoot': { part: 'leg', critical: false },
-            'mixamorig:RightFoot': { part: 'leg', critical: false },
-        };
+        // Require MixamoBoneMap - it's a core dependency
+        if (typeof MixamoBoneMap === 'undefined' || !MixamoBoneMap.hitboxParts) {
+            console.warn('[MixamoCharacterLoader] MixamoBoneMap.hitboxParts not available');
+            return hitboxes;
+        }
 
-        for (const [boneName, config] of Object.entries(hitboxParts)) {
+        for (const [boneName, config] of Object.entries(MixamoBoneMap.hitboxParts)) {
             if (bones[boneName]) {
                 hitboxes.push({
                     bone: boneName,

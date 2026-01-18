@@ -174,7 +174,12 @@ const HumanoidFactory = {
 
         const p = this.proportions;
         const j = this.joints;
-        const B = typeof MixamoBoneMap !== 'undefined' ? MixamoBoneMap : null;
+
+        // Require MixamoBoneMap - it's a core dependency
+        if (typeof MixamoBoneMap === 'undefined') {
+            throw new Error('[HumanoidFactory] MixamoBoneMap is required but not loaded');
+        }
+        const B = MixamoBoneMap;
 
         // Materials
         const skinMat = new THREE.MeshStandardMaterial({
@@ -215,7 +220,7 @@ const HumanoidFactory = {
             p.pelvis.width / 2 * 0.9, // bottom radius (slightly tapered)
             p.pelvis.height, 12
         );
-        const HIPS = B ? B.HIPS : 'mixamorig:Hips';
+        const HIPS = B.HIPS;
         bones[HIPS] = this.createBone(HIPS, hipsGeo, clothMat.clone());
         bones[HIPS].position.y = j[HIPS].y;
         root.add(bones[HIPS]);
@@ -227,7 +232,7 @@ const HumanoidFactory = {
             p.stomach.width / 2,         // bottom (towards pelvis)
             p.stomach.height, 12
         );
-        const SPINE = B ? B.SPINE : 'mixamorig:Spine';
+        const SPINE = B.SPINE;
         bones[SPINE] = this.createBone(SPINE, spineGeo, clothMat.clone());
         bones[SPINE].position.y = j[SPINE].y;
         bones[HIPS].add(bones[SPINE]);
@@ -239,7 +244,7 @@ const HumanoidFactory = {
             p.chest.width / 2 * 0.85,    // bottom (tapers to stomach)
             p.chest.height, 12
         );
-        const SPINE1 = B ? B.SPINE1 : 'mixamorig:Spine1';
+        const SPINE1 = B.SPINE1;
         bones[SPINE1] = this.createBone(SPINE1, spine1Geo, clothMat.clone());
         bones[SPINE1].position.y = j[SPINE1].y;
         bones[SPINE].add(bones[SPINE1]);
@@ -247,14 +252,14 @@ const HumanoidFactory = {
 
         // Neck
         const neckGeo = this.createCapsuleGeometry(p.neck.radius, p.neck.height);
-        const NECK = B ? B.NECK : 'mixamorig:Neck';
+        const NECK = B.NECK;
         bones[NECK] = this.createBone(NECK, neckGeo, skinMat.clone());
         bones[NECK].position.y = j[NECK].y;
         bones[SPINE1].add(bones[NECK]);
 
         // Head
         const headGeo = new THREE.SphereGeometry(p.head.radius, 16, 12);
-        const HEAD = B ? B.HEAD : 'mixamorig:Head';
+        const HEAD = B.HEAD;
         bones[HEAD] = this.createBone(HEAD, headGeo, skinMat.clone());
         bones[HEAD].position.y = j[HEAD].y + p.head.radius;
         bones[NECK].add(bones[HEAD]);
@@ -264,7 +269,7 @@ const HumanoidFactory = {
         const eyeWhiteGeo = new THREE.SphereGeometry(p.eye.radius * 1.5, 8, 6);
         const eyeGeo = new THREE.SphereGeometry(p.eye.radius, 8, 6);
 
-        const LEFT_EYE = B ? B.LEFT_EYE : 'mixamorig:LeftEye';
+        const LEFT_EYE = B.LEFT_EYE;
         bones[LEFT_EYE] = this.createBone(LEFT_EYE, eyeWhiteGeo, eyeWhiteMat.clone());
         bones[LEFT_EYE].position.set(-p.eyeOffset.x, p.eyeOffset.y, p.eyeOffset.z);
         bones[HEAD].add(bones[LEFT_EYE]);
@@ -273,7 +278,7 @@ const HumanoidFactory = {
         pupilL.position.z = p.eye.radius * 0.8;
         bones[LEFT_EYE].add(pupilL);
 
-        const RIGHT_EYE = B ? B.RIGHT_EYE : 'mixamorig:RightEye';
+        const RIGHT_EYE = B.RIGHT_EYE;
         bones[RIGHT_EYE] = this.createBone(RIGHT_EYE, eyeWhiteGeo.clone(), eyeWhiteMat.clone());
         bones[RIGHT_EYE].position.set(p.eyeOffset.x, p.eyeOffset.y, p.eyeOffset.z);
         bones[HEAD].add(bones[RIGHT_EYE]);
@@ -299,10 +304,10 @@ const HumanoidFactory = {
         ];
 
         armSides.forEach(({ side, sign }) => {
-            const SHOULDER = B ? B[`${side.toUpperCase()}_SHOULDER`] : `mixamorig:${side}Shoulder`;
-            const ARM = B ? B[`${side.toUpperCase()}_ARM`] : `mixamorig:${side}Arm`;
-            const FOREARM = B ? B[`${side.toUpperCase()}_FOREARM`] : `mixamorig:${side}ForeArm`;
-            const HAND = B ? B[`${side.toUpperCase()}_HAND`] : `mixamorig:${side}Hand`;
+            const SHOULDER = B[`${side.toUpperCase()}_SHOULDER`];
+            const ARM = B[`${side.toUpperCase()}_ARM`];
+            const FOREARM = B[`${side.toUpperCase()}_FOREARM`];
+            const HAND = B[`${side.toUpperCase()}_HAND`];
 
             // Shoulder joint
             bones[SHOULDER] = this.createBone(SHOULDER,
@@ -378,10 +383,10 @@ const HumanoidFactory = {
         ];
 
         legSides.forEach(({ side, sign }) => {
-            const UP_LEG = B ? B[`${side.toUpperCase()}_UP_LEG`] : `mixamorig:${side}UpLeg`;
-            const LEG = B ? B[`${side.toUpperCase()}_LEG`] : `mixamorig:${side}Leg`;
-            const FOOT = B ? B[`${side.toUpperCase()}_FOOT`] : `mixamorig:${side}Foot`;
-            const TOE = B ? B[`${side.toUpperCase()}_TOE`] : `mixamorig:${side}ToeBase`;
+            const UP_LEG = B[`${side.toUpperCase()}_UP_LEG`];
+            const LEG = B[`${side.toUpperCase()}_LEG`];
+            const FOOT = B[`${side.toUpperCase()}_FOOT`];
+            const TOE = B[`${side.toUpperCase()}_TOE`];
 
             // Hip joint (UpLeg in Mixamo terms)
             bones[UP_LEG] = this.createBone(UP_LEG,
@@ -583,29 +588,18 @@ const HumanoidFactory = {
 
     /**
      * Mirror a pose from right to left (or vice versa)
-     * Uses Mixamo naming convention (Left/Right in bone names)
+     * Delegates to MixamoBoneMap.mirrorPose for consistency
      * @param {object} pose - Pose to mirror
      * @returns {object} Mirrored pose
      */
     mirrorPose(pose) {
-        const mirrored = {};
-        Object.entries(pose).forEach(([bone, rotation]) => {
-            // Swap Left and Right in bone names
-            let newBone = bone;
-            if (bone.includes('Left')) {
-                newBone = bone.replace('Left', 'Right');
-            } else if (bone.includes('Right')) {
-                newBone = bone.replace('Right', 'Left');
-            }
-
-            // Mirror Y and Z rotations for lateral bones
-            mirrored[newBone] = {
-                x: rotation.x,
-                y: rotation.y !== undefined ? -rotation.y : undefined,
-                z: rotation.z !== undefined ? -rotation.z : undefined
-            };
-        });
-        return mirrored;
+        // Use shared implementation from MixamoBoneMap
+        if (typeof MixamoBoneMap !== 'undefined' && MixamoBoneMap.mirrorPose) {
+            return MixamoBoneMap.mirrorPose(pose);
+        }
+        // Should not reach here - MixamoBoneMap is required
+        console.warn('[HumanoidFactory] MixamoBoneMap.mirrorPose not available');
+        return pose;
     }
 };
 

@@ -362,27 +362,16 @@ class Opponent extends Entity {
 
     /**
      * Mirror a pose from right to left hand
-     * Uses Mixamo naming convention (Left/Right in bone names)
+     * Delegates to MixamoBoneMap.mirrorPose for consistency
      */
     mirrorPose(pose) {
-        const mirrored = {};
-        Object.entries(pose).forEach(([bone, rotation]) => {
-            // Swap Left and Right in bone names (Mixamo convention)
-            let newBone = bone;
-            if (bone.includes('Left')) {
-                newBone = bone.replace('Left', 'Right');
-            } else if (bone.includes('Right')) {
-                newBone = bone.replace('Right', 'Left');
-            }
-
-            // Mirror Y and Z rotations for lateral bones
-            mirrored[newBone] = {
-                x: rotation.x,
-                y: rotation.y !== undefined ? -rotation.y : undefined,
-                z: rotation.z !== undefined ? -rotation.z : undefined
-            };
-        });
-        return mirrored;
+        // Use shared implementation from MixamoBoneMap
+        if (typeof MixamoBoneMap !== 'undefined' && MixamoBoneMap.mirrorPose) {
+            return MixamoBoneMap.mirrorPose(pose);
+        }
+        // Should not reach here - MixamoBoneMap is required
+        console.warn('[Opponent] MixamoBoneMap.mirrorPose not available');
+        return pose;
     }
 
     /**
@@ -432,37 +421,35 @@ class Opponent extends Entity {
 
     /**
      * Build a pose object for stance overlay on animations
-     * Uses Mixamo bone names
+     * Uses Mixamo bone names via MixamoBoneMap constants
      * @param {object} state - Stance state
      * @returns {object} Pose definition
      */
     _buildStancePose(state) {
         const pose = {};
-        const B = typeof MixamoBoneMap !== 'undefined' ? MixamoBoneMap : null;
+
+        // Require MixamoBoneMap
+        if (typeof MixamoBoneMap === 'undefined') {
+            console.warn('[Opponent] MixamoBoneMap not available for stance pose');
+            return pose;
+        }
+
+        const B = MixamoBoneMap;
 
         // Crouch adjustments
         if (state.crouch > 0.1) {
-            const LEFT_UP_LEG = B ? B.LEFT_UP_LEG : 'mixamorig:LeftUpLeg';
-            const RIGHT_UP_LEG = B ? B.RIGHT_UP_LEG : 'mixamorig:RightUpLeg';
-            const LEFT_LEG = B ? B.LEFT_LEG : 'mixamorig:LeftLeg';
-            const RIGHT_LEG = B ? B.RIGHT_LEG : 'mixamorig:RightLeg';
-            const SPINE = B ? B.SPINE : 'mixamorig:Spine';
-
-            pose[LEFT_UP_LEG] = { x: state.crouch * 0.5 };
-            pose[RIGHT_UP_LEG] = { x: state.crouch * 0.5 };
-            pose[LEFT_LEG] = { x: -state.crouch * 0.8 };
-            pose[RIGHT_LEG] = { x: -state.crouch * 0.8 };
-            pose[SPINE] = { x: state.crouch * 0.2 };
+            pose[B.LEFT_UP_LEG] = { x: state.crouch * 0.5 };
+            pose[B.RIGHT_UP_LEG] = { x: state.crouch * 0.5 };
+            pose[B.LEFT_LEG] = { x: -state.crouch * 0.8 };
+            pose[B.RIGHT_LEG] = { x: -state.crouch * 0.8 };
+            pose[B.SPINE] = { x: state.crouch * 0.2 };
         }
 
         // Lean adjustments
         if (Math.abs(state.lean) > 0.1) {
-            const SPINE = B ? B.SPINE : 'mixamorig:Spine';
-            const SPINE1 = B ? B.SPINE1 : 'mixamorig:Spine1';
-
-            pose[SPINE] = pose[SPINE] || {};
-            pose[SPINE].z = (pose[SPINE].z || 0) + state.lean * 0.15;
-            pose[SPINE1] = { z: state.lean * 0.1 };
+            pose[B.SPINE] = pose[B.SPINE] || {};
+            pose[B.SPINE].z = (pose[B.SPINE].z || 0) + state.lean * 0.15;
+            pose[B.SPINE1] = { z: state.lean * 0.1 };
         }
 
         return pose;
