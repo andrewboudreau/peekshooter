@@ -1223,18 +1223,32 @@ Camera Position:
             strafeBar.style.left = stanceState.strafe < 0 ? (50 - strafePct) + '%' : '50%';
         }
 
+        let debugLogOnce = true;
         function applyStanceToModel() {
             // Apply to GLTF model if loaded
             if (gltfModel && animController) {
+                // Debug: log available bones once
+                if (debugLogOnce && animController.bones.size > 0) {
+                    console.log('[Viewer] AnimController bones:', Array.from(animController.bones.keys()));
+                    debugLogOnce = false;
+                }
+
                 const pose = {};
 
-                // Crouch
+                // Crouch - use Mixamo bone names if our names don't work
                 if (stanceState.crouch > 0.05) {
+                    // Try both our names and original Mixamo names
                     pose.hipL = { x: stanceState.crouch * 0.8 };
                     pose.hipR = { x: stanceState.crouch * 0.8 };
                     pose.kneeL = { x: -stanceState.crouch * 1.2 };
                     pose.kneeR = { x: -stanceState.crouch * 1.2 };
                     pose.stomach = { x: stanceState.crouch * 0.3 };
+                    // Mixamo names as fallback
+                    pose['mixamorig:LeftUpLeg'] = { x: stanceState.crouch * 0.8 };
+                    pose['mixamorig:RightUpLeg'] = { x: stanceState.crouch * 0.8 };
+                    pose['mixamorig:LeftLeg'] = { x: -stanceState.crouch * 1.2 };
+                    pose['mixamorig:RightLeg'] = { x: -stanceState.crouch * 1.2 };
+                    pose['mixamorig:Spine'] = { x: stanceState.crouch * 0.3 };
                 }
 
                 // Lean
@@ -1242,6 +1256,10 @@ Camera Position:
                     pose.stomach = pose.stomach || {};
                     pose.stomach.z = (pose.stomach.z || 0) + stanceState.lean * 0.2;
                     pose.chest = { z: stanceState.lean * 0.15 };
+                    // Mixamo names
+                    pose['mixamorig:Spine'] = pose['mixamorig:Spine'] || {};
+                    pose['mixamorig:Spine'].z = (pose['mixamorig:Spine'].z || 0) + stanceState.lean * 0.2;
+                    pose['mixamorig:Spine1'] = { z: stanceState.lean * 0.15 };
                 }
 
                 animController.applyPoseOverlay(pose, 1.0);
@@ -1314,6 +1332,13 @@ Camera Position:
                 // Setup animation controller
                 if (animController) animController.dispose();
                 animController = new AnimationController(gltfModel.root);
+
+                // Also add bones from the model (in case they weren't found by traverse)
+                if (gltfModel.bones) {
+                    animController.addBones(gltfModel.bones);
+                }
+
+                console.log('[Viewer] Model bones:', Object.keys(gltfModel.bones || {}));
 
                 // Add embedded animations
                 gltfModel.animations.forEach((clip, i) => {
