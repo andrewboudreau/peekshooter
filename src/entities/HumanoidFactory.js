@@ -17,21 +17,21 @@ const HumanoidFactory = {
         stomach: { width: 0.28, height: 0.14, depth: 0.16 },
         pelvis: { width: 0.30, height: 0.12, depth: 0.16 },
 
-        // Arms - closer to body
-        shoulder: { radius: 0.05 },
-        upperArm: { radius: 0.05, length: 0.28 },
-        forearm: { radius: 0.042, length: 0.25 },
-        wrist: { radius: 0.032 },
-        hand: { width: 0.07, height: 0.09, depth: 0.025 },
-        finger: { radius: 0.01, length: 0.05 },
-        thumb: { radius: 0.012, length: 0.04 },
+        // Arms - thicker to match torso proportions
+        shoulder: { radius: 0.06 },
+        upperArm: { radius: 0.065, length: 0.26 },
+        forearm: { radius: 0.055, length: 0.24 },
+        wrist: { radius: 0.04 },
+        hand: { width: 0.08, height: 0.10, depth: 0.03 },
+        finger: { radius: 0.012, length: 0.05 },
+        thumb: { radius: 0.014, length: 0.04 },
 
-        // Legs
-        thigh: { radius: 0.07, length: 0.42 },
-        knee: { radius: 0.055 },
-        shin: { radius: 0.05, length: 0.38 },
-        ankle: { radius: 0.035 },
-        foot: { width: 0.10, height: 0.08, length: 0.24 },
+        // Legs - thicker to match torso proportions
+        thigh: { radius: 0.085, length: 0.40 },
+        knee: { radius: 0.065 },
+        shin: { radius: 0.065, length: 0.36 },
+        ankle: { radius: 0.045 },
+        foot: { width: 0.11, height: 0.07, length: 0.22 },
 
         // Eyes
         eye: { radius: 0.015 },
@@ -52,20 +52,20 @@ const HumanoidFactory = {
         shoulderR: { x: 0.16, y: 0.12 },
         upperArmL: { x: -0.04, y: 0 },
         upperArmR: { x: 0.04, y: 0 },
-        elbowL: { y: -0.28 },
-        elbowR: { y: -0.28 },
-        wristL: { y: -0.26 },
-        wristR: { y: -0.26 },
+        elbowL: { y: -0.26 },
+        elbowR: { y: -0.26 },
+        wristL: { y: -0.24 },
+        wristR: { y: -0.24 },
         handL: { y: -0.03 },
         handR: { y: -0.03 },
 
-        // Legs (relative to pelvis)
-        hipL: { x: -0.10, y: -0.05 },
-        hipR: { x: 0.10, y: -0.05 },
-        kneeL: { y: -0.42 },
-        kneeR: { y: -0.42 },
-        ankleL: { y: -0.38 },
-        ankleR: { y: -0.38 },
+        // Legs (relative to pelvis) - adjusted for new lengths
+        hipL: { x: -0.12, y: -0.05 },
+        hipR: { x: 0.12, y: -0.05 },
+        kneeL: { y: -0.40 },
+        kneeR: { y: -0.40 },
+        ankleL: { y: -0.36 },
+        ankleR: { y: -0.36 },
         footL: { y: -0.04, z: 0.06 },
         footR: { y: -0.04, z: 0.06 },
     },
