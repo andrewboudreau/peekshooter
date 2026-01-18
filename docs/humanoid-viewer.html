@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Humanoid Model Viewer - PeekShooter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #1a1a2e;
+            color: #eee;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #viewport {
+            flex: 1;
+            position: relative;
+        }
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #controls {
+            width: 320px;
+            background: #16213e;
+            padding: 16px;
+            overflow-y: auto;
+            border-left: 1px solid #0f3460;
+        }
+        h1 {
+            font-size: 16px;
+            color: #e94560;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #0f3460;
+        }
+        h2 {
+            font-size: 13px;
+            color: #0f3460;
+            background: #e94560;
+            padding: 4px 8px;
+            margin: 16px -16px 8px -16px;
+        }
+        .control-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 4px;
+        }
+        input[type="number"] {
+            width: 60px;
+            background: #0f3460;
+            border: 1px solid #1a1a2e;
+            color: #eee;
+            padding: 4px;
+            font-family: inherit;
+        }
+        input[type="color"] {
+            width: 40px;
+            height: 24px;
+            border: none;
+            cursor: pointer;
+        }
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 4px 4px 4px 0;
+        }
+        button:hover { background: #ff6b6b; }
+        button.secondary {
+            background: #0f3460;
+        }
+        button.secondary:hover { background: #1a4a7a; }
+        .value-display {
+            font-size: 11px;
+            color: #4af;
+            float: right;
+        }
+        #bone-list {
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0f3460;
+            padding: 8px;
+            margin-top: 8px;
+        }
+        .bone-item {
+            padding: 2px 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        .bone-item:hover { color: #4af; }
+        .bone-item.selected { color: #e94560; font-weight: bold; }
+        #debug-info {
+            font-size: 10px;
+            background: #0f3460;
+            padding: 8px;
+            margin-top: 8px;
+            white-space: pre;
+            font-family: monospace;
+        }
+        .axis-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px;
+            font-size: 11px;
+        }
+        .pose-btn { font-size: 11px; padding: 4px 8px; }
+        #proportion-editor input[type="number"] {
+            width: 50px;
+        }
+        .prop-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .prop-row label { flex: 1; margin: 0; }
+    </style>
+</head>
+<body>
+    <div id="viewport">
+        <canvas id="canvas"></canvas>
+        <div class="axis-indicator">
+            <span style="color:#f44">X</span> |
+            <span style="color:#4f4">Y (up)</span> |
+            <span style="color:#44f">Z (forward)</span>
+        </div>
+    </div>
+    <div id="controls">
+        <h1>Humanoid Model Viewer</h1>
+
+        <h2>View Controls</h2>
+        <div class="control-group">
+            <label>Camera Distance <span class="value-display" id="dist-val">5</span></label>
+            <input type="range" id="camera-dist" min="2" max="10" step="0.1" value="5">
+        </div>
+        <div class="control-group">
+            <label>Rotation Speed <span class="value-display" id="rot-val">0</span></label>
+            <input type="range" id="auto-rotate" min="0" max="2" step="0.1" value="0">
+        </div>
+        <div class="control-group">
+            <button id="reset-view">Reset View</button>
+            <button id="front-view" class="secondary">Front</button>
+            <button id="side-view" class="secondary">Side</button>
+        </div>
+
+        <h2>Model Options</h2>
+        <div class="control-group">
+            <label>Team Color</label>
+            <input type="color" id="team-color" value="#aa4444">
+            <button id="rebuild-model" class="secondary">Rebuild</button>
+        </div>
+        <div class="control-group">
+            <label><input type="checkbox" id="show-bones" checked> Show Bone Axes</label>
+        </div>
+        <div class="control-group">
+            <label><input type="checkbox" id="show-wireframe"> Wireframe Mode</label>
+        </div>
+        <div class="control-group">
+            <label><input type="checkbox" id="show-grid" checked> Show Grid</label>
+        </div>
+
+        <h2>Poses</h2>
+        <div class="control-group">
+            <button class="pose-btn" data-pose="idle">Idle</button>
+            <button class="pose-btn" data-pose="rifleHold">Rifle Hold</button>
+            <button class="pose-btn" data-pose="pistolHold">Pistol Hold</button>
+            <button class="pose-btn" data-pose="crouch">Crouch</button>
+            <button class="pose-btn" data-pose="leanLeft">Lean L</button>
+            <button class="pose-btn" data-pose="leanRight">Lean R</button>
+        </div>
+
+        <h2>Selected Bone</h2>
+        <div class="control-group">
+            <select id="bone-select" style="width:100%; padding:4px; background:#0f3460; color:#eee; border:1px solid #1a1a2e;">
+                <option value="">-- Select Bone --</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Rotation X <span class="value-display" id="rx-val">0</span></label>
+            <input type="range" id="bone-rx" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+        <div class="control-group">
+            <label>Rotation Y <span class="value-display" id="ry-val">0</span></label>
+            <input type="range" id="bone-ry" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+        <div class="control-group">
+            <label>Rotation Z <span class="value-display" id="rz-val">0</span></label>
+            <input type="range" id="bone-rz" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+
+        <h2>Proportions</h2>
+        <div id="proportion-editor"></div>
+        <button id="copy-proportions" class="secondary" style="margin-top:8px">Copy to Clipboard</button>
+
+        <h2>Bone Hierarchy</h2>
+        <div id="bone-list"></div>
+
+        <h2>Debug Info</h2>
+        <div id="debug-info">Loading...</div>
+    </div>
+
+    <script src="../lib/three.min.js"></script>
+    <script src="../src/entities/HumanoidFactory.js"></script>
+    <script>
+        // Scene setup
+        const canvas = document.getElementById('canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(0x1a1a2e);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+        camera.position.set(0, 1.2, 5);
+        camera.lookAt(0, 0.9, 0);
+
+        // Lighting
+        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambient);
+        const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+        directional.position.set(5, 10, 5);
+        scene.add(directional);
+        const backLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+        backLight.position.set(-5, 5, -5);
+        scene.add(backLight);
+
+        // Grid
+        const grid = new THREE.GridHelper(4, 20, 0x0f3460, 0x0a2040);
+        scene.add(grid);
+
+        // Axis helper at origin
+        const axisHelper = new THREE.AxesHelper(0.5);
+        scene.add(axisHelper);
+
+        // State
+        let humanoid = null;
+        let boneAxes = [];
+        let selectedBone = null;
+        let cameraAngle = 0;
+        let cameraPitch = 0.3;
+        let autoRotateSpeed = 0;
+
+        // Mouse controls
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            cameraAngle -= dx * 0.01;
+            cameraPitch = Math.max(-1, Math.min(1, cameraPitch + dy * 0.01));
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            updateCamera();
+        });
+
+        canvas.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+
+        canvas.addEventListener('wheel', (e) => {
+            const dist = document.getElementById('camera-dist');
+            dist.value = Math.max(2, Math.min(10, parseFloat(dist.value) + e.deltaY * 0.01));
+            document.getElementById('dist-val').textContent = parseFloat(dist.value).toFixed(1);
+            updateCamera();
+        });
+
+        function updateCamera() {
+            const dist = parseFloat(document.getElementById('camera-dist').value);
+            camera.position.x = Math.sin(cameraAngle) * Math.cos(cameraPitch) * dist;
+            camera.position.y = 1 + Math.sin(cameraPitch) * dist * 0.5;
+            camera.position.z = Math.cos(cameraAngle) * Math.cos(cameraPitch) * dist;
+            camera.lookAt(0, 0.9, 0);
+        }
+
+        // Build humanoid model
+        function buildModel() {
+            // Remove old model
+            if (humanoid) {
+                scene.remove(humanoid.root);
+                boneAxes.forEach(a => scene.remove(a));
+                boneAxes = [];
+            }
+
+            const teamColor = document.getElementById('team-color').value;
+            humanoid = HumanoidFactory.create({
+                teamColor: parseInt(teamColor.slice(1), 16),
+                skinColor: 0xddccbb,
+                eyeColor: 0x446688,
+                hasMask: false,
+                slot: 1
+            });
+
+            scene.add(humanoid.root);
+
+            // Create bone axes
+            updateBoneAxes();
+
+            // Populate bone select
+            const select = document.getElementById('bone-select');
+            select.innerHTML = '<option value="">-- Select Bone --</option>';
+            Object.keys(humanoid.bones).sort().forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+
+            // Populate bone list
+            updateBoneList();
+            updateProportionEditor();
+            updateDebugInfo();
+        }
+
+        function updateBoneAxes() {
+            boneAxes.forEach(a => scene.remove(a));
+            boneAxes = [];
+
+            if (!document.getElementById('show-bones').checked) return;
+            if (!humanoid) return;
+
+            Object.values(humanoid.bones).forEach(bone => {
+                const axis = new THREE.AxesHelper(0.08);
+                bone.add(axis);
+                boneAxes.push(axis);
+            });
+        }
+
+        function updateBoneList() {
+            const list = document.getElementById('bone-list');
+            list.innerHTML = '';
+
+            if (!humanoid) return;
+
+            function addBone(bone, indent = 0) {
+                const div = document.createElement('div');
+                div.className = 'bone-item' + (selectedBone === bone.name ? ' selected' : '');
+                div.style.paddingLeft = (indent * 12) + 'px';
+
+                const pos = new THREE.Vector3();
+                bone.getWorldPosition(pos);
+
+                div.innerHTML = `<span>${bone.name}</span><span style="color:#666">${pos.y.toFixed(2)}</span>`;
+                div.onclick = () => {
+                    selectedBone = bone.name;
+                    document.getElementById('bone-select').value = bone.name;
+                    updateBoneSliders();
+                    updateBoneList();
+                };
+                list.appendChild(div);
+
+                bone.children.forEach(child => {
+                    if (child.userData.isBone) {
+                        addBone(child, indent + 1);
+                    }
+                });
+            }
+
+            if (humanoid.bones.pelvis) {
+                addBone(humanoid.bones.pelvis, 0);
+            }
+        }
+
+        function updateBoneSliders() {
+            if (!humanoid || !selectedBone) return;
+            const bone = humanoid.bones[selectedBone];
+            if (!bone) return;
+
+            document.getElementById('bone-rx').value = bone.rotation.x;
+            document.getElementById('bone-ry').value = bone.rotation.y;
+            document.getElementById('bone-rz').value = bone.rotation.z;
+            document.getElementById('rx-val').textContent = bone.rotation.x.toFixed(2);
+            document.getElementById('ry-val').textContent = bone.rotation.y.toFixed(2);
+            document.getElementById('rz-val').textContent = bone.rotation.z.toFixed(2);
+        }
+
+        function updateProportionEditor() {
+            const editor = document.getElementById('proportion-editor');
+            editor.innerHTML = '';
+
+            const props = HumanoidFactory.proportions;
+            const editable = ['head', 'neck', 'chest', 'upperArm', 'forearm', 'hand', 'thigh', 'shin'];
+
+            editable.forEach(part => {
+                const p = props[part];
+                if (!p) return;
+
+                Object.entries(p).forEach(([key, val]) => {
+                    const row = document.createElement('div');
+                    row.className = 'prop-row';
+                    row.innerHTML = `
+                        <label>${part}.${key}</label>
+                        <input type="number" step="0.01" value="${val}" data-part="${part}" data-key="${key}">
+                    `;
+                    editor.appendChild(row);
+                });
+            });
+
+            editor.querySelectorAll('input').forEach(input => {
+                input.addEventListener('change', () => {
+                    const part = input.dataset.part;
+                    const key = input.dataset.key;
+                    HumanoidFactory.proportions[part][key] = parseFloat(input.value);
+                    buildModel();
+                });
+            });
+        }
+
+        function updateDebugInfo() {
+            const info = document.getElementById('debug-info');
+            if (!humanoid) {
+                info.textContent = 'No model loaded';
+                return;
+            }
+
+            let text = 'Bone World Positions (Y):\n';
+            text += '─'.repeat(30) + '\n';
+
+            const bones = ['head', 'neck', 'chest', 'stomach', 'pelvis', 'handR', 'handL', 'footR', 'footL'];
+            bones.forEach(name => {
+                const bone = humanoid.bones[name];
+                if (bone) {
+                    const pos = new THREE.Vector3();
+                    bone.getWorldPosition(pos);
+                    text += `${name.padEnd(12)} Y: ${pos.y.toFixed(3)}\n`;
+                }
+            });
+
+            text += '\nHitbox Parts:\n';
+            text += '─'.repeat(30) + '\n';
+            humanoid.hitboxes.forEach(hb => {
+                text += `${hb.bone.padEnd(12)} → ${hb.part}\n`;
+            });
+
+            info.textContent = text;
+        }
+
+        // Event handlers
+        document.getElementById('camera-dist').addEventListener('input', (e) => {
+            document.getElementById('dist-val').textContent = parseFloat(e.target.value).toFixed(1);
+            updateCamera();
+        });
+
+        document.getElementById('auto-rotate').addEventListener('input', (e) => {
+            autoRotateSpeed = parseFloat(e.target.value);
+            document.getElementById('rot-val').textContent = autoRotateSpeed.toFixed(1);
+        });
+
+        document.getElementById('reset-view').addEventListener('click', () => {
+            cameraAngle = 0;
+            cameraPitch = 0.3;
+            document.getElementById('camera-dist').value = 5;
+            document.getElementById('dist-val').textContent = '5';
+            updateCamera();
+        });
+
+        document.getElementById('front-view').addEventListener('click', () => {
+            cameraAngle = 0;
+            cameraPitch = 0.2;
+            updateCamera();
+        });
+
+        document.getElementById('side-view').addEventListener('click', () => {
+            cameraAngle = Math.PI / 2;
+            cameraPitch = 0.2;
+            updateCamera();
+        });
+
+        document.getElementById('rebuild-model').addEventListener('click', buildModel);
+        document.getElementById('show-bones').addEventListener('change', updateBoneAxes);
+        document.getElementById('show-grid').addEventListener('change', (e) => {
+            grid.visible = e.target.checked;
+        });
+
+        document.getElementById('show-wireframe').addEventListener('change', (e) => {
+            if (!humanoid) return;
+            humanoid.root.traverse(child => {
+                if (child.isMesh && child.material) {
+                    child.material.wireframe = e.target.checked;
+                }
+            });
+        });
+
+        document.querySelectorAll('.pose-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!humanoid) return;
+                const poseName = btn.dataset.pose;
+                const pose = HumanoidFactory.poses[poseName];
+                if (pose) {
+                    // Reset first
+                    Object.values(humanoid.bones).forEach(bone => {
+                        bone.rotation.set(0, 0, 0);
+                    });
+                    humanoid.setPose(pose);
+                    updateBoneSliders();
+                    updateDebugInfo();
+                }
+            });
+        });
+
+        document.getElementById('bone-select').addEventListener('change', (e) => {
+            selectedBone = e.target.value;
+            updateBoneSliders();
+            updateBoneList();
+        });
+
+        ['bone-rx', 'bone-ry', 'bone-rz'].forEach((id, i) => {
+            const axis = ['x', 'y', 'z'][i];
+            const valId = ['rx-val', 'ry-val', 'rz-val'][i];
+
+            document.getElementById(id).addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById(valId).textContent = val.toFixed(2);
+
+                if (!humanoid || !selectedBone) return;
+                const bone = humanoid.bones[selectedBone];
+                if (bone) {
+                    bone.rotation[axis] = val;
+                    updateDebugInfo();
+                }
+            });
+        });
+
+        document.getElementById('copy-proportions').addEventListener('click', () => {
+            const props = JSON.stringify(HumanoidFactory.proportions, null, 2);
+            navigator.clipboard.writeText(props);
+            alert('Proportions copied to clipboard!');
+        });
+
+        // Resize handler
+        function resize() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            renderer.setSize(rect.width, rect.height);
+            camera.aspect = rect.width / rect.height;
+            camera.updateProjectionMatrix();
+        }
+        window.addEventListener('resize', resize);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (autoRotateSpeed > 0) {
+                cameraAngle += autoRotateSpeed * 0.01;
+                updateCamera();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Initialize
+        resize();
+        buildModel();
+        animate();
+
+        console.log('Humanoid Viewer loaded. HumanoidFactory:', HumanoidFactory);
+    </script>
+</body>
+</html>
